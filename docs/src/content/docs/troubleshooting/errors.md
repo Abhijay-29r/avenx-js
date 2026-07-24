@@ -1347,6 +1347,74 @@ const computed = {
 
 Deriving the condition through a guarded `computed` property ensures `data-ax-show` always receives a safe boolean and prevents evaluation failures.
 
+### AVX_W23 — DIRECTIVE_CLASS_EVALUATION_FAILED
+
+**Warning Message**
+Failed to evaluate data-ax-class: {0}. Error: {1}
+
+**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the expression bound to a `data-ax-class="..."` directive, but the expression throws an exception. Since `data-ax-class` adds and removes classes based on the evaluated value, any error during evaluation prevents the renderer from applying the intended dynamic classes for that update.
+
+This typically happens for a few common reasons:
+
+- The bound expression accesses a nested property on a value that is `null` or `undefined` (e.g. `state.user.role` before `state.user` has loaded).
+- A class map references a method or computed value that has not been declared.
+- Asynchronous data used to choose classes has not resolved yet.
+- A typo or syntax error prevents the expression from evaluating.
+
+**Resolution:** To resolve this warning:
+
+1. Initialize any state used by `data-ax-class` before the component renders.
+2. Guard nested property access with optional chaining or explicit checks.
+3. Return either a string of class names or an object whose keys are class names and whose values are booleans.
+4. Move complex class decisions into a `computed` property so the template stays small and the logic is easier to test.
+
+**Incorrect**
+
+```javascript
+const state = {};
+```
+
+```html
+<button data-ax-class="{ admin: state.user.role === 'admin' }">
+  Save
+</button>
+```
+
+Since `state.user` is `undefined`, accessing `.role` throws, and the dynamic class expression fails to evaluate.
+
+**Correct**
+
+```javascript
+const state = {
+  user: null,
+};
+```
+
+```html
+<button data-ax-class="{ admin: state.user && state.user.role === 'admin' }">
+  Save
+</button>
+```
+
+**Defensive Example**
+
+```javascript
+const computed = {
+  buttonClasses() {
+    return {
+      admin: state.user?.role === 'admin',
+      loading: state.isSaving === true,
+    };
+  },
+};
+```
+
+```html
+<button data-ax-class="computed.buttonClasses">Save</button>
+```
+
+Deriving class maps through guarded `computed` properties ensures `data-ax-class` receives a safe value and prevents evaluation failures when optional state is missing.
+
 ### AVX_W24 — COMPILER_PREPROCESSOR_MISSING
 
 **Warning Message**
