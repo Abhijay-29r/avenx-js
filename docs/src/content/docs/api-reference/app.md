@@ -52,6 +52,24 @@ Registers a global reactive state bridge. The bridge will be initialized and exp
 app.registerBridge('AuthBridge', { isLoggedIn: false });
 ```
 
+### `onError(handler)`
+
+Registers a global error handler for capturing unhandled errors that occur during component lifecycle events, template evaluations, and event handler executions. Once registered, this handler receives all unhandled errors from the application's error boundary, replacing the default behavior of logging to console.
+
+The handler is invoked synchronously with the error object. AvenxApp allows registering at most one global error handler — calling `onError` a second time replaces the previous handler.
+
+| Param     | Type       | Description                                                             |
+| --------- | ---------- | ----------------------------------------------------------------------- |
+| `handler` | `Function` | A callback receiving the error object as its first and only argument.    |
+
+```javascript
+app.onError((error) => {
+  reportErrorToServer(error);
+  showErrorToast('Something went wrong. Please try again.');
+  console.warn('Avenx error caught:', error);
+});
+```
+
 ### `mount(name, targetSelector)`
 
 Mounts a registered component onto the specified DOM element, triggering the component lifecycle and bootstrapping the template rendering. If `targetSelector` is omitted, it falls back to the `config.target` selector provided in the constructor.
