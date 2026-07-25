@@ -301,6 +301,8 @@ Avenx-JS provides comprehensive testing support, from fast unit tests to full br
 
 Playwright E2E tests run against **Chromium**, **Firefox**, and **WebKit** in headless mode. See [test/e2e/README.md](test/e2e/README.md) for detailed configuration and usage guides.
 
+| `avenx serve [port]`   | Starts the dev server with hot-reload and launches the [Inspection Dashboard](docs/inspection-dashboard.md) at `/__avenx-inspect`. |
+
 ---
 
 ## 📌 Status
