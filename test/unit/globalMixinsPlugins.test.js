@@ -98,15 +98,15 @@ async function runTests() {
     });
 
     class TestComponent extends AvenxComponent {
-      constructor(initialState = {}, computed = {}, bridges = {}, template = '', methods = {}, props = {}, styles = {}) {
+      constructor(bridges = {}) {
         super(
           { overriddenState: 'comp-value', compState: 123 },
-          computed,
+          {},
           bridges,
           '<div>{{mixinState}} - {{mixinComputed}} - {{mixinMethod()}} - {{overriddenState}}</div>',
-          methods,
-          props,
-          styles
+          {},
+          {},
+          {}
         );
       }
     }
