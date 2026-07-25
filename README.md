@@ -251,6 +251,8 @@ my-avenx-app/
 | `avenx check` (or `lint`) | Validates component templates without building.        |
 | `avenx serve [port]`      | Starts the dev server with hot-reload (default: 3000). |
 
+| `avenx serve [port]`   | Starts the dev server with hot-reload and launches the [Inspection Dashboard](docs/inspection-dashboard.md) at `/__avenx-inspect`. |
+
 ---
 
 ## 📌 Status
