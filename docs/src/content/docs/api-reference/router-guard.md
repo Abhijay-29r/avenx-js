@@ -31,7 +31,7 @@ const router = AvenxApp.initRouter(routes, {
 
 ### Methods
 
-- ### `Maps(hash)`
+- ### `navigate(hash)`
   Programs a programmatic navigation to the specified route hash. It updates the browser history and triggers the matching route lifecycle.
 
 ### `destroy()`
