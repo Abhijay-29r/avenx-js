@@ -105,6 +105,31 @@ btn.setProps({
 
 Cleans up event listeners and empties the mounted container.
 
+### `$watch(source, callback, options)`
+
+Watches a deeply nested reactive property using a dot-separated string path. Unlike `watch()`, which accepts a getter function, `$watch()` resolves string paths like `'user.settings.theme'` against the component's reactive state, making it convenient for observing nested properties without writing inline getter functions.
+
+The method is also exposed in the evaluation scope of template expressions.
+
+| Param      | Type       | Description                                                             |
+| ---------- | ---------- | ----------------------------------------------------------------------- |
+| `source`   | `string`   | A dot-separated string path to the property to watch (e.g. `'user.settings.theme'`). |
+| `callback` | `Function` | A function invoked when the watched value changes. Receives the new value and the old value as arguments. |
+| `options`  | `object`   | Optional. An object with the `immediate` boolean property. When `true`, the callback is invoked immediately with the current value. |
+
+```javascript
+const comp = new SettingsComponent();
+
+comp.$watch('user.settings.theme', (newVal, oldVal) => {
+  console.log(`Theme changed from ${oldVal} to ${newVal}`);
+  applyTheme(newVal);
+});
+
+comp.$watch('user.settings.theme', (newVal, oldVal) => {
+  console.log(`Theme changed from ${oldVal} to ${newVal}`);
+}, { immediate: true });
+```
+
 ### `update()`
 
 Forces a DOM patch and re-evaluates slots. Typically called automatically by the scheduler.
