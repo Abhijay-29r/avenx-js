@@ -103,7 +103,7 @@ async function runTests() {
           { overriddenState: 'comp-value', compState: 123 },
           computed,
           bridges,
-          '<div>[[mixinState]] - [[mixinComputed]] - [[mixinMethod()]] - [[overriddenState]]</div>',
+          '<div>{{mixinState}} - {{mixinComputed}} - {{mixinMethod()}} - {{overriddenState}}</div>',
           methods,
           props,
           styles
@@ -184,7 +184,7 @@ async function runTests() {
 
     class TestCompCustomProps extends AvenxComponent {
       constructor() {
-        super({}, {}, {}, '<div>[[customProp]] - [[customHelper()]]</div>');
+        super({}, {}, {}, '<div>{{customProp}} - {{customHelper()}}</div>');
       }
     }
 
@@ -239,7 +239,7 @@ async function runTests() {
 
     class TestCompLifecycle extends AvenxComponent {
       constructor() {
-        super({ x: 1 }, {}, {}, '<div>[[x]]</div>', {
+        super({ x: 1 }, {}, {}, '<div>{{x}}</div>', {
           onBeforeMount() {
             order.push('comp-before-mount');
           },
