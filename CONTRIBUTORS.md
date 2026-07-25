@@ -100,6 +100,7 @@ If you have questions or want to contribute, feel free to reach out.
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/YANGCHUNHONG3000"><img src="https://avatars.githubusercontent.com/u/296082635?v=4?s=100" width="100px;" alt="Mike Yang"/><br /><sub><b>Mike Yang</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=YANGCHUNHONG3000" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.linked.com.in/sushantkatariaa"><img src="https://avatars.githubusercontent.com/u/3662310?v=4?s=100" width="100px;" alt="Sushant Kataria"/><br /><sub><b>Sushant Kataria</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=sushant-kataria" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
