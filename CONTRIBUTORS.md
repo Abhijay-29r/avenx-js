@@ -98,6 +98,9 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://elmoak.co.in"><img src="https://avatars.githubusercontent.com/u/200978133?v=4?s=100" width="100px;" alt="vanta.nox"/><br /><sub><b>vanta.nox</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Ap-0007" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tarun-bandi"><img src="https://avatars.githubusercontent.com/u/57272137?v=4?s=100" width="100px;" alt="Tarun Bandi"/><br /><sub><b>Tarun Bandi</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=tarun-bandi" title="Documentation">📖</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/YANGCHUNHONG3000"><img src="https://avatars.githubusercontent.com/u/296082635?v=4?s=100" width="100px;" alt="Mike Yang"/><br /><sub><b>Mike Yang</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=YANGCHUNHONG3000" title="Documentation">📖</a></td>
+    </tr>
   </tbody>
 </table>
 
