@@ -56,6 +56,22 @@ function runTests() {
   assert.ok(configErr.message.includes('[AVX_W25]'));
   assert.ok(configErr.message.includes('avenx.config.json'));
 
+  // 6. StyleCompilerError preprocessor compilation failure (AVX_W26)
+  const preprocessErr = new StyleCompilerError(
+    AvenxErrorCodes.COMPILER_PREPROCESSOR_FAILED,
+    'sass',
+    'Unexpected token',
+  );
+
+  assert.ok(preprocessErr instanceof Error, 'StyleCompilerError should inherit from Error');
+  assert.ok(preprocessErr instanceof AvenxError, 'StyleCompilerError should inherit from AvenxError');
+  assert.ok(preprocessErr instanceof CompilerError, 'StyleCompilerError should inherit from CompilerError');
+  assert.strictEqual(preprocessErr.name, 'StyleCompilerError');
+  assert.strictEqual(preprocessErr.code, 'AVX_W26');
+  assert.ok(preprocessErr.message.includes('[AVX_W26]'));
+  assert.ok(preprocessErr.message.includes('sass'));
+  assert.ok(preprocessErr.message.includes('Unexpected token'));
+
   console.log('  ✅ Specialized compiler error classes unit tests passed!');
 }
 
