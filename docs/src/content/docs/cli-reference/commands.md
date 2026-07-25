@@ -89,11 +89,17 @@ Press **Ctrl + C** to stop watching.
 
 ### 6. `avenx serve [port]`
 
-Starts a local live-reloading development server (default port: 3000). 
+Starts a local live-reloading development server (default port: 3000).
 
 #### Description
 
 The development server watches the `src/` directory for code modifications and automatically triggers a project rebuild. It utilizes a Server-Sent Events (SSE) bridge to instantly dispatch a reload event to all connected browser instances upon a successful compilation.
+
+#### Visual Inspection Dashboard
+
+Avenx includes a visual **Inspection Dashboard** built directly into the development server. It provides real-time visibility into your application's dev configuration, active routes, mounted components, and registered bridges to streamline local debugging.
+
+Once the development server is running, navigate to `http://localhost:[port]/__avenx-inspect` (typically `http://localhost:3000/__avenx-inspect`) to access the dashboard.
 
 > **Note on Reloading Behavior:** When a code change is detected, the development server triggers a full page refresh (`window.location.reload()`) in the connected browsers to apply the updates. This is a **Live Reloading** mechanism rather than Hot Module Replacement (HMR); as a result, transient local application state will be reset when the page refreshes.
 
@@ -136,4 +142,3 @@ The following flags can be used globally with the `avenx` CLI:
 
 - **`--version`** (alias: **`-v`**)  
   Output the current version of the Avenx-JS CLI package.
-
