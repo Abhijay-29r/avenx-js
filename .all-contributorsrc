@@ -515,6 +515,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "tarun-bandi",
+      "name": "Tarun Bandi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/57272137?v=4",
+      "profile": "https://github.com/tarun-bandi",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
