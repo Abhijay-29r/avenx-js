@@ -46,18 +46,16 @@ export function getInspectorHtml(cli) {
 <head>
     <meta charset="utf-8">
     <title>Avenx Inspection Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f1015;
-            --card-bg: rgba(22, 24, 33, 0.7);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --primary-gradient: linear-gradient(135deg, #a78bfa, #6366f1);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent-cyan: #22d3ee;
-            --accent-green: #34d399;
-            --accent-red: #f87171;
+            --bg-color: #09090b;
+            --card-bg: #18181b;
+            --card-border: #27272a;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
         }
 
         * {
@@ -67,14 +65,11 @@ export function getInspectorHtml(cli) {
         }
 
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             min-height: 100vh;
             overflow-x: hidden;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(167, 139, 250, 0.1) 0px, transparent 50%);
         }
 
         .dashboard-wrapper {
@@ -87,10 +82,9 @@ export function getInspectorHtml(cli) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1.5rem 2rem;
+            padding: 1rem 2rem;
             border-bottom: 1px solid var(--card-border);
-            background: rgba(15, 16, 21, 0.8);
-            backdrop-filter: blur(12px);
+            background: var(--card-bg);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -102,41 +96,32 @@ export function getInspectorHtml(cli) {
             gap: 0.75rem;
         }
 
-        .logo {
-            font-size: 1.5rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
-        }
-
         .brand .title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            letter-spacing: -0.025em;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: -0.01em;
         }
 
         .badge {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            padding: 0.35rem 0.75rem;
-            border-radius: 9999px;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            transition: all 0.3s ease;
         }
 
         .badge.disconnected {
-            background: rgba(248, 113, 113, 0.15);
+            background: rgba(239, 68, 68, 0.1);
             color: var(--accent-red);
-            border: 1px solid rgba(248, 113, 113, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
         .badge.connected {
-            background: rgba(52, 211, 153, 0.15);
+            background: rgba(16, 185, 129, 0.1);
             color: var(--accent-green);
-            border: 1px solid rgba(52, 211, 153, 0.3);
-            box-shadow: 0 0 10px rgba(52, 211, 153, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
         .dashboard-main {
@@ -147,7 +132,7 @@ export function getInspectorHtml(cli) {
         }
 
         .sidebar {
-            width: 300px;
+            width: 280px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -165,21 +150,16 @@ export function getInspectorHtml(cli) {
         .card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
-            backdrop-filter: blur(16px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.15);
+            border-color: #3f3f46;
         }
 
         .card h3 {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 600;
             margin-bottom: 1.25rem;
             color: var(--text-main);
@@ -189,15 +169,15 @@ export function getInspectorHtml(cli) {
         }
 
         .card h4 {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
             margin-top: 1rem;
             margin-bottom: 0.75rem;
-            color: var(--accent-cyan);
+            color: var(--accent-blue);
         }
 
         .config-item {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             margin-bottom: 0.75rem;
             display: flex;
             justify-content: space-between;
@@ -205,6 +185,7 @@ export function getInspectorHtml(cli) {
 
         .config-item strong {
             color: var(--text-muted);
+            font-weight: 500;
         }
 
         .info-list {
@@ -229,9 +210,9 @@ export function getInspectorHtml(cli) {
         }
 
         .info-item {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
             padding: 0.75rem 1rem;
             font-size: 0.85rem;
             display: flex;
@@ -241,7 +222,8 @@ export function getInspectorHtml(cli) {
         }
 
         .info-item:hover {
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.03);
+            border-color: #3f3f46;
         }
 
         .info-header {
@@ -253,7 +235,7 @@ export function getInspectorHtml(cli) {
 
         .route-path {
             font-family: monospace;
-            color: var(--accent-cyan);
+            color: var(--accent-blue);
             font-weight: 600;
         }
 
@@ -262,23 +244,23 @@ export function getInspectorHtml(cli) {
         }
 
         .route-info {
-            background: rgba(34, 211, 238, 0.05);
-            border: 1px solid rgba(34, 211, 238, 0.15);
-            border-radius: 8px;
+            background: rgba(59, 130, 246, 0.03);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 6px;
             padding: 0.75rem 1rem;
             font-family: monospace;
             font-size: 0.85rem;
-            color: var(--accent-cyan);
+            color: var(--accent-blue);
         }
 
         .comp-name {
             font-weight: 600;
-            color: #a78bfa;
+            color: var(--text-main);
         }
 
         .comp-details {
             padding-left: 0.75rem;
-            border-left: 2px solid rgba(167, 139, 250, 0.3);
+            border-left: 2px solid var(--card-border);
             font-size: 0.8rem;
             color: var(--text-muted);
             width: 100%;
@@ -286,12 +268,13 @@ export function getInspectorHtml(cli) {
 
         .bridge-header {
             font-weight: 600;
-            color: var(--accent-green);
+            color: var(--text-main);
         }
 
         .state-explorer {
             font-family: monospace;
-            background: rgba(0, 0, 0, 0.2);
+            background: #09090b;
+            border: 1px solid var(--card-border);
             border-radius: 6px;
             padding: 0.5rem;
             margin-top: 0.5rem;
@@ -313,7 +296,6 @@ export function getInspectorHtml(cli) {
     <div class="dashboard-wrapper">
         <header class="app-header">
             <div class="brand">
-                <span class="logo">▲</span>
                 <span class="title">Avenx Inspector</span>
             </div>
             <div class="status-indicator">
@@ -428,7 +410,7 @@ export function getInspectorHtml(cli) {
             const currentRouteInfo = document.getElementById('currentRouteInfo');
             if (data.currentRoute) {
                 currentRouteInfo.innerHTML = \`
-                    <div style="margin-bottom:0.25rem;"><strong>Hash:</strong> <span style="color:var(--accent-cyan);">\${data.currentRoute.hash}</span></div>
+                    <div style="margin-bottom:0.25rem;"><strong>Hash:</strong> <span style="color:var(--accent-blue);">\${data.currentRoute.hash}</span></div>
                     <div style="margin-bottom:0.25rem;"><strong>Page:</strong> \${data.currentRoute.page}</div>
                     <div style="margin-top:0.5rem;"><strong>Params:</strong></div>
                     <pre class="state-explorer">\${JSON.stringify(data.currentRoute.params || {}, null, 2)}</pre>
