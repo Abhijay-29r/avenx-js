@@ -606,3 +606,16 @@ export class AvenxSandbox {
 
 export function initInspector(app: AvenxApp): void;
 
+export class LruCache<T = any> {
+    limit: number;
+    onEvict: ((key: string, value: T) => void) | null;
+    cache: Map<string, T>;
+    constructor(limit: number, onEvict?: ((key: string, value: T) => void) | null);
+    get(key: string): T | undefined;
+    set(key: string, value: T): void;
+    has(key: string): boolean;
+    delete(key: string): boolean;
+    clear(): void;
+    readonly size: number;
+}
+
