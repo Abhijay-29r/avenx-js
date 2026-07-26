@@ -18,14 +18,24 @@ The `<VirtualList>` component is a built-in, globally available component design
 
 ## Usage Example
 
-To pass templates into the `<VirtualList>`, use the `data-ax-as="item"` directive on your template slot:
+To pass templates into the `<VirtualList>`, use the `data-ax-as="item"` directive on your template slot.
+
+The template exposes the following variables:
+
+| Variable | Description |
+| :--- | :--- |
+| `item` | The current item being rendered. |
+| `index` | The zero-based index of the current item in the list. |
 
 ```html
 <VirtualList :item-height="50" :items="myLargeDataset">
-  <template data-ax-as="item" let:item>
+  <template data-ax-as="item" let:item let:index>
     <div class="list-item">
+      <span>#{{ index }}</span>
       <h3>{{ item.title }}</h3>
       <p>{{ item.description }}</p>
     </div>
   </template>
 </VirtualList>
+
+The `index` variable is automatically provided by `<VirtualList>` and represents the zero-based position of the current item in the rendered list.
