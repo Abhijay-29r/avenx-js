@@ -447,7 +447,7 @@ export class EventBinder {
  * Event wrapper to invoke custom methods.
  */
 export class EventExecutor {
-    constructor(runHandler: (source: string, event: Event | null) => any);
+    constructor(runHandler: (source: string | Function, event: Event | null) => any);
     execute(source: string, event?: Event | null): any;
 }
 

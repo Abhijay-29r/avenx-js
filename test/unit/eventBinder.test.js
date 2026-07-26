@@ -2,6 +2,8 @@ import assert from 'assert';
 import '../helpers/register-happy-dom.js';
 import { EventBinder } from '../../lib/core/events/bindEvents.js';
 import { AvenxComponent } from '../../lib/core/runtime/AvenxComponent.js';
+import { EventExecutor } from '../../lib/core/events/eventExecutor.js';
+import { AvenxSandbox } from '../../lib/core/security/sandbox.js';
 
 try {
   console.log('🧪 Testing EventBinder...');
@@ -179,6 +181,68 @@ try {
 
   assert.strictEqual(customEventReceived, true, 'my-custom-event should bubble to container');
   assert.deepStrictEqual(customEventDetail, { user: 'Avenx' }, 'Event detail payload should be preserved');
+
+  // 6. Test EventExecutor compilation caching and error handling
+  console.log('  Testing EventExecutor caching and validation...');
+  
+  let validateCount = 0;
+  const originalValidate = AvenxSandbox.validateSource;
+  AvenxSandbox.validateSource = (source) => {
+    validateCount++;
+    return originalValidate.call(AvenxSandbox, source);
+  };
+
+  try {
+    let callCount = 0;
+    const testExecutor = new EventExecutor((fn, event) => {
+      callCount++;
+      const state = { counter: 10 };
+      const methods = {
+        add(val) {
+          state.counter += val;
+        }
+      };
+      const args = [5];
+      fn(state, methods, event, args);
+      return state.counter;
+    });
+
+    // First execution: compiles, validates, and runs
+    const res1 = testExecutor.execute('counter++; add(args[0])');
+    assert.strictEqual(res1, 16, 'Should correctly execute event statement with state, methods, and args');
+    assert.strictEqual(validateCount, 1, 'Should call validateSource exactly once on first compile');
+    assert.strictEqual(callCount, 1);
+
+    // Second execution of the SAME expression: should hit cache
+    const res2 = testExecutor.execute('counter++; add(args[0])');
+    assert.strictEqual(res2, 16, 'Should yield identical result on cached execution');
+    assert.strictEqual(validateCount, 1, 'Should NOT call validateSource on cache hit');
+    assert.strictEqual(callCount, 2);
+
+    // Third execution of a DIFFERENT expression: should compile and validate again
+    const res3 = testExecutor.execute('counter = 0');
+    assert.strictEqual(res3, 0, 'Should compile and execute new expression');
+    assert.strictEqual(validateCount, 2, 'Should validate new expression');
+
+    // Error handling - Sandbox violation (Prototype pollution check)
+    assert.throws(
+      () => testExecutor.execute('counter.constructor.prototype.polluted = true'),
+      /Access to "constructor", "__proto__", or "prototype" is blocked/,
+      'Should throw Sandbox Violation error during compilation of unsafe expressions'
+    );
+
+    // Error handling - Syntax error
+    assert.throws(
+      () => testExecutor.execute('counter +++'),
+      SyntaxError,
+      'Should throw SyntaxError during compilation of syntactically invalid expressions'
+    );
+
+    testExecutor.teardown();
+  } finally {
+    // Restore the original validateSource method
+    AvenxSandbox.validateSource = originalValidate;
+  }
 
   console.log('  ✅ EventBinder tests passed!');
 } catch (error) {
