@@ -133,7 +133,7 @@ export async function initProject(cli, args = []) {
           '    max-width: 800px;\n' +
           '    margin: 0 auto;\n' +
           '}\n' +
-          '</ @css>\n',
+          '</@css>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/pages/home.page.css`);
     }
@@ -161,7 +161,7 @@ export async function initProject(cli, args = []) {
           '    max-width: 800px;\n' +
           '    margin: 0 auto;\n' +
           '}\n' +
-          '</ @css>\n',
+          '</@css>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/pages/about.page.css`);
     }
@@ -186,7 +186,7 @@ export async function initProject(cli, args = []) {
           '    @def primary #6366f1;\n' +
           '    @def dark #1e1b4b;\n' +
           '    @def gray #e2e8f0;\n' +
-          '</ @global>\n\n' +
+          '</@global>\n\n' +
           '<@css>\n' +
           '    container {\n' +
           '        display: flex;\n' +
@@ -204,7 +204,7 @@ export async function initProject(cli, args = []) {
           '    link:hover {\n' +
           '        color: @primary;\n' +
           '    }\n' +
-          '</ @css>\n',
+          '</@css>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/components/navbar/navbar.component.css`);
     }
