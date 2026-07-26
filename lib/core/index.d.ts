@@ -119,6 +119,16 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     onUnmount?(): void;
 
     /**
+     * Component activated from keep-alive cache hook.
+     */
+    onActivate?(params?: Record<string, any>): void;
+
+    /**
+     * Component deactivated/cached hook.
+     */
+    onDeactivate?(): void;
+
+    /**
      * Programmatically registers a watcher on a reactive expression/function.
      * @param getter Evaluation function returning value to watch.
      * @param callback Triggers when the value changes.
