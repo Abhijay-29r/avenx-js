@@ -615,6 +615,12 @@ async function runTest() {
     assert.ok(fs.existsSync(navbarCss), 'navbar.component.css should exist');
     assert.ok(fs.existsSync(mainAppJs), 'main.app.js should exist');
 
+    assert.match(fs.readFileSync(homePageCss, 'utf-8'), /<\/@css>/, 'home page CSS should use a standard closing tag');
+    assert.match(fs.readFileSync(aboutPageCss, 'utf-8'), /<\/@css>/, 'about page CSS should use a standard closing tag');
+    const navbarCssContent = fs.readFileSync(navbarCss, 'utf-8');
+    assert.match(navbarCssContent, /<\/@global>/, 'navbar CSS should use a standard global closing tag');
+    assert.match(navbarCssContent, /<\/@css>/, 'navbar CSS should use a standard CSS closing tag');
+
     // Verify mainAppJs contains routing layout registration
     const interactiveMainAppContent = fs.readFileSync(mainAppJs, 'utf-8');
     assert.ok(interactiveMainAppContent.includes("app.register('Navbar', Navbar)"), 'navbar component should be registered');
