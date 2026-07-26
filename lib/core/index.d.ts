@@ -119,6 +119,16 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     onUnmount?(): void;
 
     /**
+     * Component activated from keep-alive cache hook.
+     */
+    onActivate?(params?: Record<string, any>): void;
+
+    /**
+     * Component deactivated/cached hook.
+     */
+    onDeactivate?(): void;
+
+    /**
      * Programmatically registers a watcher on a reactive expression/function.
      * @param getter Evaluation function returning value to watch.
      * @param callback Triggers when the value changes.
@@ -605,4 +615,17 @@ export class AvenxSandbox {
 }
 
 export function initInspector(app: AvenxApp): void;
+
+export class LruCache<T = any> {
+    limit: number;
+    onEvict: ((key: string, value: T) => void) | null;
+    cache: Map<string, T>;
+    constructor(limit: number, onEvict?: ((key: string, value: T) => void) | null);
+    get(key: string): T | undefined;
+    set(key: string, value: T): void;
+    has(key: string): boolean;
+    delete(key: string): boolean;
+    clear(): void;
+    readonly size: number;
+}
 
