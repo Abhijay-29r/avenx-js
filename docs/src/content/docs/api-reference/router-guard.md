@@ -18,6 +18,8 @@ The second argument to `initRouter` is an optional `options` object that control
 | `prefix`               | `string` | `''`        | A base path prepended to every route hash. Useful when the app is served from a subdirectory (e.g. `'/app'` turns `#/dashboard` into `#/app/dashboard`).                                                          |
 | `guardTimeout`         | `number` | `5000`      | Maximum time, in milliseconds, a guard's `canActivate` is allowed to take (including async/promise-based guards) before the navigation is considered stalled and `AVX_R14` (`ROUTER_GUARD_TIMEOUT`) is triggered. |
 | `guardTimeoutRedirect` | `string` | `undefined` | A hash path to redirect to automatically if a guard times out, instead of leaving navigation stalled. If omitted, a timed-out guard simply denies the transition.                                                 |
+| `titlePrefix`          | `string` | `''`        | A string prepended to every resolved route title. Use this to add application-wide branding, such as `MyCompany | `.                                                                                                |
+| `titleSuffix`          | `string` | `''`        | A string appended to every resolved route title. Use this to add consistent branding, such as ` | MyCompany`.                                                                                                      |
 | `transition`           | `string` | `'none'`    | Enables a named transition effect (e.g. `'fade'`, `'slide'`) applied to the page container when navigating between routes.                                                                                        |
 
 ```javascript
@@ -25,8 +27,28 @@ const router = AvenxApp.initRouter(routes, {
   prefix: '/app',
   guardTimeout: 8000,
   guardTimeoutRedirect: '#/login',
+  titlePrefix: 'MyCompany | ',
+  titleSuffix: ' | Avenx',
   transition: 'fade',
 });
+
+const brandingRouter = AvenxApp.initRouter(
+  {
+    '#/': { page: 'Home', title: 'Home' },
+    '#/profile/:id': {
+      page: 'Profile',
+      title: (params) => `Profile ${params.id}`,
+    },
+  },
+  {
+    titlePrefix: 'MyCompany | ',
+    titleSuffix: ' | Avenx',
+  },
+);
+
+// Results in:
+// "MyCompany | Home | Avenx"
+// "MyCompany | Profile 42 | Avenx"
 ```
 
 ### Methods
