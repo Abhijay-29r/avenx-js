@@ -517,3 +517,74 @@ import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
     process.exit(1);
   }
 })();
+
+
+describe('AvenxRouter guard undefined return warning', () => {
+  it('undefined guard return should warn and still allow navigation', async () => {
+    const { AvenxApp } = await import('../../lib/core/runtime/AvenxApp.js');
+    const { AvenxGuard } = await import('../../lib/core/runtime/AvenxGuard.js');
+    const { logger } = await import('../../lib/core/runtime/AvenxLogger.js');
+    const { AvenxErrorCodes } = await import('../../lib/core/runtime/AvenxError.js');
+    const assert = await import('node:assert');
+
+    const warnings = [];
+    const originalWarn = logger.warn.bind(logger);
+    logger.warn = (...args) => {
+      warnings.push(args.join(' '));
+      return originalWarn(...args);
+    };
+
+    try {
+      document.body.innerHTML = '<div id="app"></div>';
+      class TestPage {
+        mount() {}
+        unmount() {}
+      }
+      const app = new AvenxApp({ target: '#app' });
+      app.registerPage('TestPage', TestPage);
+
+      class UndefinedGuard extends AvenxGuard {
+        canActivate() {
+          // intentionally no return
+        }
+      }
+      class AllowGuard extends AvenxGuard {
+        canActivate() {
+          return true;
+        }
+      }
+
+      app.initRouter({
+        '': 'TestPage',
+        '#/': 'TestPage',
+        '#/secure': {
+          page: 'TestPage',
+          guards: [UndefinedGuard],
+        },
+        '#/ok': {
+          page: 'TestPage',
+          guards: [AllowGuard],
+        },
+      });
+      await new Promise((r) => setTimeout(r, 0));
+
+      warnings.length = 0;
+      window.location.hash = '#/secure';
+      await new Promise((r) => setTimeout(r, 20));
+      assert.ok(
+        warnings.some((w) => w.includes(AvenxErrorCodes.ROUTER_GUARD_UNDEFINED_RETURN)),
+        'expected AVX_W27 warning for undefined guard return',
+      );
+
+      warnings.length = 0;
+      window.location.hash = '#/ok';
+      await new Promise((r) => setTimeout(r, 20));
+      assert.ok(
+        !warnings.some((w) => w.includes(AvenxErrorCodes.ROUTER_GUARD_UNDEFINED_RETURN)),
+        'explicit true should not warn',
+      );
+    } finally {
+      logger.warn = originalWarn;
+    }
+  });
+});
