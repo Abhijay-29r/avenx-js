@@ -560,6 +560,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "rawal-pratik",
+      "name": "Pratik Rawal",
+      "avatar_url": "https://avatars.githubusercontent.com/u/178715796?v=4",
+      "profile": "https://github.com/rawal-pratik",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
