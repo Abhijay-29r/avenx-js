@@ -103,6 +103,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="http://www.linked.com.in/sushantkatariaa"><img src="https://avatars.githubusercontent.com/u/3662310?v=4?s=100" width="100px;" alt="Sushant Kataria"/><br /><sub><b>Sushant Kataria</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=sushant-kataria" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/iayush002"><img src="https://avatars.githubusercontent.com/u/84846567?v=4?s=100" width="100px;" alt="Aayush Shah"/><br /><sub><b>Aayush Shah</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=iayush002" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nightcityblade"><img src="https://avatars.githubusercontent.com/u/260356847?v=4?s=100" width="100px;" alt="nightcityblade"/><br /><sub><b>nightcityblade</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=nightcityblade" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/rawal-pratik"><img src="https://avatars.githubusercontent.com/u/178715796?v=4?s=100" width="100px;" alt="Pratik Rawal"/><br /><sub><b>Pratik Rawal</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=rawal-pratik" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
