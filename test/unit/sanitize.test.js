@@ -105,9 +105,53 @@ function testSanitizerFallback() {
   }
 }
 
+function testCustomVoidTags() {
+  console.log('🧪 Testing Sanitizer custom void tags...');
+  setupDOMMock();
+
+  try {
+    // 1. Default void tags still self-close correctly
+    const defaultSanitizer = new Sanitizer();
+    const brContainer = new MockDOMElement('div');
+    brContainer.appendChild(new MockDOMElement('br'));
+    assert.strictEqual(defaultSanitizer._sanitizeNode(brContainer), '<br />');
+
+    // 2. Custom void tag self-closes
+    const customSanitizer = new Sanitizer({
+      allowedTags: ['div', 'my-icon'],
+      voidTags: ['my-icon'],
+    });
+    const iconContainer = new MockDOMElement('div');
+    iconContainer.appendChild(new MockDOMElement('my-icon'));
+    assert.strictEqual(customSanitizer._sanitizeNode(iconContainer), '<my-icon />');
+
+    // 3. Mixed-case voidTags are normalized to lowercase
+    const mixedCaseSanitizer = new Sanitizer({
+      allowedTags: ['div', 'my-icon'],
+      voidTags: ['My-Icon'],
+    });
+    const mixedContainer = new MockDOMElement('div');
+    mixedContainer.appendChild(new MockDOMElement('my-icon'));
+    assert.strictEqual(mixedCaseSanitizer._sanitizeNode(mixedContainer), '<my-icon />');
+
+    // 4. No voidTags config — custom element gets closing tag (backward compat)
+    const noVoidSanitizer = new Sanitizer({
+      allowedTags: ['div', 'my-icon'],
+    });
+    const noVoidContainer = new MockDOMElement('div');
+    noVoidContainer.appendChild(new MockDOMElement('my-icon'));
+    assert.strictEqual(noVoidSanitizer._sanitizeNode(noVoidContainer), '<my-icon></my-icon>');
+
+    console.log('  ✅ Custom void tags tests passed!');
+  } finally {
+    teardownDOMMock();
+  }
+}
+
 try {
   testSanitizerWithDOM();
   testSanitizerFallback();
+  testCustomVoidTags();
   console.log('✅ All Sanitizer tests successfully completed!');
   process.exit(0);
 } catch (error) {
