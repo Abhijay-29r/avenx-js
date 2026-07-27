@@ -510,39 +510,22 @@ import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
     assert.strictEqual(mountedPageName, 'TestPage', 'Should mount TestPage for encoded path parameter route');
     assert.strictEqual(mountedParams.name, 'nathan schmid', 'Should correctly parse and decode path parameters containing %20');
 
-    console.log('  ✅ Router and Guards tests passed!');
-  } catch (error) {
-    console.error('❌ Router and Guards tests failed!');
-    console.error(error);
-    process.exit(1);
-  }
-})();
+    // Test F: Guard undefined return warning
+    if (app.router) {
+      app.router.destroy();
+    }
 
-
-describe('AvenxRouter guard undefined return warning', () => {
-  it('undefined guard return should warn and still allow navigation', async () => {
-    const { AvenxApp } = await import('../../lib/core/runtime/AvenxApp.js');
-    const { AvenxGuard } = await import('../../lib/core/runtime/AvenxGuard.js');
     const { logger } = await import('../../lib/core/runtime/AvenxLogger.js');
     const { AvenxErrorCodes } = await import('../../lib/core/runtime/AvenxError.js');
-    const assert = await import('node:assert');
 
     const warnings = [];
-    const originalWarn = logger.warn.bind(logger);
+    const originalLoggerWarn = logger.warn.bind(logger);
     logger.warn = (...args) => {
       warnings.push(args.join(' '));
-      return originalWarn(...args);
+      return originalLoggerWarn(...args);
     };
 
     try {
-      document.body.innerHTML = '<div id="app"></div>';
-      class TestPage {
-        mount() {}
-        unmount() {}
-      }
-      const app = new AvenxApp({ target: '#app' });
-      app.registerPage('TestPage', TestPage);
-
       class UndefinedGuard extends AvenxGuard {
         canActivate() {
           // intentionally no return
@@ -584,7 +567,14 @@ describe('AvenxRouter guard undefined return warning', () => {
         'explicit true should not warn',
       );
     } finally {
-      logger.warn = originalWarn;
+      logger.warn = originalLoggerWarn;
     }
-  });
-});
+
+    console.log('  ✅ Router and Guards tests passed!');
+  } catch (error) {
+    console.error('❌ Router and Guards tests failed!');
+    console.error(error);
+    process.exit(1);
+  }
+})();
+
