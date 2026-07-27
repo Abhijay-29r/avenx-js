@@ -21,6 +21,56 @@ Avenx-JS provides a clean HTML-based template engine that supports text interpol
 <div>{{{ state.rawHtml }}}</div>
 ```
 
+## Dynamic HTML Content (`data-ax-html`)
+
+The `data-ax-html` directive binds HTML content directly to an element. Unlike standard text interpolation (`{{ ... }}`), it is designed for rendering HTML.
+
+### Default Escaping
+
+When a normal string is provided, HTML characters are automatically escaped to help prevent Cross-Site Scripting (XSS) attacks.
+
+```html
+<div data-ax-html="state.message"></div>
+```
+
+```js
+state.message = "<strong>Hello World</strong>";
+```
+
+Output:
+
+```html
+&lt;strong&gt;Hello World&lt;/strong&gt;
+```
+
+### Rendering Trusted HTML
+
+To render HTML without escaping, wrap the content with `SafeHtml` or generate it using the `html` tagged template helper.
+
+```js
+state.message = new SafeHtml("<strong>Hello World</strong>");
+```
+
+or
+
+```js
+state.message = html`<strong>Hello World</strong>`;
+```
+
+Output:
+
+```html
+<strong>Hello World</strong>
+```
+
+### Null and Undefined Values
+
+If the bound value is `null` or `undefined`, an empty string is rendered.
+
+### Security Advisory
+
+Only use `SafeHtml` or the `html` helper with trusted content. Rendering untrusted user input without escaping may introduce Cross-Site Scripting (XSS) vulnerabilities.
+
 ## 2. Two-Way Bindings (`data-ax-bind`)
 
 Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to a value attribute and an event listener:
