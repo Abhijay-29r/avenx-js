@@ -222,6 +222,48 @@ When `state.textColor` changes, the element's `color` style is updated automatic
 
 Using object syntax keeps templates more readable and maintainable than manually constructing inline style strings.
 
+## Dynamic Class Bindings (`data-ax-class`)
+
+Use the `data-ax-class` directive to add or remove CSS classes reactively. Static `class="…"` attributes on the same element are preserved.
+
+### String Format
+
+When the expression evaluates to a string, its space-separated tokens are applied as class names:
+
+```html
+<div class="card" data-ax-class="state.themeClass">
+  Themed card
+</div>
+```
+
+```js
+// e.g. in <state />
+themeClass="theme-dark highlight"
+```
+
+When `state.themeClass` changes, previously applied dynamic classes from this directive are replaced with the new set. The static `card` class remains.
+
+### Object Format
+
+Pass an object whose **truthy** keys become class names (quote keys that are not valid identifiers):
+
+```html
+<button
+  class="btn"
+  data-ax-class="{ active: state.isActive, 'text-large': state.isLarge, disabled: state.isDisabled }"
+>
+  Action
+</button>
+```
+
+| Expression value | Result |
+| ---------------- | ------ |
+| `{ active: true, 'text-large': false }` | adds `active`; removes `text-large` if it was previously set by this directive |
+| `"theme-blue"` | applies `theme-blue` |
+| `""` / falsy | clears dynamic classes from this directive |
+
+> **Note:** Object and string forms are evaluated as template expressions in the component scope (same rules as other `data-ax-*` bindings). Prefer object form for multiple independent toggles.
+
 ## 4. Loops (`<@for>`)
 
 Render arrays using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM list updates:
