@@ -569,6 +569,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "Rishikmanche",
+      "name": "Rishikmanche",
+      "avatar_url": "https://avatars.githubusercontent.com/u/161208045?v=4",
+      "profile": "https://github.com/Rishikmanche",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
