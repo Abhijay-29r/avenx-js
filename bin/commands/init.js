@@ -246,4 +246,15 @@ export async function initProject(cli, args = []) {
   if (isInteractive) {
     process.stdin.pause();
   }
+
+  // Create initial .prettierrc
+  const prettierPath = path.join(cli.baseDir, '.prettierrc');
+
+  if (!fs.existsSync(prettierPath)) {
+    const template = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'init', '.prettierrc');
+
+    fs.writeFileSync(prettierPath, template);
+
+    console.log('  Created: .prettierrc');
+  }
 }
