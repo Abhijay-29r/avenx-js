@@ -588,6 +588,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "somshekharswami",
+      "name": "somshekharswami",
+      "avatar_url": "https://avatars.githubusercontent.com/u/144811730?v=4",
+      "profile": "https://github.com/somshekharswami",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
