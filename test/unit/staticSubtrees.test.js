@@ -132,9 +132,47 @@ function testDomPatcherSkip() {
   }
 }
 
+function testDomPatcherTextNodeMerging() {
+  console.log('🧪 Testing DomPatcher text node merging...');
+  setupDOMMock();
+
+  try {
+    const patcher = new DomPatcher();
+
+    // Create target element representing old DOM with adjacent text nodes inside a span wrapper
+    const target = new MockDOMElement('div');
+    const wrapper = new MockDOMElement('span');
+    const text1 = { nodeType: 3, nodeName: '#text', textContent: 'Static Part ', parentNode: wrapper };
+    const text2 = { nodeType: 3, nodeName: '#text', textContent: '123', parentNode: wrapper };
+    const text3 = { nodeType: 3, nodeName: '#text', textContent: ' Another Static', parentNode: wrapper };
+    wrapper.appendChild(text1);
+    wrapper.appendChild(text2);
+    wrapper.appendChild(text3);
+    target.appendChild(wrapper);
+
+    assert.strictEqual(wrapper.childNodes.length, 3);
+
+    // Patch with new HTML (which would normally be parsed as a single text node inside a span)
+    const newHtml = `
+      <span>Static Part 456 Another Static</span>
+    `;
+
+    patcher.patch(target, newHtml);
+
+    // Verify children of wrapper are merged
+    assert.strictEqual(wrapper.childNodes.length, 1, 'Adjacent text nodes should be merged');
+    assert.strictEqual(wrapper.childNodes[0].textContent, 'Static Part 456 Another Static', 'Merged text content should match');
+
+    console.log('  ✅ DomPatcher text node merging tests passed!');
+  } finally {
+    teardownDOMMock();
+  }
+}
+
 try {
   testCompilerOptimization();
   testDomPatcherSkip();
+  testDomPatcherTextNodeMerging();
   console.log('✅ All Static Subtrees tests successfully completed!');
   process.exit(0);
 } catch (e) {
