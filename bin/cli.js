@@ -114,6 +114,10 @@ export class AvenxCLI {
         const portIdx = args.findIndex((a) => a === '--port' || a === '-p');
         const hostIdx = args.findIndex((a) => a === '--host' || a === '-h');
 
+        if (args.includes('--no-live-reload') || args.includes('--live-reload=false')) {
+          this.config.server.liveReload = false;
+        }
+
         const port =
           portIdx !== -1 && args[portIdx + 1]
             ? parseInt(args[portIdx + 1], 10)
