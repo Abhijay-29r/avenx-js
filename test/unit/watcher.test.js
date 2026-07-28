@@ -277,6 +277,70 @@ function testFunctionBasedComputedProperty() {
   console.log('  ✅ Function-based computed property is reactive!');
 }
 
+/**
+ * Tests dynamic dependency pruning during conditional branch changes.
+ */
+function testDynamicDependencyPruning() {
+  console.log('🧪 Testing AvenxWatcher dynamic dependency pruning...');
+
+  const state = new StateFactory().create({
+    cond: true,
+    a: 10,
+    b: 20,
+  });
+
+  let callbackCount = 0;
+  let evaluatedValue = null;
+
+  const watcher = new AvenxWatcher(
+    () => (state.cond ? state.a : state.b),
+    (newVal) => {
+      callbackCount++;
+      evaluatedValue = newVal;
+    },
+  );
+
+  assert.strictEqual(watcher.value, 10);
+
+  // Updating active dependency 'a' while cond=true
+  state.a = 15;
+  assert.strictEqual(watcher.value, 15);
+  assert.strictEqual(callbackCount, 1);
+  assert.strictEqual(evaluatedValue, 15);
+
+  // Updating inactive dependency 'b' should NOT trigger callback
+  state.b = 25;
+  assert.strictEqual(callbackCount, 1);
+
+  // Switch condition branch to false (now accesses 'b')
+  state.cond = false;
+  assert.strictEqual(watcher.value, 25);
+  assert.strictEqual(callbackCount, 2);
+  assert.strictEqual(evaluatedValue, 25);
+
+  // 'a' is now a stale dependency: mutating 'a' should NOT trigger callback
+  state.a = 100;
+  assert.strictEqual(callbackCount, 2);
+
+  // Mutating 'b' SHOULD trigger callback
+  state.b = 50;
+  assert.strictEqual(watcher.value, 50);
+  assert.strictEqual(callbackCount, 3);
+  assert.strictEqual(evaluatedValue, 50);
+
+  // Switch condition branch back to true (now accesses 'a')
+  state.cond = true;
+  assert.strictEqual(watcher.value, 100);
+  assert.strictEqual(callbackCount, 4);
+  assert.strictEqual(evaluatedValue, 100);
+
+  // 'b' is now stale again
+  state.b = 999;
+  assert.strictEqual(callbackCount, 4);
+
+  console.log('  ✅ Dynamic dependency pruning tests passed!');
+}
+
 async function runTests() {
   try {
     testBasicWatcher();
@@ -284,6 +348,7 @@ async function runTests() {
     testWatcherTeardown();
     testComponentWatchAPI();
     testFunctionBasedComputedProperty();
+    testDynamicDependencyPruning();
     await testBridgeTargetedUpdates();
     console.log('✅ All AvenxWatcher tests passed successfully!');
   } catch (error) {
