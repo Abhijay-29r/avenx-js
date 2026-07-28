@@ -15,6 +15,23 @@ const app = new AvenxApp({ target: '#app' });
 | --------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `config.target` | `string` | A valid DOM selector (e.g., `'#app'`) pointing to the root element. Throws exception `[AVX_R01]` if not found. |
 | `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. When the limit is exceeded, the least recently used cached page is removed. Default: `5`. |
+| `config.logging` | `object` | Configuration applied to the shared runtime `logger` on startup. Accepts the same options as `AvenxLogger` (`level`, `silent`, `formatter`, `transports`). See [AvenxLogger](/api-reference/utils/#avenxlogger). |
+
+### `logging`
+
+Pass a `logging` object to configure the shared `logger` instance that `AvenxApp`, components, and your own application code use. This is separate from the `logging` option in `avenx.config.json`, which only affects the CLI's build-time output — see [Logging Options](/getting-started/configuration/#logging-options).
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  logging: {
+    level: 'debug',
+    silent: false,
+  },
+});
+```
+
+If omitted, the shared logger keeps its default configuration (`level: 'info'`, `silent: false`).
 
 ### `keepAliveLimit`
 The `keepAliveLimit` option controls how many inactive pages configured with `keepAlive: true` can remain cached in memory.

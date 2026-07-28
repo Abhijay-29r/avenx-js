@@ -420,6 +420,17 @@ logger.warn("Cache miss.");
 logger.error("Failed to load configuration.");
 ```
 
+This is the same instance that `AvenxApp` configures when you pass a `logging` option to its constructor, so `logger.configure()` calls and the `logging` option affect the same shared state:
+
+```js
+const app = new AvenxApp({
+  target: "#app",
+  logging: { level: "debug" },
+});
+```
+
+Note that this is unrelated to the `logging` option in `avenx.config.json`, which only controls the CLI's own build-time output, not this runtime logger.
+
 ---
 
 ## Creating a Custom Logger
@@ -454,6 +465,8 @@ logger.trace("Verbose logging is now enabled.");
 
 You can update one or more configuration options at any time using `configure()`.
 
+If `level` is set to a value that isn't one of the supported log levels, `configure()` logs a warning and falls back to `"info"`.
+
 ---
 
 ## Custom Formatter
@@ -474,6 +487,8 @@ const logger = new AvenxLogger({
 ---
 
 ## Custom Transport
+
+By default, `AvenxLogger` uses `consoleTransport`, which dispatches each level to a `console` method: `fatal` logs via `console.error`, `trace` logs via `console.debug`, and every other level logs via the matching `console` method (e.g. `info` → `console.info`), falling back to `console.log` if no matching method exists.
 
 Custom transports allow log messages to be forwarded to destinations other than the browser console.
 
