@@ -34,7 +34,7 @@ When a normal string is provided, HTML characters are automatically escaped to h
 ```
 
 ```js
-state.message = "<strong>Hello World</strong>";
+state.message = '<strong>Hello World</strong>';
 ```
 
 Output:
@@ -48,7 +48,7 @@ Output:
 To render HTML without escaping, wrap the content with `SafeHtml` or generate it using the `html` tagged template helper.
 
 ```js
-state.message = new SafeHtml("<strong>Hello World</strong>");
+state.message = new SafeHtml('<strong>Hello World</strong>');
 ```
 
 or
@@ -104,9 +104,7 @@ If the expression evaluates to a falsy value, the attribute is removed and the D
 ### Example
 
 ```html
-<button disabled="{{ state.isSubmitting }}">
-  Submit
-</button>
+<button disabled="{{ state.isSubmitting }}">Submit</button>
 ```
 
 When `state.isSubmitting` is `true`, the button is rendered as disabled.
@@ -143,30 +141,19 @@ Avenx-JS automatically handles the following standard HTML boolean attributes:
 Checkbox:
 
 ```html
-<input
-  type="checkbox"
-  checked="{{ state.accepted }}"
-/>
+<input type="checkbox" checked="{{ state.accepted }}" />
 ```
 
 Input field:
 
 ```html
-<input
-  type="text"
-  required="{{ state.requireName }}"
-  readonly="{{ state.readOnly }}"
-/>
+<input type="text" required="{{ state.requireName }}" readonly="{{ state.readOnly }}" />
 ```
 
 Media element:
 
 ```html
-<video
-  controls="{{ state.showControls }}"
-  autoplay="{{ state.autoPlay }}"
-  muted="{{ state.muted }}">
-</video>
+<video controls="{{ state.showControls }}" autoplay="{{ state.autoPlay }}" muted="{{ state.muted }}"></video>
 ```
 
 Details element:
@@ -179,16 +166,60 @@ Details element:
 ```
 
 Bind boolean attributes to expressions that evaluate to `true` or `false`. Avenx-JS automatically adds or removes the attribute and updates the corresponding DOM property.
-## 4. Reactive Style Bindings (`data-ax-style`)
+
+## 4. Conditional Visibility (`data-ax-show`)
+
+The `data-ax-show` directive reactively toggles the visibility of an element by modifying its inline CSS `display` property based on the evaluated expression.
+
+### Basic Usage
+
+```html
+<div data-ax-show="state.isVisible">This content is conditionally visible.</div>
+```
+
+When `state.isVisible` evaluates to a truthy value, the element is visible. When it evaluates to a falsy value, the element is hidden using `display: none`.
+
+### How It Works & State Conservation
+
+Unlike simple directives that hardcode `display: block` or remove the element from the DOM entirely, `data-ax-show` carefully conserves your layout styling:
+
+1. **Boolean Conversion**: The directive evaluates the expression and converts the result to a strict boolean (equivalent to `!!value`).
+2. **Conserving Original Display**: On initialization, before any styles are modified, Avenx-JS saves the element's original CSS `display` property (such as `flex`, `grid`, `inline-block`, or default `""`) to an internal property (`__originalDisplay`) on the DOM element.
+3. **Restoring Visibility**:
+   - When switching to **true** (visible), the element's `style.display` is restored to its conserved `__originalDisplay` value.
+   - When switching to **false** (hidden), `style.display` is set to `'none'`.
+
+### Example with Flexbox and Grid Layouts
+
+Because `__originalDisplay` is conserved, toggling visibility will never break custom layout containers:
+
+```html
+<!-- The inline 'display: flex' is saved to __originalDisplay on init -->
+<div style="display: flex; gap: 10px;" data-ax-show="state.showToolbar">
+  <button>Action 1</button>
+  <button>Action 2</button>
+</div>
+```
+
+When `state.showToolbar` becomes `true`, the element correctly reverts to `display: flex` instead of defaulting to `block`.
+
+### Integration with Transitions
+
+`data-ax-show` integrates seamlessly with Avenx-JS's animation lifecycle when combined with `<transition>` wrappers or `data-ax-transition` attributes:
+
+- **Enter Transitions**: When switching from `false` to `true`, `display` is restored to `__originalDisplay` immediately, and the compiler triggers the `-enter`, `-enter-active`, and `-enter-to` CSS class sequence.
+- **Leave Transitions**: When switching from `true` to `false`, the element is **not** hidden immediately. Instead, the `-leave`, `-leave-active`, and `-leave-to` CSS classes are applied. An exit callback waits for the CSS transition or animation to finish before finally setting `style.display = 'none'`.
+
+For a complete guide and code examples on animating visibility toggles, see the [Transition Animations](./transitions.md#conditional-rendering-transitions) documentation.
+
+## 5. Reactive Style Bindings (`data-ax-style`)
 
 Use the `data-ax-style` directive to dynamically apply inline CSS styles using a JavaScript object.
 
 ### Basic Usage
 
 ```html
-<p data-ax-style="{{ { color: state.textColor } }}">
-  Dynamic text color
-</p>
+<p data-ax-style="{{ { color: state.textColor } }}">Dynamic text color</p>
 ```
 
 When `state.textColor` changes, the element's `color` style is updated automatically.
@@ -222,7 +253,7 @@ When `state.textColor` changes, the element's `color` style is updated automatic
 
 Using object syntax keeps templates more readable and maintainable than manually constructing inline style strings.
 
-## Dynamic Class Bindings (`data-ax-class`)
+## 6. Dynamic Class Bindings (`data-ax-class`)
 
 Use the `data-ax-class` directive to add or remove CSS classes reactively. Static `class="…"` attributes on the same element are preserved.
 
@@ -231,14 +262,12 @@ Use the `data-ax-class` directive to add or remove CSS classes reactively. Stati
 When the expression evaluates to a string, its space-separated tokens are applied as class names:
 
 ```html
-<div class="card" data-ax-class="state.themeClass">
-  Themed card
-</div>
+<div class="card" data-ax-class="state.themeClass">Themed card</div>
 ```
 
 ```js
 // e.g. in <state />
-themeClass="theme-dark highlight"
+themeClass = 'theme-dark highlight';
 ```
 
 When `state.themeClass` changes, previously applied dynamic classes from this directive are replaced with the new set. The static `card` class remains.
@@ -248,23 +277,20 @@ When `state.themeClass` changes, previously applied dynamic classes from this di
 Pass an object whose **truthy** keys become class names (quote keys that are not valid identifiers):
 
 ```html
-<button
-  class="btn"
-  data-ax-class="{ active: state.isActive, 'text-large': state.isLarge, disabled: state.isDisabled }"
->
+<button class="btn" data-ax-class="{ active: state.isActive, 'text-large': state.isLarge, disabled: state.isDisabled }">
   Action
 </button>
 ```
 
-| Expression value | Result |
-| ---------------- | ------ |
+| Expression value                        | Result                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------ |
 | `{ active: true, 'text-large': false }` | adds `active`; removes `text-large` if it was previously set by this directive |
-| `"theme-blue"` | applies `theme-blue` |
-| `""` / falsy | clears dynamic classes from this directive |
+| `"theme-blue"`                          | applies `theme-blue`                                                           |
+| `""` / falsy                            | clears dynamic classes from this directive                                     |
 
 > **Note:** Object and string forms are evaluated as template expressions in the component scope (same rules as other `data-ax-*` bindings). Prefer object form for multiple independent toggles.
 
-## 4. Loops (`<@for>`)
+## 7. Loops (`<@for>`)
 
 Render arrays using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM list updates:
 
@@ -274,7 +300,6 @@ Render arrays using the custom `<@for>` loop tag. Loop blocks are translated to 
 </@for>
 ```
 
-## 5. Slots & Transclusion
 ### The implicit `index` variable
 
 In addition to your item variable, every `<@for>` loop automatically injects a zero-indexed `index` variable into the template scope. You don't need to declare it — `ListManager` adds it for you on each iteration — so it's available anywhere inside the loop body, for example to number items or apply alternating styles:
@@ -290,7 +315,7 @@ In addition to your item variable, every `<@for>` loop automatically injects a z
 
 > **Note:** `index` starts at `0`. Add `1` (as shown above) if you want a human-readable, 1-based count.
 
-## 4. Slots & Transclusion
+## 8. Slots & Transclusion
 
 Components can receive child HTML blocks using `<slot>` elements. Both default and named slots are fully supported.
 
@@ -321,8 +346,7 @@ Components can receive child HTML blocks using `<slot>` elements. Both default a
 
 If a component's caller does not provide content for a given slot, Avenx-JS automatically falls back to rendering the default content defined inside that `<slot>` element in the component's template. This applies to both named and default slots. For example, in the `Card` component above, if no `slot="header"` element is passed in, the header slot will render its fallback text, `Default Header`, instead of being left empty. This makes it easy to define sensible defaults for optional component content without requiring the caller to always supply every slot.
 
-## 6. SVG Support
-## 5. Passing Props to Child Components (`data-props-*`)
+## 9. Passing Props to Child Components (`data-props-*`)
 
 Custom child components can receive props from a parent page or component using the `data-props-<propName>` attribute syntax. The parser evaluates the attribute's value as an expression in the parent's scope and passes the resulting value into the child component as a prop.
 
@@ -345,7 +369,7 @@ Here, `data-props-user` passes the value of `state.currentUser` from the parent 
 <MyProfile data-props-user="state.currentUser" data-props-isAdmin="state.isAdmin" />
 ```
 
-## 6. SVG Support
+## 10. SVG Support
 
 Avenx-JS natively supports rendering SVG elements inside templates. During template cloning and patching, the framework automatically preserves the correct SVG namespace (`http://www.w3.org/2000/svg`), ensuring that SVG graphics render correctly in the browser.
 This includes nested SVG elements such as `<rect>`, `<circle>`, `<path>`, and other SVG-specific tags. Even when templates are parsed using `DOMParser`, Avenx-JS automatically transitions SVG elements into the correct namespace during patching and cloning, so no additional configuration or manual namespace handling is required.
