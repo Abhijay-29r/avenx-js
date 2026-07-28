@@ -26,6 +26,25 @@ app.initRouter({
   '*': 'Home', // Fallback route
 });
 ```
+### Keep-Alive Page Caching
+
+Routes can enable page caching by setting the `keepAlive` option. Instead of destroying the page when navigating away, Avenx stores the page instance in an internal Least Recently Used (LRU) cache.
+
+When the user returns to the same route, the cached page instance is restored instead of creating a new one. This preserves the page's DOM state, component state, and any user input that has not been cleared.
+
+```javascript
+app.initRouter({
+  '/profile/:id': {
+    page: 'Profile',
+    keepAlive: true,
+  },
+});
+```
+When a cached page is restored, the `onActivate(params)` lifecycle hook is called with the latest route parameters. When navigating away from a cached page, `onDeactivate()` is called instead of `onUnmount()`.
+
+This behavior is useful for pages that should preserve their state between navigations, such as dashboards, forms, or long lists.
+
+
 
 ## 3. Dynamic Route Parameters
 
