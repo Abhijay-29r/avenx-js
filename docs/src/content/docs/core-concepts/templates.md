@@ -21,6 +21,56 @@ Avenx-JS provides a clean HTML-based template engine that supports text interpol
 <div>{{{ state.rawHtml }}}</div>
 ```
 
+## Dynamic HTML Content (`data-ax-html`)
+
+The `data-ax-html` directive binds HTML content directly to an element. Unlike standard text interpolation (`{{ ... }}`), it is designed for rendering HTML.
+
+### Default Escaping
+
+When a normal string is provided, HTML characters are automatically escaped to help prevent Cross-Site Scripting (XSS) attacks.
+
+```html
+<div data-ax-html="state.message"></div>
+```
+
+```js
+state.message = '<strong>Hello World</strong>';
+```
+
+Output:
+
+```html
+&lt;strong&gt;Hello World&lt;/strong&gt;
+```
+
+### Rendering Trusted HTML
+
+To render HTML without escaping, wrap the content with `SafeHtml` or generate it using the `html` tagged template helper.
+
+```js
+state.message = new SafeHtml('<strong>Hello World</strong>');
+```
+
+or
+
+```js
+state.message = html`<strong>Hello World</strong>`;
+```
+
+Output:
+
+```html
+<strong>Hello World</strong>
+```
+
+### Null and Undefined Values
+
+If the bound value is `null` or `undefined`, an empty string is rendered.
+
+### Security Advisory
+
+Only use `SafeHtml` or the `html` helper with trusted content. Rendering untrusted user input without escaping may introduce Cross-Site Scripting (XSS) vulnerabilities.
+
 ## 2. Two-Way Bindings (`data-ax-bind`)
 
 Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to a value attribute and an event listener:
@@ -203,7 +253,44 @@ When `state.textColor` changes, the element's `color` style is updated automatic
 
 Using object syntax keeps templates more readable and maintainable than manually constructing inline style strings.
 
-## 6. Loops (`<@for>`)
+## 6. Dynamic Class Bindings (`data-ax-class`)
+
+Use the `data-ax-class` directive to add or remove CSS classes reactively. Static `class="…"` attributes on the same element are preserved.
+
+### String Format
+
+When the expression evaluates to a string, its space-separated tokens are applied as class names:
+
+```html
+<div class="card" data-ax-class="state.themeClass">Themed card</div>
+```
+
+```js
+// e.g. in <state />
+themeClass = 'theme-dark highlight';
+```
+
+When `state.themeClass` changes, previously applied dynamic classes from this directive are replaced with the new set. The static `card` class remains.
+
+### Object Format
+
+Pass an object whose **truthy** keys become class names (quote keys that are not valid identifiers):
+
+```html
+<button class="btn" data-ax-class="{ active: state.isActive, 'text-large': state.isLarge, disabled: state.isDisabled }">
+  Action
+</button>
+```
+
+| Expression value                        | Result                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------ |
+| `{ active: true, 'text-large': false }` | adds `active`; removes `text-large` if it was previously set by this directive |
+| `"theme-blue"`                          | applies `theme-blue`                                                           |
+| `""` / falsy                            | clears dynamic classes from this directive                                     |
+
+> **Note:** Object and string forms are evaluated as template expressions in the component scope (same rules as other `data-ax-*` bindings). Prefer object form for multiple independent toggles.
+
+## 7. Loops (`<@for>`)
 
 Render arrays using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM list updates:
 
@@ -228,7 +315,7 @@ In addition to your item variable, every `<@for>` loop automatically injects a z
 
 > **Note:** `index` starts at `0`. Add `1` (as shown above) if you want a human-readable, 1-based count.
 
-## 7. Slots & Transclusion
+## 8. Slots & Transclusion
 
 Components can receive child HTML blocks using `<slot>` elements. Both default and named slots are fully supported.
 
@@ -259,7 +346,7 @@ Components can receive child HTML blocks using `<slot>` elements. Both default a
 
 If a component's caller does not provide content for a given slot, Avenx-JS automatically falls back to rendering the default content defined inside that `<slot>` element in the component's template. This applies to both named and default slots. For example, in the `Card` component above, if no `slot="header"` element is passed in, the header slot will render its fallback text, `Default Header`, instead of being left empty. This makes it easy to define sensible defaults for optional component content without requiring the caller to always supply every slot.
 
-## 8. Passing Props to Child Components (`data-props-*`)
+## 9. Passing Props to Child Components (`data-props-*`)
 
 Custom child components can receive props from a parent page or component using the `data-props-<propName>` attribute syntax. The parser evaluates the attribute's value as an expression in the parent's scope and passes the resulting value into the child component as a prop.
 
@@ -282,7 +369,7 @@ Here, `data-props-user` passes the value of `state.currentUser` from the parent 
 <MyProfile data-props-user="state.currentUser" data-props-isAdmin="state.isAdmin" />
 ```
 
-## 9. SVG Support
+## 10. SVG Support
 
 Avenx-JS natively supports rendering SVG elements inside templates. During template cloning and patching, the framework automatically preserves the correct SVG namespace (`http://www.w3.org/2000/svg`), ensuring that SVG graphics render correctly in the browser.
 This includes nested SVG elements such as `<rect>`, `<circle>`, `<path>`, and other SVG-specific tags. Even when templates are parsed using `DOMParser`, Avenx-JS automatically transitions SVG elements into the correct namespace during patching and cloning, so no additional configuration or manual namespace handling is required.

@@ -82,10 +82,10 @@ An Avenx component consists of two files: `<name>.component.js` and `<name>.comp
 
 <action name="increment"> state.count++; </action>
 
-<div class="card">
+<div @css card>
   <h1>{{ title }}</h1>
   <p>Count: {{ count }} (Double: {{ doubleCount }})</p>
-  <button @click="increment()">Increment</button>
+  <button @css button @click="increment()">Increment</button>
 </div>
 ```
 
@@ -98,14 +98,14 @@ An Avenx component consists of two files: `<name>.component.js` and `<name>.comp
 </@global>
 
 <@css>
-    .card {
+    card {
         padding: 2rem;
         border-radius: 8px;
-        background: var(--bg-color);
+        background: @bg-color;
     }
 
     button {
-        background-color: var(--primary-color);
+        background-color: @primary-color;
         color: white;
         border: none;
         padding: 0.6em 1.2em;
@@ -178,19 +178,20 @@ Pages use the same syntax as components (`<state>`, `<computed>`, `<action>`).
 
 #### Routing (`src/main.app.js`)
 
-Pages are registered in the main application entry point and handled by the built-in router.
+Avenx-JS projects built with the CLI automatically scan, compile, and register page components. In your main application entry point, you initialize the built-in router with the route mappings:
 
 ```javascript
 import { AvenxApp } from 'avenx-core/runtime';
-import Home from './pages/home.page.js';
-import Profile from './pages/profile.page.js';
 
 const app = new AvenxApp({ target: '#app' });
 
-app.registerPage('Home', Home);
-app.registerPage('Profile', Profile);
-
-app.mountPage('Home'); // Initial page
+// Initialize the router mapping paths to page component names.
+// Note: Pages inside src/pages/ are automatically registered by the compiler.
+app.initRouter({
+  '': 'Home',
+  '#/': 'Home',
+  '#/profile/:userId': 'Profile',
+});
 ```
 
 ---

@@ -1,5 +1,7 @@
 import assert from 'assert';
 import ExpressionParser from '../../lib/compiler/expressionParser.js';
+import { logger } from '../../lib/core/runtime/AvenxLogger.js';
+import { AvenxErrorCodes } from '../../lib/core/runtime/AvenxError.js';
 
 try {
   console.log('🧪 Testing ExpressionParser upgrades...');
@@ -117,6 +119,30 @@ try {
   );
   assert.strictEqual(complexMethods.postData, "console.log('posting');");
   assert.strictEqual(complexMethods.multiLineAttrs, 'return 42;');
+
+
+  // Multiple <state> tags: warn (AVX_W28) and only parse the first
+  {
+    const warnings = [];
+    const originalWarn = logger.warn;
+    logger.warn = (msg) => warnings.push(String(msg));
+    try {
+      const multiState = `
+        <state a="1" label="first" />
+        <state b="2" label="second" />
+      `;
+      const multi = ep.parseState(multiState);
+      assert.strictEqual(multi.a, 1);
+      assert.strictEqual(multi.label, 'first');
+      assert.strictEqual(multi.b, undefined);
+      assert.ok(
+        warnings.some((w) => w.includes(AvenxErrorCodes.COMPILER_MULTIPLE_STATE_TAGS)),
+        'expected AVX_W28 warning for multiple <state> tags',
+      );
+    } finally {
+      logger.warn = originalWarn;
+    }
+  }
 
   console.log('  ✅ ExpressionParser upgrades tests passed!');
 } catch (error) {
