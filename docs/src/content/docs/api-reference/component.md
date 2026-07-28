@@ -22,6 +22,14 @@ class MyComponent extends AvenxComponent {
     console.log('Component mounted');
   }
 
+  onActivate(params) {
+    console.log('Component activated', params);
+  }
+
+  onDeactivate() {
+    console.log('Component deactivated');
+  }
+
   onUpdate() {
     console.log('Component updated');
   }
@@ -34,13 +42,32 @@ class MyComponent extends AvenxComponent {
 
 When lifecycle hooks are provided through both the constructor `methods` object and class methods, the constructor `methods` object takes priority.
 
+| Method Name          | Description                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onMount()`          | Called immediately after the component's element is attached to the DOM. Place your initial data fetches here.                                                                      |
+| `onActivate(params)` | Called whenever a page configured with `keepAlive: true` becomes active. Receives the latest route parameters. Use this to refresh data or resume work without recreating the page. |
+| `onDeactivate()`     | Called when navigating away from a page configured with keepAlive: true. The page is cached instead of being unmounted, allowing its state and DOM to be restored later.            |
+| `onBeforeUpdate()`   | Called before the component's DOM is patched during reactive state updates. Use this to read the current DOM state (e.g. scroll positions).                                         |
+| `onUpdate()`         | Called after the component has updated and patched the DOM tree. Use this for DOM measurements.                                                                                     |
+| `onUnmount()`        | Called before the component is detached and cleaned up. Ideal for removing timers and global listeners.                                                                             |
 
-| Method Name        | Description                                                                                                    |
-| ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `onMount()`        | Called immediately after the component's element is attached to the DOM. Place your initial data fetches here. |
-| `onBeforeUpdate()` | Called before the component's DOM is patched during reactive state updates. Use this to read the current DOM state (e.g. scroll positions). |
-| `onUpdate()`       | Called after the component has updated and patched the DOM tree. Use this for DOM measurements.                |
-| `onUnmount()`      | Called before the component is detached and cleaned up. Ideal for removing timers and global listeners.        |
+### Example: Refreshing Data on Activation
+
+Pages configured with `keepAlive: true` remain cached when users navigate away. Use `onActivate(params)` to refresh route-dependent data whenever the cached page becomes active again.
+
+```javascript
+class ProfilePage extends AvenxPage {
+  async onActivate(params) {
+    await this.loadProfile(params.id);
+  }
+
+  async loadProfile(id) {
+    // Fetch the latest profile data
+  }
+}
+```
+
+Unlike `onMount()`, which runs only once when the component is first created, `onActivate(params)` runs every time a cached page is restored, making it the preferred place to reload data that depends on the current route.
 
 ## DOM Events
 
@@ -111,10 +138,10 @@ Watches a deeply nested reactive property using a dot-separated string path. Unl
 
 The method is also exposed in the evaluation scope of template expressions.
 
-| Param      | Type       | Description                                                             |
-| ---------- | ---------- | ----------------------------------------------------------------------- |
-| `source`   | `string`   | A dot-separated string path to the property to watch (e.g. `'user.settings.theme'`). |
-| `callback` | `Function` | A function invoked when the watched value changes. Receives the new value and the old value as arguments. |
+| Param      | Type       | Description                                                                                                                         |
+| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `source`   | `string`   | A dot-separated string path to the property to watch (e.g. `'user.settings.theme'`).                                                |
+| `callback` | `Function` | A function invoked when the watched value changes. Receives the new value and the old value as arguments.                           |
 | `options`  | `object`   | Optional. An object with the `immediate` boolean property. When `true`, the callback is invoked immediately with the current value. |
 
 ```javascript
@@ -125,9 +152,13 @@ comp.$watch('user.settings.theme', (newVal, oldVal) => {
   applyTheme(newVal);
 });
 
-comp.$watch('user.settings.theme', (newVal, oldVal) => {
-  console.log(`Theme changed from ${oldVal} to ${newVal}`);
-}, { immediate: true });
+comp.$watch(
+  'user.settings.theme',
+  (newVal, oldVal) => {
+    console.log(`Theme changed from ${oldVal} to ${newVal}`);
+  },
+  { immediate: true },
+);
 ```
 
 ### `update()`

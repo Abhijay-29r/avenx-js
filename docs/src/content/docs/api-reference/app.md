@@ -14,6 +14,21 @@ const app = new AvenxApp({ target: '#app' });
 | Param           | Type     | Description                                                                                                    |
 | --------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `config.target` | `string` | A valid DOM selector (e.g., `'#app'`) pointing to the root element. Throws exception `[AVX_R01]` if not found. |
+| `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. When the limit is exceeded, the least recently used cached page is removed. Default: `5`. |
+
+### `keepAliveLimit`
+The `keepAliveLimit` option controls how many inactive pages configured with `keepAlive: true` can remain cached in memory.
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  keepAliveLimit: 5,
+});
+```
+
+When the cache reaches this limit, the least recently used (LRU) cached page is evicted and its `onUnmount()` lifecycle hook is called.
+
+The default value is `5`.
 
 ## Public Methods
 
