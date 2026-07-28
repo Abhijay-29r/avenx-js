@@ -192,6 +192,18 @@ try {
   assert.ok(!templateUnknownTag.includes('<my-video src="a.mp4" />'));
 
   console.log('  ✅ Custom void tags tests passed!');
+
+  console.log('🧪 Testing text nodes splitting and adjacent static text node merging...');
+  const nodes = ComponentParser.parseHTML('<div>Static Part {{ state.value }} Another Static</div>');
+  assert.strictEqual(nodes[0].children.length, 3, 'div should have exactly 3 text node children');
+  assert.strictEqual(nodes[0].children[0].content, 'Static Part ');
+  assert.strictEqual(nodes[0].children[1].content, '{{ state.value }}');
+  assert.strictEqual(nodes[0].children[2].content, ' Another Static');
+
+  const nodesAdjacent = ComponentParser.parseHTML('<div>Static1 {{ val }} Static2 Static3</div>');
+  assert.strictEqual(nodesAdjacent[0].children.length, 3, 'div should have 3 children after merging adjacent static text segments');
+  assert.strictEqual(nodesAdjacent[0].children[2].content, ' Static2 Static3');
+  console.log('  ✅ Text node splitting and merging tests passed!');
 } catch (error) {
   console.error('❌ ComponentParser tests failed!');
   console.error(error);
