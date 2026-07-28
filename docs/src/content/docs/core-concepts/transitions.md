@@ -159,23 +159,78 @@ A basic fade transition that changes opacity over 300 ms:
 
 ## Conditional Rendering Transitions
 
-The `<transition>` tag works transparently with `data-ax-show`. When the bound expression toggles, the element passes through the enter or leave class sequence instead of appearing or disappearing instantly.
+The `<transition>` tag (or the `data-ax-transition` attribute) works transparently with the `data-ax-show` visibility directive. When the bound expression toggles between truthy and falsy values, the element smoothly passes through the enter or leave class sequence instead of appearing or disappearing instantly.
+
+### How Visibility Toggles Integrate with Transitions
+
+When an element with `data-ax-show` is animated using a named transition:
+
+1. **Boolean Evaluation**: The expression is evaluated as a boolean (`!!value`).
+2. **State Conservation**: On initialization, the element's original inline display style (e.g., `flex`, `grid`, `block`, or empty string `""`) is conserved in `__originalDisplay`.
+3. **Switching from `false` to `true` (Enter Transition)**:
+   - The element's CSS `display` style is immediately restored to its conserved `__originalDisplay` value.
+   - The enter transition classes (`<name>-enter`, `<name>-enter-active`) are applied synchronously, followed by `<name>-enter-to` on the next animation frame.
+4. **Switching from `true` to `false` (Leave Transition)**:
+   - The element is **not** hidden immediately. Its `display` style remains active so the animation is visible.
+   - The leave transition classes (`<name>-leave`, `<name>-leave-active`, `<name>-leave-to`) are applied.
+   - A runtime exit callback waits for the CSS transition or animation to complete (listening to `transitionend`/`animationend` or fallback duration timeout). Once completed, the callback executes and sets `style.display = 'none'` on the element.
+
+### Complete Visual Example
+
+Here is a complete component example coupling a reactive visibility toggle with a CSS fade-and-scale transition:
 
 ```html
-<transition name="fade">
-  <div data-ax-show="state.isVisible">Toggle Me</div>
-</transition>
+<style>
+  /* Define transition animations */
+  .pop-enter-active,
+  .pop-leave-active {
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .pop-enter,
+  .pop-leave-to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+
+  .pop-enter-to,
+  .pop-leave {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  /* Custom flex container whose display state is conserved in __originalDisplay */
+  .notification-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background-color: #1e293b;
+    color: #f8fafc;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+</style>
+
+<div class="app-container">
+  <button @click="state.showNotification = !state.showNotification">Toggle Notification</button>
+
+  <!-- Wrapping with <transition> tag -->
+  <transition name="pop">
+    <div class="notification-card" data-ax-show="state.showNotification">
+      <span>🚀 Your changes have been successfully saved!</span>
+      <button @click="state.showNotification = false">✕</button>
+    </div>
+  </transition>
+</div>
 ```
 
-When `state.isVisible` becomes `false`:
+In this example:
 
-1. Leave classes are applied
-2. After the transition completes, `display: none` is set on the element
-
-When `state.isVisible` becomes `true`:
-
-1. `display` is restored
-2. Enter classes are applied
+- When `state.showNotification` is set to `true`, the card's `display` reverts to `flex` (restored from `__originalDisplay`) and scales/fades in using the `.pop-enter*` classes.
+- When `state.showNotification` is set to `false`, the `.pop-leave*` classes scale and fade the card out while it remains in `display: flex`. Only after the 300ms transition finishes does the runtime exit callback apply `display: none`.
 
 ---
 
@@ -208,11 +263,12 @@ const router = new AvenxRouter(app, {
 
 ## Summary
 
-| Concept          | Behaviour                                                                                          |
-| ---------------- | -------------------------------------------------------------------------------------------------- |
-| Default name     | `ax` when `name` is omitted                                                                        |
-| Dynamic name     | `name="{{ expr }}"` for runtime resolution                                                         |
-| Runtime fallback | Any `<transition>` elements surviving compile time are flattened by `DomPatcher`                   |
-| Cleanup trigger  | `transitionend` / `animationend` events or computed duration + 50 ms timeout                       |
-| Class sequence   | `-enter` → `-enter-active` → `-enter-to` (enter); `-leave` → `-leave-active` → `-leave-to` (leave) |
-| Rapid toggle     | In-progress transitions are cancelled immediately via `_cleanupTransition`                         |
+| Concept          | Behaviour                                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Default name     | `ax` when `name` is omitted                                                                                            |
+| Dynamic name     | `name="{{ expr }}"` for runtime resolution                                                                             |
+| Runtime fallback | Any `<transition>` elements surviving compile time are flattened by `DomPatcher`                                       |
+| Cleanup trigger  | `transitionend` / `animationend` events or computed duration + 50 ms timeout                                           |
+| Class sequence   | `-enter` → `-enter-active` → `-enter-to` (enter); `-leave` → `-leave-active` → `-leave-to` (leave)                     |
+| Rapid toggle     | In-progress transitions are cancelled immediately via `_cleanupTransition`                                             |
+| Visibility hooks | Works with `data-ax-show`; restores `__originalDisplay` on enter, defers `display: none` until leave callback finishes |
