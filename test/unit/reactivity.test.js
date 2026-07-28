@@ -11,10 +11,10 @@ global.document = {
   querySelector: () => mockElement,
 };
 
-import { isReactiveTarget } from '../../lib/core/reactive/proxyHandler.js';
+import { isReactiveTarget, RAW_SYMBOL } from '../../lib/core/reactive/proxyHandler.js';
 import { StateFactory } from '../../lib/core/reactive/createState.js';
 import { AvenxApp } from '../../lib/core/runtime/AvenxApp.js';
-import { AvenxWatcher } from '../../lib/core/reactive/watcher.js';
+import { AvenxWatcher, parentMap } from '../../lib/core/reactive/watcher.js';
 
 /**
  *
@@ -621,6 +621,77 @@ function testReactivityEncapsulation() {
   console.log('  ✅ Proxy reference encapsulation tests passed!');
 }
 
+function testParentMapMemoryLeak() {
+  console.log('🧪 Testing parentMap memory leak and side effect prevention...');
+
+  let changeCount = 0;
+  const state = new StateFactory().create({
+    user: {
+      profile: {
+        name: 'Alice',
+        details: {
+          age: 30
+        }
+      }
+    }
+  }, {
+    onChange: () => {
+      changeCount++;
+    }
+  });
+
+  const oldProfile = state.user.profile;
+  const oldProfileRaw = oldProfile[RAW_SYMBOL];
+  const oldDetails = state.user.profile.details;
+  const oldDetailsRaw = oldDetails[RAW_SYMBOL];
+
+  // Verify they are initially tracked in parentMap
+  assert.strictEqual(parentMap.has(oldProfileRaw), true, 'Profile raw should be in parentMap');
+  assert.strictEqual(parentMap.has(oldDetailsRaw), true, 'Details raw should be in parentMap');
+
+  // Reassign state.user.profile
+  state.user.profile = { name: 'Bob' };
+  assert.strictEqual(changeCount, 1);
+
+  // Verify they are cleaned up from parentMap
+  assert.strictEqual(parentMap.has(oldProfileRaw), false, 'Profile raw should be removed from parentMap after reassignment');
+  assert.strictEqual(parentMap.has(oldDetailsRaw), false, 'Details raw should be recursively removed from parentMap after reassignment');
+
+  // Mutating old Profile or details should NOT trigger updates on state
+  oldProfile.name = 'Charlie';
+  oldDetails.age = 31;
+  assert.strictEqual(changeCount, 1, 'Mutating detached nested objects should not trigger onChange updates');
+
+  // Test deletion cleanup
+  const state2 = new StateFactory().create({
+    nested: {
+      child: {
+        val: 'test'
+      }
+    }
+  }, {
+    onChange: () => {
+      changeCount++;
+    }
+  });
+
+  const childProxy = state2.nested.child;
+  const childRaw = childProxy[RAW_SYMBOL];
+
+  assert.strictEqual(parentMap.has(childRaw), true);
+
+  // Delete property
+  delete state2.nested;
+
+  assert.strictEqual(parentMap.has(childRaw), false, 'Child raw should be recursively removed from parentMap after deletion');
+
+  changeCount = 0;
+  childProxy.val = 'new-test';
+  assert.strictEqual(changeCount, 0, 'Mutating detached nested object after deletion should not trigger updates');
+
+  console.log('  ✅ parentMap memory leak and side effect prevention tests passed!');
+}
+
 (async () => {
   try {
     testIsReactiveTarget();
@@ -635,6 +706,7 @@ function testReactivityEncapsulation() {
     testBridgeConstructorFailure();
     testMapAndSetReactivity();
     testReactivityEncapsulation();
+    testParentMapMemoryLeak();
     console.log('✅ All reactivity tests passed!');
   } catch (error) {
     console.error('❌ Reactivity tests failed!');
