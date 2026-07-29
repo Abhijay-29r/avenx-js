@@ -369,6 +369,89 @@ try {
 
   console.log('  ✅ Test 8 passed: Dangling style nodes cleaned up on unmount');
 
+  // --- Test 9: Anonymous/unnamed component classes get unique style IDs and deduplicate properly ---
+  console.log('  Test 9: Anonymous component classes get unique style IDs...');
+
+  const AnonComp1 = (() =>
+    class extends AvenxComponent {
+      static styles = '.anon1 { color: red; }';
+      constructor(bridges, props) {
+        super({}, {}, bridges || {}, '<div class="anon1">Anon1</div>', {}, props || {});
+      }
+    })();
+
+  const AnonComp2 = (() =>
+    class extends AvenxComponent {
+      static styles = '.anon2 { color: blue; }';
+      constructor(bridges, props) {
+        super({}, {}, bridges || {}, '<div class="anon2">Anon2</div>', {}, props || {});
+      }
+    })();
+
+  assert.strictEqual(AnonComp1.name, '', 'AnonComp1 should be an anonymous class');
+  assert.strictEqual(AnonComp2.name, '', 'AnonComp2 should be an anonymous class');
+
+  const anonTarget1 = createMockElement('div');
+  const anonTarget2 = createMockElement('div');
+  const anonTarget3 = createMockElement('div');
+
+  const instAnon1a = new AnonComp1();
+  instAnon1a.mount(anonTarget1);
+
+  const instAnon2 = new AnonComp2();
+  instAnon2.mount(anonTarget2);
+
+  // Check that AnonComp1 and AnonComp2 got distinct style tags
+  const anonStyleElements = headChildren.filter((el) =>
+    el._attrs['data-avenx-style'] && el._attrs['data-avenx-style'].startsWith('avenx-style-anonymous-')
+  );
+
+  assert.strictEqual(
+    anonStyleElements.length,
+    2,
+    `Expected 2 unique style tags for 2 anonymous classes, found ${anonStyleElements.length}`
+  );
+
+  const styleId1 = anonStyleElements[0]._attrs['data-avenx-style'];
+  const styleId2 = anonStyleElements[1]._attrs['data-avenx-style'];
+  assert.notStrictEqual(styleId1, styleId2, 'Anonymous component classes must have different style tag IDs');
+
+  // Verify styles content was not overwritten
+  assert.strictEqual(anonStyleElements[0].textContent, '.anon1 { color: red; }');
+  assert.strictEqual(anonStyleElements[1].textContent, '.anon2 { color: blue; }');
+
+  // Re-mounting the same anonymous class (AnonComp1) must reuse the same style tag ID
+  const instAnon1b = new AnonComp1();
+  instAnon1b.mount(anonTarget3);
+
+  assert.strictEqual(
+    styleMountManager.getRefCount(AnonComp1),
+    2,
+    'Expected refCount to be 2 for AnonComp1 after mounting 2 instances'
+  );
+
+  const anonStyleElementsAfterReMount = headChildren.filter((el) =>
+    el._attrs['data-avenx-style'] && el._attrs['data-avenx-style'].startsWith('avenx-style-anonymous-')
+  );
+
+  assert.strictEqual(
+    anonStyleElementsAfterReMount.length,
+    2,
+    'Re-mounting the same anonymous class constructor must not create duplicate style tags'
+  );
+
+  // Unmounting instAnon1a and instAnon1b cleans up style tag
+  instAnon1a.unmount();
+  assert.strictEqual(styleMountManager.getRefCount(AnonComp1), 1);
+
+  instAnon1b.unmount();
+  assert.strictEqual(styleMountManager.getRefCount(AnonComp1), 0);
+
+  instAnon2.unmount();
+  assert.strictEqual(styleMountManager.getRefCount(AnonComp2), 0);
+
+  console.log('  ✅ Test 9 passed: Anonymous component classes isolation and deduplication verified');
+
   // --- Cleanup ---
   delete global.Node;
   delete global.document;
