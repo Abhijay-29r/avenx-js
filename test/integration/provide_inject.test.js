@@ -627,6 +627,71 @@ global.requestAnimationFrame = (cb) => {
 
     console.log('  ✅ Nested scopes and shadowing tests passed!');
 
+    // -------------------------------------------------------------------------
+    // Test Case 4: Reactive Provide/Inject Dependency Updates (Primitive Reassignment)
+    // -------------------------------------------------------------------------
+    console.log('  4. Testing reactive provide / inject dependency updates with primitive reassignment...');
+
+    let reactiveChildRenders = 0;
+
+    class ReactiveChildComp extends AvenxComponent {
+      constructor(bridges, props) {
+        super({}, {}, bridges, '<div>Child Theme: {{ theme }}</div>', {}, props);
+      }
+      runUpdate() {
+        reactiveChildRenders++;
+        super.runUpdate();
+      }
+    }
+    ReactiveChildComp.inject = ['theme'];
+
+    class ReactiveParentPage extends AvenxPage {
+      constructor(bridges, registry) {
+        super(
+          { parentTheme: 'initial-dark' },
+          {},
+          bridges,
+          '<div>' + '  <ReactiveChildComp data-avenx-comp="ReactiveChildComp"></ReactiveChildComp>' + '</div>',
+          {},
+          registry,
+        );
+      }
+      provide() {
+        return {
+          theme: this.state.parentTheme,
+        };
+      }
+    }
+
+    const registry4 = new Map();
+    registry4.set('ReactiveChildComp', ReactiveChildComp);
+
+    testRootElement.innerHTML = '';
+    const parentPage4 = new ReactiveParentPage({}, registry4);
+    parentPage4.mount(testRootElement);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const childEl4 = testRootElement.querySelector('[data-avenx-comp="ReactiveChildComp"]');
+    assert.ok(childEl4, 'Child component should be mounted in the DOM');
+    const childInstance4 = childEl4.__avenx_comp_instance;
+    assert.ok(childInstance4, 'Child component instance should be cached on element');
+
+    assert.strictEqual(childInstance4.theme, 'initial-dark', 'Child should inject initial theme');
+    assert.strictEqual(childEl4.textContent.trim(), 'Child Theme: initial-dark');
+    assert.strictEqual(reactiveChildRenders, 1, 'Child should have rendered once');
+
+    // Mutate parent state. Since parentTheme shifts, it should trigger child update check
+    parentPage4.state.parentTheme = 'new-light';
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(childInstance4.theme, 'new-light', 'Child injected theme should update reactively');
+    assert.strictEqual(childEl4.textContent.trim(), 'Child Theme: new-light', 'Child template should render updated value');
+    assert.strictEqual(reactiveChildRenders, 2, 'Child component should have rendered a second time');
+
+    console.log('  ✅ Reactive Provide/Inject updates tests passed!');
+
     console.log('✅ Provide / Inject Integration Tests successfully completed!');
     process.exit(0);
   } catch (error) {
