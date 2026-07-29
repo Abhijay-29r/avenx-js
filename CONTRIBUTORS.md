@@ -111,6 +111,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/somshekharswami"><img src="https://avatars.githubusercontent.com/u/144811730?v=4?s=100" width="100px;" alt="somshekharswami"/><br /><sub><b>somshekharswami</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=somshekharswami" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Bhaveshkransan"><img src="https://avatars.githubusercontent.com/u/197739578?v=4?s=100" width="100px;" alt="Bhavesh "/><br /><sub><b>Bhavesh </b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Bhaveshkransan" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Farouk-Osman"><img src="https://avatars.githubusercontent.com/u/122695019?v=4?s=100" width="100px;" alt="Farouk Etman"/><br /><sub><b>Farouk Etman</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Farouk-Osman" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/sidharth-vijayan"><img src="https://avatars.githubusercontent.com/u/226437127?v=4?s=100" width="100px;" alt="Sidharth Vijayan"/><br /><sub><b>Sidharth Vijayan</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=sidharth-vijayan" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
