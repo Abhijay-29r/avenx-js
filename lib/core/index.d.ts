@@ -90,7 +90,22 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     /**
      * Unmounts the component from the DOM and runs lifecycle cleanup.
      */
-    unmount(): void;
+    unmount(): void | Promise<void>;
+
+    /**
+     * Called before the component leaves the DOM. Can return a Promise to delay DOM removal.
+     */
+    onBeforeLeave?(): void | Promise<void>;
+
+    /**
+     * Called when the component is mounted and enters the DOM.
+     */
+    onEnter?(): void;
+
+    /**
+     * Called when the component leaves the DOM and unmounts.
+     */
+    onLeave?(): void;
 
     /**
      * Updates the component's props and triggers an update if they changed.
