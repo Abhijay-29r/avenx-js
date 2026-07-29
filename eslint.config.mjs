@@ -73,7 +73,7 @@ export default [
       "no-var": "error",
       "prefer-const": "error",
       "prefer-arrow-callback": "error",
-      "camelcase": ["error", { "properties": "always", "allow": ["__avenx_comp_instance", "__avenx_routers", "__avenx_enable_profiling"] }],
+      "camelcase": ["error", { "properties": "always", "allow": ["__avenx_comp_instance", "__avenx_routers", "__avenx_enable_profiling", "__avenx_directives"] }],
       "jsdoc/require-jsdoc": ["error", {
         "require": {
           "MethodDefinition": true,
