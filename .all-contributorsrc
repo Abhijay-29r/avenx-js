@@ -606,6 +606,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "Farouk-Osman",
+      "name": "Farouk Etman",
+      "avatar_url": "https://avatars.githubusercontent.com/u/122695019?v=4",
+      "profile": "https://github.com/Farouk-Osman",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
