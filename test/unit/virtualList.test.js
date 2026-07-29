@@ -8,15 +8,21 @@ if (typeof global.ResizeObserver === 'undefined') {
   global.ResizeObserver = class MockResizeObserver {
     constructor(callback) {
       this.callback = callback;
+      this.observedTargets = new Set();
       MockResizeObserver.instances.push(this);
     }
     observe(target) {
-      this.target = target;
+      this.observedTargets.add(target);
     }
-    unobserve() {}
-    disconnect() {}
+    unobserve(target) {
+      this.observedTargets.delete(target);
+    }
+    disconnect() {
+      this.observedTargets.clear();
+      this.isDisconnected = true;
+    }
     trigger(entry) {
-      this.callback([entry]);
+      this.callback(Array.isArray(entry) ? entry : [entry]);
     }
   };
   global.ResizeObserver.instances = [];
@@ -70,16 +76,13 @@ async function runTests() {
     const spacer = virtualListInstance.$refs.spacer;
     assert.ok(spacer, 'Spacer ref should exist.');
 
-
+    const viewport = virtualListInstance.$refs.viewport;
+    assert.ok(viewport, 'Viewport ref should exist.');
 
     // 2. Validate initial render with DOM footprint constraints
     const initialChildrenCount = spacer.childNodes.length;
     console.log(`  Initial visible elements count: ${initialChildrenCount}`);
     
-    // Default viewportHeight falls back to 400px.
-    // 400px client height / 30px height = ~14 visible elements.
-    // Plus buffer (5 above + 5 below = 10 buffer).
-    // Total should be around 24-25.
     assert.ok(initialChildrenCount > 0, 'Should render some visible elements.');
     assert.ok(initialChildrenCount < 50, 'Should render under 50 elements for DOM footprint constraints.');
 
@@ -92,7 +95,6 @@ async function runTests() {
 
     // 3. Test Scroll and recycled node updates
     console.log('  Simulating scroll to index 100...');
-    const viewport = virtualListInstance.$refs.viewport;
     
     // Scroll past 100 items (100 * 30px = 3000px)
     viewport.scrollTop = 3000;
@@ -102,8 +104,6 @@ async function runTests() {
     console.log(`  Scrolled visible elements count: ${scrolledChildrenCount}`);
     assert.ok(scrolledChildrenCount < 50, 'Scrolled DOM footprint must remain under 50 elements.');
 
-    // Index 100 items scroll, minus 5 items buffer.
-    // So the first rendered item should be around index 95.
     const firstChildIndex = parseInt(spacer.childNodes[0].getAttribute('data-index'), 10);
     console.log(`  First visible element index after scroll: ${firstChildIndex}`);
     assert.ok(firstChildIndex > 90 && firstChildIndex < 100, 'First visible index should align with scroll offset and buffer.');
@@ -125,14 +125,13 @@ async function runTests() {
       'Total height represented by padding + elements height should match 10,000 items * 30px.'
     );
 
-    // 5. Test dynamic resizing
+    // 5. Test dynamic item resizing via ResizeObserver
     console.log('  Testing dynamic item resizing via ResizeObserver...');
     if (global.ResizeObserver.instances.length > 0) {
       const firstRow = spacer.childNodes[0];
       const observerInstance = global.ResizeObserver.instances[0];
 
       // Simulate first row height resizing to 100px
-      // Mock setting offsetHeight directly if possible, or trigger manually
       Object.defineProperty(firstRow, 'offsetHeight', {
         value: 100,
         configurable: true
@@ -153,8 +152,42 @@ async function runTests() {
         300070, // original 300,000 + 70px difference (100px - 30px)
         'Total spacer height should reactively update to account for resized item.'
       );
+
+      // 6. Test viewport container resizing via ResizeObserver
+      console.log('  Testing viewport container resizing via ResizeObserver...');
+      const countBeforeViewportResize = spacer.childNodes.length;
+      
+      // Simulate viewport clientHeight changing from 400px to 800px
+      Object.defineProperty(viewport, 'clientHeight', {
+        value: 800,
+        configurable: true
+      });
+
+      observerInstance.trigger({
+        target: viewport
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const countAfterViewportResize = spacer.childNodes.length;
+      console.log(`  Visible elements count after viewport expansion (400px -> 800px): ${countAfterViewportResize}`);
+      assert.ok(
+        countAfterViewportResize > countBeforeViewportResize,
+        'Expanding viewport height should trigger recalculation and increase visible rows count.'
+      );
     } else {
       console.log('  ⚠️ ResizeObserver mock not registered or observed.');
+    }
+
+    // 7. Test observer cleanup on unmount
+    console.log('  Testing unmount cleanup...');
+    const observerInstance = virtualListInstance.resizeObserver;
+    page.unmount();
+
+    assert.strictEqual(virtualListInstance.resizeObserver, null, 'resizeObserver reference should be null after unmount.');
+    assert.strictEqual(virtualListInstance.rafId, null, 'rafId handle should be reset after unmount.');
+    if (observerInstance) {
+      assert.strictEqual(observerInstance.isDisconnected, true, 'ResizeObserver should be disconnected on unmount.');
     }
 
     // Clean up DOM
