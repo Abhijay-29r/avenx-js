@@ -232,6 +232,39 @@ try {
   escEl.trigger('keydown', { type: 'keydown', key: 'Escape' });
   assert.strictEqual(executedSource, 'handleEsc', 'Pressing Escape should run esc handler');
 
+  // 12. Test keyboard system modifiers
+  for (const [modifier, eventProperty] of [
+    ['ctrl', 'ctrlKey'],
+    ['alt', 'altKey'],
+    ['shift', 'shiftKey'],
+    ['meta', 'metaKey'],
+    ['cmd', 'metaKey'],
+  ]) {
+    const systemEl = createMockElement('BUTTON', { [`@click.${modifier}`]: `handle${modifier}` });
+    binder.bind(systemEl, dispatcher);
+    resetDispatcher();
+
+    systemEl.trigger('click', { type: 'click', [eventProperty]: false });
+    assert.strictEqual(executedSource, null, `.${modifier} should reject events without the modifier`);
+
+    systemEl.trigger('click', { type: 'click', [eventProperty]: true });
+    assert.strictEqual(executedSource, `handle${modifier}`, `.${modifier} should accept matching events`);
+  }
+
+  // 13. Test a system modifier chained with a key modifier
+  const shiftEnterEl = createMockElement('INPUT', { '@keydown.shift.enter': 'handleShiftEnter' });
+  binder.bind(shiftEnterEl, dispatcher);
+  resetDispatcher();
+
+  shiftEnterEl.trigger('keydown', { type: 'keydown', key: 'Enter', shiftKey: false });
+  assert.strictEqual(executedSource, null, 'Shift+Enter should require Shift');
+
+  shiftEnterEl.trigger('keydown', { type: 'keydown', key: 'Escape', shiftKey: true });
+  assert.strictEqual(executedSource, null, 'Shift+Enter should require Enter');
+
+  shiftEnterEl.trigger('keydown', { type: 'keydown', key: 'Enter', shiftKey: true });
+  assert.strictEqual(executedSource, 'handleShiftEnter', 'Shift+Enter should run the handler');
+
   // 7. Test compilation of modifier attributes in ComponentParser
   const sp = new StyleProcessor();
   const cp = new ComponentParser(sp);
