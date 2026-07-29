@@ -100,6 +100,38 @@ When the matched route hash includes query parameters,both `to.params.query` and
 ```
 :::
 
+### Guard Control Object
+
+Instead of a boolean or string, `canActivate` can return a control object for finer-grained control:
+
+| Property   | Type      | Description                                                  |
+|------------|-----------|----------------------------------------------------------------|
+| `cancel`   | `boolean` | Aborts the navigation and reverts the URL to the previous route. |
+| `silent`   | `boolean` | When `cancel` is true, suppresses the console warning normally logged on denial. |
+| `redirect` | `string`  | Path to redirect to instead.                                    |
+| `query`    | `object`  | Key/value pairs serialized into the redirect URL's search params. |
+| `state`    | `object`  | Also serialized into the search params (merged with `query`, which takes priority on conflicting keys). |
+
+#### Example: silent cancellation
+
+​```js
+canActivate() {
+  return { cancel: true, silent: true };
+}
+​```
+
+#### Example: redirect with query parameters
+
+​```js
+canActivate(to) {
+  if (!isAuthenticated()) {
+    return { redirect: '/login', query: { next: to.hash } };
+  }
+  return true;
+}
+​```
+This produces a redirect to `#/login?next=/dashboard`.
+
 ### Navigation Redirects
 
 A route guard can return a hash path instead of a boolean to redirect the user to another route. This is useful for authentication, authorization, or onboarding flows where navigation should continue to a different page instead of simply being allowed or blocked.
