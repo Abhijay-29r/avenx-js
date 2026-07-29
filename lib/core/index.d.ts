@@ -331,6 +331,11 @@ export class AvenxApp {
     bridges: Record<string, any>;
 
     /**
+     * Registered custom directives.
+     */
+    directives: Map<string, any>;
+
+    /**
      * Active router instance.
      */
     router: AvenxRouter | null;
@@ -395,6 +400,17 @@ export class AvenxApp {
      * @param callback Callback triggered when an unhandled lifecycle or event handler error occurs.
      */
     onError(callback: (error: Error, component: AvenxComponent, origin: string) => void): this;
+
+    /**
+     * Registers a custom directive.
+     * @param name Directive name.
+     * @param definition Directive lifecycle definition.
+     */
+    directive(name: string, definition: {
+        mounted?(el: any, binding: { value: any; expression: string }): void;
+        updated?(el: any, binding: { value: any; oldValue: any; expression: string }): void;
+        unmounted?(el: any, binding: { value: any; oldValue: any; expression: string }): void;
+    }): this;
 }
 
 /**
