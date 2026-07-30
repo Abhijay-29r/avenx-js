@@ -495,6 +495,31 @@ export function watchProject(cli) {
 }
 
 /**
+ * Listens on the requested port, incrementing it when the address is occupied.
+ * @param {import('http').Server} server
+ * @param {number|string} requestedPort
+ * @param {string} host
+ * @param {(port: number) => void} onListening
+ */
+export function listenWithPortFallback(server, requestedPort, host, onListening) {
+  let port = Number(requestedPort);
+
+  server.once('listening', () => onListening(port));
+  server.on('error', (err) => {
+    if (err.code !== 'EADDRINUSE' || port >= 65535) {
+      throw err;
+    }
+
+    const occupiedPort = port;
+    port += 1;
+    console.warn(`\nPort ${occupiedPort} is already in use. Trying ${port} instead.`);
+    server.listen(port, host);
+  });
+
+  server.listen(port, host);
+}
+
+/**
  * Starts a local development server and watches for changes.
  * @param {object} cli
  * @param {number|string} port
@@ -589,19 +614,8 @@ export function serveProject(cli, port, host = 'localhost') {
     });
   });
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(
-        `\n❌ Port ${port} is already in use.\n` +
-          `   Stop the process using that port, or start the dev server on a different one.\n`,
-      );
-      process.exit(1);
-    }
-    throw err;
-  });
-
-  server.listen(port, host, () => {
-    const url = `http://${host}:${port}`;
+  listenWithPortFallback(server, port, host, (activePort) => {
+    const url = `http://${host}:${activePort}`;
     console.log(`\n🚀 Dev-Server running at ${url}`);
     if (cli.config.server.liveReload) {
       console.log(`👀 Watching for changes in ${cli.config.srcDir}/...\n`);
