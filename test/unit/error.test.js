@@ -65,6 +65,17 @@ function testAppErrorHandling() {
 
   const app = new AvenxApp({ target: '#app' });
 
+  app.register('DuplicateWidget', AvenxComponent);
+  assert.throws(
+    () => {
+      app.register('DuplicateWidget', AvenxComponent);
+    },
+    (err) => {
+      return err instanceof AvenxError && err.code === 'AVX_C03' && err.message.includes('"DuplicateWidget"');
+    },
+    'Should identify the duplicate component name',
+  );
+
   // Test mounting unregistered page throws AVX_R02
   assert.throws(
     () => {
