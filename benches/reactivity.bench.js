@@ -71,6 +71,16 @@ function benchmark() {
   const totalTime = createTime + mutateTime + cachedReadTime + dirtyReadTime;
   const avgTime = totalTime / iterations;
 
+  // 4. Large Deep State Lazy Creation Benchmark
+  const deepItems = Array.from({ length: 10000 }, (_, i) => ({
+    id: i,
+    nested: { val: i },
+  }));
+  const startDeepLazy = performance.now();
+  const deepState = stateFactory.create({ items: deepItems });
+  const endDeepLazy = performance.now();
+  const deepLazyTime = endDeepLazy - startDeepLazy;
+
   console.log(`Total time: ${totalTime.toFixed(2)}ms`);
   console.log(`Average time per operation: ${avgTime.toFixed(4)}ms`);
   console.log(`Ops/sec: ${Math.round(1000 / avgTime)}`);
@@ -78,6 +88,8 @@ function benchmark() {
   console.log(`  - Mutation & Watchers: ${mutateTime.toFixed(2)}ms (triggered: ${watcherTriggerCount})`);
   console.log(`  - Cached reads: ${cachedReadTime.toFixed(2)}ms`);
   console.log(`  - Invalidation + reads: ${dirtyReadTime.toFixed(2)}ms`);
+  console.log(`  - Large Deep State Lazy Init (10k items): ${deepLazyTime.toFixed(4)}ms`);
 }
 
 benchmark();
+
