@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { AvenxGuard } from '../../lib/core/runtime/AvenxGuard.js';
 import { AvenxApp } from '../../lib/core/runtime/AvenxApp.js';
 import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
 import { setupDOMMock, teardownDOMMock } from '../helpers/dom-mock.js';
@@ -35,6 +36,17 @@ class PageDashboard extends AvenxPage {
    */
   render() {
     return '<div>Dashboard Page</div>';
+  }
+}
+/**
+ *
+ */
+class PageLogin extends AvenxPage {
+  /**
+   *
+   */
+  render() {
+    return '<div>Login Page</div>';
   }
 }
 /**
@@ -205,10 +217,54 @@ async function testRouterPrefixes() {
   console.log('  ✅ Namespace-prefixed routing tests passed!');
 }
 
+/**
+ *
+ */
+async function testStringGuardRedirect() {
+  console.log('🧪 Testing guard string redirects...');
+
+  setupDOMMock();
+  setupWindowMock();
+
+  class StringRedirectGuard extends AvenxGuard {
+    canActivate() {
+      return '#/login';
+    }
+  }
+
+  const app = new AvenxApp({ target: 'div' });
+  app.registerPage('Dashboard', PageDashboard);
+  app.registerPage('Login', PageLogin);
+
+  const router = app.initRouter({
+    '#/dashboard': {
+      page: 'Dashboard',
+      guards: [StringRedirectGuard],
+    },
+    '#/login': 'Login',
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  router.currentRoute = null;
+
+  window.location.hash = '#/dashboard';
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.strictEqual(window.location.hash, '#/login', 'Guard should redirect to the returned URL string');
+  assert.strictEqual(router.currentRoute.page, 'Login', 'Redirect target should be mounted');
+  assert.strictEqual(router.currentRoute.hash, '#/login');
+
+  router.destroy();
+  teardownWindowMock();
+  teardownDOMMock();
+  console.log('  ✅ Guard string redirect tests passed!');
+}
+
 (async () => {
   try {
     await testRouterCoexistence();
     await testRouterPrefixes();
+    await testStringGuardRedirect();
     console.log('  ✅ Router conflict resolution tests passed!');
     process.exit(0);
   } catch (error) {
