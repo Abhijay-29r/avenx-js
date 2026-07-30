@@ -113,6 +113,20 @@ try {
     writeTestConfig({ voidTags: [''] });
     assertThrows(() => loadConfig(), 'voidTags must be an array of non-empty strings');
 
+    writeTestConfig({ warnings: 'not-an-object' });
+    assertThrows(() => loadConfig(), 'warnings must be an object');
+
+    writeTestConfig({ warnings: { AVX_W03: 123 } });
+    assertThrows(() => loadConfig(), 'warnings.AVX_W03 must be a string severity');
+
+    writeTestConfig({ warnings: { AVX_W03: 'invalid-severity' } });
+    assertThrows(() => loadConfig(), 'Invalid severity "invalid-severity" for warning "AVX_W03"');
+
+    writeTestConfig({ warnings: { AVX_W03: 'error', AVX_W01: 'off' } });
+    const warnConfig = loadConfig();
+    assert.strictEqual(warnConfig.warnings['AVX_W03'], 'error');
+    assert.strictEqual(warnConfig.warnings['AVX_W01'], 'off');
+
     cleanupTestConfig();
 
     // ----------------------------------------------------
@@ -135,7 +149,7 @@ try {
         `Unexpected warning: ${warnings[0]}`
       );
       assert.ok(
-        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, outputName, logging, voidTags.'),
+        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, outputName, logging, voidTags, warnings.'),
         `Unexpected warning: ${warnings[0]}`
       );
       warnings.length = 0;
