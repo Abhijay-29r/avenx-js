@@ -1,16 +1,7 @@
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 import assert from 'assert';
-import fs from 'fs';
-import path from 'path';
 import { AvenxComponent } from '../../lib/core/runtime/AvenxComponent.js';
 import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
 import { AvenxApp } from '../../lib/core/runtime/AvenxApp.js';
-import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
-import ComponentParser from '../../lib/compiler/ComponentParser.js';
 
 // ==========================================
 // 1. Lightweight Mock DOM & HTML Parser
@@ -553,7 +544,7 @@ global.Node = {
       constructor(bridges) {
         super({}, {}, bridges, '<div data-avenx-comp="child-comp"></div>', {}, reg1);
       }
-      onErrorCaptured(err, comp, origin) {
+      onErrorCaptured(err) {
         capturedError = err;
         return false; // stop propagation
       }
@@ -561,7 +552,7 @@ global.Node = {
     
     const app = new AvenxApp({ target: '#app' });
     app.register('parent', ParentComponent);
-    app._handleError = (err) => { 
+    app._handleError = () => { 
       globalErrorFired = true; 
     };
     
@@ -598,7 +589,7 @@ global.Node = {
       constructor(bridges) {
         super({}, {}, bridges, '<div data-avenx-comp="child-comp2"></div>', {}, reg2);
       }
-      onErrorCaptured(err, comp, origin) {
+      onErrorCaptured(err) {
         capturedError = err;
         return true; // continue propagation
       }
@@ -606,7 +597,7 @@ global.Node = {
     
     const app2 = new AvenxApp({ target: '#app' });
     app2.register('parent2', ParentComponent2);
-    app2._handleError = (err) => { globalErrorFired = true; };
+    app2._handleError = () => { globalErrorFired = true; };
     
     app2.mount('parent2');
     await new Promise(r => setTimeout(r, 20));
@@ -637,7 +628,7 @@ global.Node = {
       constructor(bridges) {
         super({}, {}, bridges, '<div data-avenx-comp="child-comp3"></div>', {}, reg3);
       }
-      onErrorCaptured(err, comp, origin) {
+      onErrorCaptured(err) {
         capturedError = err;
         return false; // stop propagation
       }
