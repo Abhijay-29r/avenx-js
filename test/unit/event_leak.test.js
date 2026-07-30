@@ -57,7 +57,7 @@ try {
 
   assert.strictEqual(boundListeners.length, 4, 'Should add exactly 4 common event listeners');
   assert.ok(boundListeners.some(l => l.event === 'click'), 'Should have click listener');
-  assert.ok(mockElement.__avenx_delegated_listeners instanceof Map, 'Should store active listeners on element property');
+  assert.ok(mockElement.__avenxDelegatedListeners instanceof Map, 'Should store active listeners on element property');
 
   // 3. Trigger event & verify it executes the initial handler expression
   mockElement.trigger('click', { type: 'click' });
@@ -125,8 +125,8 @@ try {
   rebindBinder.bind(fragmentMock, dispatcher);
 
   assert.strictEqual(buttonListeners.length, 1, 'Direct binding should attach 1 listener');
-  assert.ok(buttonMock.__avenx_direct_listeners instanceof Map, 'Direct active listeners should be stored on __avenx_direct_listeners');
-  assert.strictEqual(buttonMock.__avenx_direct_listeners.size, 1);
+  assert.ok(buttonMock.__avenxDirectListeners instanceof Map, 'Direct active listeners should be stored on __avenxDirectListeners');
+  assert.strictEqual(buttonMock.__avenxDirectListeners.size, 1);
 
   // Trigger click on button
   executionCalls.length = 0;
@@ -194,7 +194,7 @@ try {
   // This should traverse parentMock and clean up childMock's direct event listeners
   directBinder.unbind(parentMock);
   assert.strictEqual(childListeners.length, 0, 'Child event listener should be removed when unbinding parent');
-  assert.strictEqual(childMock.__avenx_direct_listeners, undefined, 'Direct listener property deleted after unbind');
+  assert.strictEqual(childMock.__avenxDirectListeners, undefined, 'Direct listener property deleted after unbind');
 
   console.log('  ✅ EventBinder duplicate listeners and leak prevention tests passed!');
 } catch (error) {
