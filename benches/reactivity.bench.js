@@ -80,6 +80,9 @@ function benchmark() {
   const deepState = stateFactory.create({ items: deepItems });
   const endDeepLazy = performance.now();
   const deepLazyTime = endDeepLazy - startDeepLazy;
+  if (!deepState) {
+    throw new Error('State creation failed');
+  }
 
   console.log(`Total time: ${totalTime.toFixed(2)}ms`);
   console.log(`Average time per operation: ${avgTime.toFixed(4)}ms`);
