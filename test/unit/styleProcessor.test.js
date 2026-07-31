@@ -142,6 +142,68 @@ try {
     'Should preserve exact ordering of base rules and nested rules',
   );
 
+  // Verify CSS Custom Property (variables) encapsulation
+  const varCssCompA = `
+    --primary-color: #ff0000;
+    --primary-color-hover: #cc0000;
+    & button {
+        color: var(--primary-color);
+        background: var(--primary-color-hover);
+        border: 1px solid var(--global-border, var(--primary-color));
+        content: "--primary-color: inside string";
+    }
+  `;
+  const spVarA = new StyleProcessor();
+  const hashVarA = spVarA.getHash(varCssCompA, 'CompA');
+  const hashIdA = hashVarA.replace(/^avenx-/, '');
+  spVarA.extractRules(varCssCompA, hashVarA);
+  const genVarCssA = spVarA.scopedStyles;
+
+  assert.ok(
+    genVarCssA.includes(`--ax-${hashIdA}-primary-color: #ff0000;`),
+    'Should scope --primary-color declaration',
+  );
+  assert.ok(
+    genVarCssA.includes(`--ax-${hashIdA}-primary-color-hover: #cc0000;`),
+    'Should scope --primary-color-hover declaration without substring collision',
+  );
+  assert.ok(
+    genVarCssA.includes(`color: var(--ax-${hashIdA}-primary-color);`),
+    'Should scope var(--primary-color) usage',
+  );
+  assert.ok(
+    genVarCssA.includes(`background: var(--ax-${hashIdA}-primary-color-hover);`),
+    'Should scope var(--primary-color-hover) usage',
+  );
+  assert.ok(
+    genVarCssA.includes(`var(--global-border, var(--ax-${hashIdA}-primary-color))`),
+    'Should scope local var fallback while preserving global var',
+  );
+  assert.ok(
+    genVarCssA.includes('content: "--primary-color: inside string";'),
+    'Should not modify custom properties inside string literals',
+  );
+
+  // Test isolation between CompA and CompB with identical variable names
+  const varCssCompB = `
+    --primary-color: #0000ff;
+    & button { color: var(--primary-color); }
+  `;
+  const spVarB = new StyleProcessor();
+  const hashVarB = spVarB.getHash(varCssCompB, 'CompB');
+  const hashIdB = hashVarB.replace(/^avenx-/, '');
+  spVarB.extractRules(varCssCompB, hashVarB);
+  const genVarCssB = spVarB.scopedStyles;
+
+  assert.ok(
+    genVarCssB.includes(`--ax-${hashIdB}-primary-color: #0000ff;`),
+    'CompB should scope its own --primary-color',
+  );
+  assert.ok(
+    !genVarCssB.includes(`--ax-${hashIdA}-primary-color`),
+    'CompB should not contain CompA scoped variable hash',
+  );
+
   console.log('  ✅ StyleProcessor tests passed!');
 } catch (error) {
   console.error('❌ StyleProcessor tests failed!');
