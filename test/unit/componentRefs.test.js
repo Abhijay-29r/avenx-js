@@ -76,11 +76,63 @@ function testComponentRefCleanup() {
   console.log('  ✅ $refs are cleared after unmount.');
 }
 
+/**
+ * Tests that querySelectorAll for refs is not triggered multiple times during multiple updates.
+ */
+function testBatchedRefResolution() {
+  console.log('🧪 Testing batched data-ax-ref resolution during updates...');
+
+  const component = new AvenxComponent(
+    { count: 0 },
+    {},
+    {},
+    '<div><button data-ax-ref="myBtn">{{ state.count }}</button></div>'
+  );
+  const root = document.createElement('div');
+
+  component.__setMountTarget(root);
+  component.runUpdate();
+
+  const button = root.querySelector('[data-ax-ref="myBtn"]');
+  assert.ok(button, 'Button ref element should exist.');
+
+  // Spy on root element querySelectorAll to count DOM queries for refs
+  let queryCount = 0;
+  const originalQuerySelectorAll = root.querySelectorAll.bind(root);
+  root.querySelectorAll = function (selector) {
+    if (selector === '[data-ax-ref]') {
+      queryCount++;
+    }
+    return originalQuerySelectorAll(selector);
+  };
+
+  // Perform multiple component updates in a single cycle
+  component.runUpdate();
+  component.runUpdate();
+  component.runUpdate();
+
+  // Up to this point, DOM queries for refs should NOT have fired repeatedly for each update
+  assert.strictEqual(queryCount, 0, 'querySelectorAll for $refs should not run eagerly on every update.');
+
+  // Accessing $refs or resolving refs should execute querySelectorAll exactly once
+  const btnRef = component.$refs.myBtn;
+  assert.strictEqual(btnRef, button, '$refs.myBtn should resolve to the correct element.');
+  assert.strictEqual(queryCount, 1, 'querySelectorAll for $refs should fire at most once upon resolution.');
+
+  // Subsequent accesses to $refs should use the cached reference without querying DOM again
+  const btnRef2 = component.$refs.myBtn;
+  assert.strictEqual(btnRef2, button);
+  assert.strictEqual(queryCount, 1, 'Subsequent $refs accesses must use cached references.');
+
+  console.log('  ✅ Reference resolution is correctly batched and cached.');
+}
+
 function runTests() {
   try {
     testComponentRefCollection();
     testComponentRefScoping();
     testComponentRefCleanup();
+    testBatchedRefResolution();
 
     console.log('✅ All component ref tests passed successfully!');
   } catch (error) {
