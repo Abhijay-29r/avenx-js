@@ -88,35 +88,21 @@ Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind
 
 This ensures that the checkbox's checked state is rendered from `state.checked` and that the state is updated whenever the checkbox changes.
 
-## 3. Boolean Attributes
+## 3. Boolean Attributes Coercion
 
-Avenx-JS automatically handles standard HTML boolean attributes when they are bound to template expressions.
+The framework's template patcher (`lib/core/renderer/domPatch.js`) provides automatic handling for standard HTML boolean attributes when bound to expressions (e.g., `disabled="{{ state.isSubmitting }}"`).
 
-For supported boolean attributes, the evaluated value controls both:
+When a boolean attribute's value is bound to an expression, Avenx-JS automatically toggles its presence on the element and sets the underlying DOM property to `true` or `false` based on the evaluated truthiness:
 
-- Whether the attribute is present in the rendered HTML.
-- The corresponding DOM property (`true` or `false`).
-
-If the expression evaluates to a truthy value, the attribute is added and the DOM property is set to `true`.
-
-If the expression evaluates to a falsy value, the attribute is removed and the DOM property is set to `false`.
-
-### Example
-
-```html
-<button disabled="{{ state.isSubmitting }}">Submit</button>
-```
-
-When `state.isSubmitting` is `true`, the button is rendered as disabled.
-
-When `state.isSubmitting` is `false`, the `disabled` attribute is removed automatically and the button becomes enabled.
+- **Truthy Evaluation**: If the bound expression evaluates to a truthy value, the attribute is added to the HTML element and the underlying DOM property is set to `true` (e.g., `element.disabled = true`).
+- **Falsy Evaluation**: If the bound expression evaluates to a falsy value (`false`, `null`, `undefined`, or `"false"`), the attribute is automatically removed from the HTML element and the DOM property is set to `false` (e.g., `element.disabled = false`).
 
 ### Supported Boolean Attributes
 
-Avenx-JS automatically handles the following standard HTML boolean attributes:
+Avenx-JS automatically coerces the following standard HTML boolean attributes:
 
-- `checked`
 - `disabled`
+- `checked`
 - `required`
 - `readonly`
 - `selected`
@@ -136,27 +122,30 @@ Avenx-JS automatically handles the following standard HTML boolean attributes:
 - `async`
 - `defer`
 
-### More Examples
+### Examples
 
-Checkbox:
+#### Button State
+
+```html
+<button disabled="{{ state.isSubmitting }}">Submit</button>
+```
+
+When `state.isSubmitting` is `true`, the `disabled` attribute is present on the `<button>` and `button.disabled = true`. When `state.isSubmitting` becomes `false`, the attribute is automatically removed and `button.disabled = false`.
+
+#### Checkbox and Form Inputs
 
 ```html
 <input type="checkbox" checked="{{ state.accepted }}" />
-```
-
-Input field:
-
-```html
 <input type="text" required="{{ state.requireName }}" readonly="{{ state.readOnly }}" />
 ```
 
-Media element:
+#### Media Elements
 
 ```html
 <video controls="{{ state.showControls }}" autoplay="{{ state.autoPlay }}" muted="{{ state.muted }}"></video>
 ```
 
-Details element:
+#### Details Element
 
 ```html
 <details open="{{ state.expanded }}">
@@ -165,7 +154,7 @@ Details element:
 </details>
 ```
 
-Bind boolean attributes to expressions that evaluate to `true` or `false`. Avenx-JS automatically adds or removes the attribute and updates the corresponding DOM property.
+When binding conditional flags to inputs or buttons, bind your expression directly to the boolean attribute. Avenx-JS automatically handles adding/removing the attribute and setting the DOM property based on evaluated truthiness.
 
 ## 4. Conditional Visibility (`data-ax-show`)
 
