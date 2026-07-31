@@ -99,6 +99,7 @@ async function runTests() {
     // Scroll past 100 items (100 * 30px = 3000px)
     viewport.scrollTop = 3000;
     virtualListInstance.onScroll();
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     const scrolledChildrenCount = spacer.childNodes.length;
     console.log(`  Scrolled visible elements count: ${scrolledChildrenCount}`);
@@ -113,6 +114,25 @@ async function runTests() {
       `Item: Item ${firstChildIndex}`,
       `First visible element should render Item ${firstChildIndex} after scroll.`
     );
+
+    // Test scroll throttling: firing multiple scroll events synchronously
+    console.log('  Testing scroll event throttling and requestAnimationFrame sync...');
+    let layoutCalls = 0;
+    const originalLayout = virtualListInstance.layout.bind(virtualListInstance);
+    virtualListInstance.layout = () => {
+      layoutCalls++;
+      originalLayout();
+    };
+
+    virtualListInstance.onScroll();
+    virtualListInstance.onScroll();
+    virtualListInstance.onScroll();
+
+    assert.ok(virtualListInstance.scrollRafId !== null, 'scrollRafId should be set during scroll animation frame.');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(layoutCalls, 1, 'Multiple rapid scroll events must be throttled to 1 layout call per frame.');
+    assert.strictEqual(virtualListInstance.scrollRafId, null, 'scrollRafId should reset after animation frame completes.');
 
     // 4. Verify spacer paddings update correctly to maintain scroll position
     const spacerPaddingTop = parseFloat(spacer.style.paddingTop);
@@ -186,6 +206,7 @@ async function runTests() {
 
     assert.strictEqual(virtualListInstance.resizeObserver, null, 'resizeObserver reference should be null after unmount.');
     assert.strictEqual(virtualListInstance.rafId, null, 'rafId handle should be reset after unmount.');
+    assert.strictEqual(virtualListInstance.scrollRafId, null, 'scrollRafId handle should be reset after unmount.');
     if (observerInstance) {
       assert.strictEqual(observerInstance.isDisconnected, true, 'ResizeObserver should be disconnected on unmount.');
     }
