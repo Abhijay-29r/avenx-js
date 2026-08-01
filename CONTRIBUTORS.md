@@ -113,6 +113,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Farouk-Osman"><img src="https://avatars.githubusercontent.com/u/122695019?v=4?s=100" width="100px;" alt="Farouk Etman"/><br /><sub><b>Farouk Etman</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Farouk-Osman" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/sidharth-vijayan"><img src="https://avatars.githubusercontent.com/u/226437127?v=4?s=100" width="100px;" alt="Sidharth Vijayan"/><br /><sub><b>Sidharth Vijayan</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=sidharth-vijayan" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/andrewcb22"><img src="https://avatars.githubusercontent.com/u/131554903?v=4?s=100" width="100px;" alt="andrewcb22"/><br /><sub><b>andrewcb22</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=andrewcb22" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/HereIsMuhammad"><img src="https://avatars.githubusercontent.com/u/181842184?v=4?s=100" width="100px;" alt="Muhammad"/><br /><sub><b>Muhammad</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=HereIsMuhammad" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
