@@ -122,6 +122,9 @@ try {
     writeTestConfig({ warnings: { AVX_W03: 'invalid-severity' } });
     assertThrows(() => loadConfig(), 'Invalid severity "invalid-severity" for warning "AVX_W03"');
 
+    writeTestConfig({ preprocessors: 'not-an-object-or-fn' });
+    assertThrows(() => loadConfig(), 'preprocessors must be an object or function');
+
     writeTestConfig({ warnings: { AVX_W03: 'error', AVX_W01: 'off' } });
     const warnConfig = loadConfig();
     assert.strictEqual(warnConfig.warnings['AVX_W03'], 'error');
@@ -149,7 +152,7 @@ try {
         `Unexpected warning: ${warnings[0]}`
       );
       assert.ok(
-        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents.'),
+        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors.'),
         `Unexpected warning: ${warnings[0]}`
       );
       warnings.length = 0;
