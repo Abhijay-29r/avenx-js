@@ -148,6 +148,69 @@ function runTests() {
   assert.strictEqual(warnings6.length, 1);
   assert.ok(warnings6[0].includes('Undeclared variable or method "missingVar"'));
 
+  // 6. Test static duplicate ID attributes and looped static IDs
+  console.log('  Testing warnings for duplicate and looped static ID attributes...');
+
+  // Duplicate static IDs
+  const warningsIdDup = captureWarnings(() => {
+    cp.extractTemplate(
+      '<div id="main-header"></div><span id="main-header"></span>',
+      {},
+      'MyComp',
+      'my-component.js',
+      {},
+      {},
+      {},
+    );
+  });
+  assert.strictEqual(warningsIdDup.length, 1);
+  assert.ok(warningsIdDup[0].includes('AVX_W30'));
+  assert.ok(warningsIdDup[0].includes('main-header'));
+
+  // Static ID inside loop
+  const warningsIdLoop = captureWarnings(() => {
+    cp.extractTemplate(
+      '<@for item in items><div id="card-box">{{item}}</div></@for>',
+      {},
+      'MyComp',
+      'my-component.js',
+      { items: [] },
+      {},
+      {},
+    );
+  });
+  assert.strictEqual(warningsIdLoop.length, 1);
+  assert.ok(warningsIdLoop[0].includes('AVX_W30'));
+  assert.ok(warningsIdLoop[0].includes('card-box'));
+
+  // Dynamic IDs should NOT trigger warnings
+  const warningsIdDynamic = captureWarnings(() => {
+    cp.extractTemplate(
+      '<@for item in items><div :id="\'card-\' + item.id">{{item}}</div></@for>',
+      {},
+      'MyComp',
+      'my-component.js',
+      { items: [] },
+      {},
+      {},
+    );
+  });
+  assert.strictEqual(warningsIdDynamic.length, 0);
+
+  // Unique static IDs should NOT trigger warnings
+  const warningsIdUnique = captureWarnings(() => {
+    cp.extractTemplate(
+      '<div id="header"></div><div id="footer"></div>',
+      {},
+      'MyComp',
+      'my-component.js',
+      {},
+      {},
+      {},
+    );
+  });
+  assert.strictEqual(warningsIdUnique.length, 0);
+
   console.log('  ✅ Compile-time Static Validation tests passed!');
 }
 
