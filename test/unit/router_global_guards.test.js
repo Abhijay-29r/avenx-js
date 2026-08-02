@@ -83,12 +83,12 @@ async function testBeforeEachExecutionOrder() {
     },
   });
 
-  router.beforeEach((to, from) => {
+  router.beforeEach(() => {
     executionLog.push('globalBefore1');
     return true;
   });
 
-  router.beforeEach((to, from) => {
+  router.beforeEach(() => {
     executionLog.push('globalBefore2');
     return true;
   });
@@ -120,7 +120,7 @@ async function testBeforeEachHaltAndRedirect() {
   app.registerPage('Login', PageLogin);
   app.registerPage('Admin', PageAdmin);
 
-  let isAuthenticated = false;
+  const isAuthenticated = false;
 
   const router = app.initRouter({
     '#/home': 'Home',
@@ -129,7 +129,7 @@ async function testBeforeEachHaltAndRedirect() {
   });
 
   // Global auth check: redirect unauthenticated users away from /admin
-  router.beforeEach((to, from) => {
+  router.beforeEach((to) => {
     if (to.page === 'Admin' && !isAuthenticated) {
       return '#/login';
     }
@@ -147,7 +147,7 @@ async function testBeforeEachHaltAndRedirect() {
 
   // Test halt/cancel
   let blockAll = false;
-  router.beforeEach((to, from) => {
+  router.beforeEach(() => {
     if (blockAll) return false;
     return true;
   });
@@ -182,7 +182,7 @@ async function testAsyncBeforeEach() {
   });
 
   let asyncChecked = false;
-  router.beforeEach(async (to, from) => {
+  router.beforeEach(async () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     asyncChecked = true;
     return true;
@@ -226,7 +226,7 @@ async function testAfterEachAndUnregister() {
   });
 
   const beforeLog = [];
-  const unsubBefore = router.beforeEach((to, from) => {
+  const unsubBefore = router.beforeEach((to) => {
     beforeLog.push(to.hash);
     return true;
   });
