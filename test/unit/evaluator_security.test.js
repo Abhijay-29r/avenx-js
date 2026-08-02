@@ -13,7 +13,7 @@ try {
   // =========================================================================
   console.log('  Testing block of unsafe globals...');
 
-  // Unsafe globals should return undefined
+  // Unsafe globals should throw AVX_R15 with detailed error message
   const unsafeGlobals = [
     'window',
     'document',
@@ -31,11 +31,17 @@ try {
   ];
 
   for (const glob of unsafeGlobals) {
-    const resultExpr = evaluator.evaluateExpression(glob, {});
-    assert.strictEqual(resultExpr, undefined, `Access to global "${glob}" via expression should evaluate to undefined`);
+    assert.throws(
+      () => evaluator.evaluateExpression(glob, {}),
+      (err) => err.code === 'AVX_R15' && err.message.includes(`Access to global object "${glob}" is restricted inside templates`),
+      `Access to global "${glob}" via expression should throw detailed sandbox violation`
+    );
 
-    const resultStmt = evaluator.executeStatement(`return ${glob}`, {});
-    assert.strictEqual(resultStmt, undefined, `Access to global "${glob}" via statement should execute to undefined`);
+    assert.throws(
+      () => evaluator.executeStatement(`return ${glob}`, {}),
+      (err) => err.code === 'AVX_R15' && err.message.includes(`Access to global object "${glob}" is restricted inside templates`),
+      `Access to global "${glob}" via statement should throw detailed sandbox violation`
+    );
   }
 
   console.log('    ✅ Unsafe globals successfully blocked.');
