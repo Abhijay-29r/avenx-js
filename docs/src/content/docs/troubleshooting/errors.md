@@ -1473,6 +1473,60 @@ If your project does not use a preprocessor, omit the field entirely or set it e
 
 This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 
+### AVX_W30 — COMPILER_DUPLICATE_ID_ATTRIBUTE
+
+**Warning Message**
+
+```text
+Duplicate static id attribute "{0}" detected in template of {1}. Static IDs must be unique and should not be used inside loops.
+```
+
+**Cause:** This warning is emitted when the compiler detects duplicate static `id` attributes within a component template. HTML requires `id` values to be unique within a document. This warning is also emitted when a static `id` attribute is used inside an `<@for>` loop, since each iteration generates another element with the same `id`.
+
+**Resolution:** To resolve this warning:
+
+1. Ensure every static `id` value within the component is unique.
+2. Avoid using static `id` attributes inside `<@for>` loops.
+3. Use `class` or `data-*` attributes for repeated elements instead of static HTML `id` values.
+
+**Incorrect**
+
+Duplicate IDs:
+
+```html
+<div id="user-card"></div>
+<section id="user-card"></section>
+```
+
+Static ID inside a loop:
+
+```html
+<@for(item in items)>
+    <div id="user-card">
+        {{ item.name }}
+    </div>
+</@for>
+```
+
+**Correct**
+
+Use unique IDs:
+
+```html
+<div id="profile-card"></div>
+<section id="settings-card"></section>
+```
+
+Use `class` or `data-*` attributes for repeated elements:
+
+```html
+<@for(item in items)>
+    <div class="user-card" data-user-id="{{ item.id }}">
+        {{ item.name }}
+    </div>
+</@for>
+```
+
 ## Runtime Codes (`AVX_R*`)
 
 | Code        | Default Message                                                                         | Cause & Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
