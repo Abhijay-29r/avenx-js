@@ -642,6 +642,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "MRNaveed-stack",
+      "name": "Muhammad Naveed Qasim",
+      "avatar_url": "https://avatars.githubusercontent.com/u/198047527?v=4",
+      "profile": "https://portfolio-amber-five-31.vercel.app/",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
