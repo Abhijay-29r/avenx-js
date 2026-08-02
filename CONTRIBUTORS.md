@@ -118,6 +118,7 @@ If you have questions or want to contribute, feel free to reach out.
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/chandhanaa1509"><img src="https://avatars.githubusercontent.com/u/263218559?v=4?s=100" width="100px;" alt="A Chandhana"/><br /><sub><b>A Chandhana</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=chandhanaa1509" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/vaibhavagrawalsst2029"><img src="https://avatars.githubusercontent.com/u/226970993?v=4?s=100" width="100px;" alt="Vaibhav Agrawal"/><br /><sub><b>Vaibhav Agrawal</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=vaibhavagrawalsst2029" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
