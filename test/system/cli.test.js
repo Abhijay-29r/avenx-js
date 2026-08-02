@@ -229,6 +229,30 @@ async function runTest() {
       'Compiled bundle should contain correct class name for camelCase component',
     );
 
+    console.log('🧪 Testing avenx generate component MyButton (acceptance criteria)...');
+
+    execSync(`node ${BIN_PATH} generate component MyButton`, { cwd: TEST_DIR });
+
+    const myButtonJsPath = path.join(TEST_DIR, 'src/components/my-button/my-button.component.js');
+    const myButtonCssPath = path.join(TEST_DIR, 'src/components/my-button/my-button.component.css');
+
+    assert.ok(fs.existsSync(myButtonJsPath), 'MyButton component JS file should be generated');
+    assert.ok(fs.existsSync(myButtonCssPath), 'MyButton component CSS file should be generated');
+
+    const myButtonJs = fs.readFileSync(myButtonJsPath, 'utf-8');
+    assert.ok(myButtonJs.includes('MyButton Component'), 'Generated component boilerplate should substitute name to MyButton');
+
+    const updatedMainApp = fs.readFileSync(path.join(TEST_DIR, 'src/main.app.js'), 'utf-8');
+    assert.ok(updatedMainApp.includes("import MyButton from './components/my-button/my-button.component.js';"), 'MyButton should be imported in main.app.js');
+    assert.ok(updatedMainApp.includes("app.register('MyButton', MyButton);"), 'MyButton should be registered in main.app.js');
+
+    console.log('🧪 Testing avenx g c ShortAliasButton...');
+
+    execSync(`node ${BIN_PATH} g c ShortAliasButton`, { cwd: TEST_DIR });
+
+    const shortAliasJsPath = path.join(TEST_DIR, 'src/components/short-alias-button/short-alias-button.component.js');
+    assert.ok(fs.existsSync(shortAliasJsPath), 'ShortAliasButton component should be generated using g c alias');
+
     console.log('🧪 Testing avenx generate component with custom project-level templates...');
 
     // Create local templates folder
