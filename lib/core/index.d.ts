@@ -156,6 +156,12 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     ): AvenxWatcher;
 
     /**
+     * Evaluates validation rules for an element and updates state.$validation.
+     * @param el Element to validate.
+     */
+    $validateElement(el: Element): string[];
+
+    /**
      * Internal method to set mount target element.
      * @param target
      * @private
