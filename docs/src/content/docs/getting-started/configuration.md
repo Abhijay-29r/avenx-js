@@ -15,6 +15,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
     "host": "localhost",
     "liveReload": true
   },
+  "treeShakeComponents": true,
   "voidTags": []
 }
 ```
@@ -30,6 +31,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 | `server.host`  | `string`   | `"localhost"`         | Non-empty host name or address for the local dev server.              |
 | `server.liveReload` | `boolean` | `true`              | Enables file watching, automatic browser reloads, and inspection script injection. |
 | `enableProfiling` | `boolean` | `false` | Enables performance profiling by wrapping lifecycle hooks, rendering, and DOM patching with browser Performance API marks and measures. |
+| `treeShakeComponents` | `boolean` | `true` | Removes unused components from the compiled bundle during compilation. Set to `false` to compile all discovered components. |
 | `voidTags`     | `string[]` | `[]`                   | Extra tag names the compiler treats as void (self-closing), in addition to the built-in HTML void tags (`img`, `br`, `input`, etc.). Each entry must be a non-empty string. |
 
 Path options must be relative paths. Absolute paths are rejected during configuration loading.
@@ -45,6 +47,31 @@ If your templates use custom or web-component tags that are always self-closing 
 ```
 
 Tags written with an explicit self-closing slash, like `<my-video />`, are already parsed correctly without any configuration — `voidTags` is only needed for the no-slash convention.
+
+## Tree Shaking Components
+
+By default, Avenx-JS removes components that are not referenced by your application during compilation. This helps reduce the final bundle size and improves application performance.
+
+If your project loads components dynamically or registers components through plugins, you may want to disable component tree shaking.
+
+### Configuration
+
+```json
+{
+  "treeShakeComponents": false
+}
+```
+
+### Behavior
+
+When `treeShakeComponents` is:
+
+| Value | Behavior |
+| ------ | -------- |
+| `true` | Only components referenced by pages or other used components are included in the compiled bundle. |
+| `false` | All discovered components are compiled, even if they are not referenced directly. |
+
+In most applications, the default value of `true` should be used. Disable tree shaking only when your application depends on components that cannot be detected during compilation.
 
 ## CSS Preprocessor Settings
 
@@ -87,6 +114,7 @@ If the configured preprocessor package is not installed, Avenx-JS falls back to 
     "host": "0.0.0.0",
     "liveReload": false
   },
+  "treeShakeComponents": false,
   "voidTags": ["my-video"]
 }
 ```
