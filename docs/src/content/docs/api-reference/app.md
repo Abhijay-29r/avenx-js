@@ -47,6 +47,39 @@ When the cache reaches this limit, the least recently used (LRU) cached page is 
 
 The default value is `5`.
 
+## Public Properties
+
+### `activePage`
+
+Returns the currently active mounted page component instance.
+
+**Returns**
+
+`AvenxComponent | null`
+
+Returns the currently active mounted page component instance, or `null` if no page is currently mounted.
+
+This read-only property is useful for debugging, diagnostics, and telemetry.
+
+**Example**
+
+```javascript
+const currentPage = app.activePage;
+
+if (currentPage) {
+  console.log('Current page:', currentPage);
+}
+```
+
+```javascript
+const currentPage = app.activePage;
+
+analytics.track('page-state', {
+  active: currentPage !== null,
+});
+```
+
+
 ## Public Methods
 
 ### `register(name, compClass)`
