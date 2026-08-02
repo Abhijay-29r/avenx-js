@@ -1473,6 +1473,62 @@ If your project does not use a preprocessor, omit the field entirely or set it e
 
 This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 
+### AVX_W29 — COMPILER_CIRCULAR_DEPENDENCY
+
+**Warning Message**
+
+```text
+WARNING: Circular dependency detected in component imports: {0}
+```
+
+**Cause:** This warning is emitted when the compiler detects a circular dependency in the component import graph. A circular dependency occurs when following component imports eventually leads back to a component that has already appeared in the current dependency chain. This can happen through direct imports (Component A imports Component B, and Component B imports Component A) or through longer dependency chains involving multiple components.
+
+**Resolution:** To resolve this warning:
+
+1. Remove unnecessary component imports that create dependency cycles.
+2. Extract shared functionality into a separate component, utility, or shared module that both components can depend on instead of importing each other.
+3. Restructure component relationships so imports form an acyclic dependency graph.
+
+**Incorrect**
+
+Direct circular dependency:
+
+```javascript
+// comp-a.component.js
+import CompB from './comp-b.component.js';
+```
+
+```javascript
+// comp-b.component.js
+import CompA from './comp-a.component.js';
+```
+
+Indirect circular dependency:
+
+```text
+CompX
+ ↓
+CompY
+ ↓
+CompZ
+ ↓
+CompX
+```
+
+**Correct**
+
+```text
+Parent
+ ↓
+Child
+```
+
+A one-way dependency does not create a circular import and will compile without this warning.
+
+**Defensive Example**
+
+When two components need the same functionality, move the shared logic into a separate module or utility instead of importing the components into each other. This keeps the dependency graph acyclic and avoids compiler warnings.
+
 ### AVX_W30 — COMPILER_DUPLICATE_ID_ATTRIBUTE
 
 **Warning Message**
