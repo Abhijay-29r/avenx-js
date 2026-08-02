@@ -309,6 +309,30 @@ export class AvenxRouter {
     );
 
     /**
+     * Registers a global guard callback that executes before route guards on navigation transitions.
+     * @param callback The guard callback or guard instance/class.
+     * @returns Unregister function.
+     */
+    beforeEach(
+        callback: (
+            to: { hash: string; page: string; params: Record<string, any> },
+            from: { hash: string; page: string; params: Record<string, any> } | null
+        ) => boolean | string | object | void | Promise<boolean | string | object | void> | typeof AvenxGuard | AvenxGuard
+    ): () => void;
+
+    /**
+     * Registers a global after hook callback that executes after successful route navigation.
+     * @param callback The callback to execute after navigation.
+     * @returns Unregister function.
+     */
+    afterEach(
+        callback: (
+            to: { hash: string; page: string; params: Record<string, any> },
+            from: { hash: string; page: string; params: Record<string, any> } | null
+        ) => void
+    ): () => void;
+
+    /**
      * Starts listening to hash changes and processes the initial route.
      */
     start(): void;
