@@ -220,7 +220,7 @@ export function generateComponent(cli, name, dryRun = false) {
 
   fs.writeFileSync(
     path.join(compDir, `${lowerName}.component.js`),
-    jsTemplate.replace('{{ name }}', capitalizedName),
+    jsTemplate.replace(/{{ name }}/g, capitalizedName),
   );
   fs.writeFileSync(path.join(compDir, `${lowerName}.component.css`), cssTemplate);
 

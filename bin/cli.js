@@ -67,9 +67,11 @@ export class AvenxCLI {
           generateGuard(this, name, dryRun);
         } else if (type === 'page' || type === 'p') {
           generatePage(this, name, dryRun);
+        } else if (type === 'component' || type === 'c') {
+          generateComponent(this, name, dryRun);
         } else {
-          // Default to component if only one arg or type is 'component'
-          generateComponent(this, name || type, dryRun);
+          // Default to component if type is not specified (e.g., `avenx g MyButton`)
+          generateComponent(this, type, dryRun);
         }
         break;
       case 'destroy':
