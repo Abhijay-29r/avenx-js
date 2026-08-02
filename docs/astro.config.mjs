@@ -28,6 +28,7 @@ export default defineConfig({
 				{
 					label: 'Core Concepts',
 					items: [
+						{ label: 'Template Expressions & Data Binding', slug: 'core-concepts/template-expressions' },
 						{ label: 'Component Structure', slug: 'core-concepts/components' },
 						{ label: 'Reactive State', slug: 'core-concepts/reactivity' },
 						{ label: 'Computed Properties', slug: 'core-concepts/computed' },
