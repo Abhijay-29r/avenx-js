@@ -678,6 +678,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "Codie-ds",
+      "name": "Dev Shah",
+      "avatar_url": "https://avatars.githubusercontent.com/u/121719309?v=4",
+      "profile": "https://github.com/Codie-ds",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
