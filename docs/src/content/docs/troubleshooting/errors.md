@@ -1385,9 +1385,7 @@ Since `user` is `undefined`, accessing `.isActive` throws a `TypeError`, trigger
 ```html
 <state user="null" />
 
-<computed isUserActive>
-  return Boolean(this.state.user && this.state.user.isActive);
-</computed>
+<computed name="isUserActive" value="Boolean(user && user.isActive)" />
 
 <div data-ax-show="isUserActive">Welcome back!</div>
 ```
@@ -1443,15 +1441,11 @@ Since `user` is `undefined`, accessing `.role` throws, and the dynamic class exp
 ```html
 <state user="null" isSaving="false" />
 
-<computed buttonClasses>
-  return {
-    admin: this.state.user?.role === 'admin',
-    loading: this.state.isSaving === true,
-  };
-</computed>
+<computed name="buttonClasses" value="{ admin: user?.role === 'admin', loading: isSaving === true }" />
 
 <button data-ax-class="buttonClasses">Save</button>
 ```
+
 
 Deriving class maps through guarded `<computed>` properties ensures `data-ax-class` receives a safe value and prevents evaluation failures when optional state is missing.
 
