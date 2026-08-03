@@ -144,6 +144,21 @@ try {
     }
   }
 
+  // 6. Test parseResources for <resource> tags
+  const contentResources = `
+    <resource name="users" handler="fetch('/api/users').then(r => r.json())" />
+    <resource handler='fetch("/api/posts")' name='posts' />
+    <resource
+      name="comments"
+      handler="fetch('/api/comments')"
+    />
+  `;
+  const resources = ep.parseResources(contentResources);
+  assert.strictEqual(resources.users, "fetch('/api/users').then(r => r.json())");
+  assert.strictEqual(resources.posts, 'fetch("/api/posts")');
+  assert.strictEqual(resources.comments, "fetch('/api/comments')");
+
+
   console.log('  ✅ ExpressionParser upgrades tests passed!');
 } catch (error) {
   console.error('❌ ExpressionParser upgrades tests failed!');

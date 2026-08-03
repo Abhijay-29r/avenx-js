@@ -36,6 +36,33 @@ Styles defined in `.component.css` are automatically scoped to that specific com
 
 Shared state across multiple components is handled via **Bridges**. These are global reactive objects that any component can subscribe to and update.
 
+### 🌊 Declarative Async Data, Suspense & Error Boundaries
+
+Fetch data seamlessly with `<resource>` declarations and handle loading & error states declaratively using `<@suspense>` and `<@errorBoundary>`:
+
+```html
+<resource name="users">
+  return fetch('/api/users').then(res => res.json());
+</resource>
+
+<@errorBoundary>
+  <@fallback as="err">
+    <div class="error">Failed to load users: {{ err.message }}</div>
+  </@fallback>
+  <@suspense>
+    <@fallback>
+      <div class="loading">Loading user list...</div>
+    </@fallback>
+
+    <div class="user-list">
+      <@for user in users>
+        <p>{{ user.username }}</p>
+      </@for>
+    </div>
+  </@suspense>
+</@errorBoundary>
+```
+
 ### 🛠️ CLI-First Workflow
 
 Generate components, pages, and bridges with a single command. The built-in dev server provides hot-reloading for a seamless development experience.
