@@ -109,7 +109,27 @@ app.initRouter({
 });
 ```
 
+### `directive(name, definition)`
+
+Registers a custom directive with the application instance.
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus`. |
+| `definition` | `object` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`). |
+
+```javascript
+app.directive('focus', {
+  mounted(el) {
+    el.focus();
+  },
+});
+```
+
+See [Custom Directives](/core-concepts/directives/) for full details and examples.
+
 ### `registerBridge(name, bridgeData)`
+
 
 Registers a global reactive state bridge. The bridge will be initialized and exposed to all components.
 

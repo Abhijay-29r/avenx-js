@@ -23,8 +23,10 @@ export default defineConfig({
 						{ label: 'Quick Start Tutorial', slug: 'getting-started/quickstart' },
 						{ label: 'Project Structure', slug: 'getting-started/structure' },
 						{ label: 'Configuration', slug: 'getting-started/configuration' },
+						{ label: 'TypeScript & JSDoc', slug: 'getting-started/typescript' },
 					],
 				},
+
 				{
 					label: 'Core Concepts',
 					items: [
@@ -37,9 +39,13 @@ export default defineConfig({
 						{ label: 'Transition Animations', slug: 'core-concepts/transitions' },
 						{ label: 'Scoped & Global CSS', slug: 'core-concepts/styling' },
 						{ label: 'Shared State & Bridges', slug: 'core-concepts/bridges' },
+						{ label: 'Provide & Inject', slug: 'core-concepts/provide-inject' },
+						{ label: 'Custom Directives', slug: 'core-concepts/directives' },
 						{ label: 'Pages & Routing', slug: 'core-concepts/routing' },
 					],
 				},
+
+
 				{
 					label: 'CLI Reference',
 					items: [

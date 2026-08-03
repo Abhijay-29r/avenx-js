@@ -125,28 +125,76 @@ Set `server.liveReload` to `false` when the dev server should serve HTML without
 
 ## Performance Profiling
 
-Avenx-JS can generate browser performance timings for debugging rendering behavior.
+Avenx-JS can generate high-resolution browser performance timings (marks and measures) for monitoring component rendering, mounting, and DOM patching.
 
-### Configuration
+### Activation Modes
 
-Enable profiling by setting `enableProfiling` to `true` in `avenx.config.json`:
+Profiling can be enabled in two ways:
 
-```json
-{
-  "enableProfiling": true
-}
-```md
-### Analyzing Performance Traces
+1. **Build Configuration (`avenx.config.json`)**:
+   Enable profiling project-wide by setting `enableProfiling` to `true`:
+   ```json
+   {
+     "enableProfiling": true
+   }
+   ```
 
-To analyze Avenx-JS performance timings:
+2. **Dynamic Runtime Flag (`window.__avenx_enable_profiling`)**:
+   Activate profiling dynamically in the browser console at runtime without restarting the application:
+   ```javascript
+   window.__avenx_enable_profiling = true;
+   ```
 
-1. Open your application in Chrome or Firefox.
-2. Open Developer Tools.
-3. Navigate to the **Performance** panel.
-4. Start recording.
-5. Perform actions that trigger component updates.
-6. Stop the recording.
-7. Inspect the recorded user timing marks and measures for Avenx-JS operations.
+---
+
+### Performance Measure Format & Phases
+
+When profiling is enabled, Avenx-JS wraps operations in native browser `performance.mark()` calls and outputs measures formatted as:
+
+```text
+[Avenx] ${componentName} - ${phase}
+```
+
+#### Measured Lifecycle Phases
+
+| Phase | Description |
+| --- | --- |
+| `mount` | Initial mounting of the component instance and attachment to the DOM. |
+| `render` | Resolving interpolations, directives, and compiling component templates. |
+| `patch` | Reactive DOM diffing and patching when component `state` or `props` change. |
+| `onMount` | Execution time for the component's `onMount()` lifecycle hook. |
+| `onBeforeUpdate` | Execution time for the `onBeforeUpdate()` lifecycle hook prior to patching. |
+| `onUpdate` | Execution time for the `onUpdate()` lifecycle hook post-patching. |
+| `onUnmount` | Cleanup execution time during `onUnmount()`. |
+
+---
+
+### Programmatic Querying & Analysis
+
+In addition to inspecting measures in the Chrome or Firefox DevTools **Performance** tab, you can query and analyze measures programmatically in the browser console using the native `Performance` API:
+
+```javascript
+// Retrieve all Avenx performance measure entries
+const measures = performance.getEntriesByType('measure')
+  .filter(entry => entry.name.startsWith('[Avenx]'));
+
+// Display measure summary table in browser console
+console.table(
+  measures.map(m => ({
+    Measure: m.name,
+    'Duration (ms)': m.duration.toFixed(3),
+    'Start Time (ms)': m.startTime.toFixed(2),
+  }))
+);
+
+// Calculate total time spent patching DOM
+const totalPatchTime = measures
+  .filter(m => m.name.endsWith('- patch'))
+  .reduce((sum, m) => sum + m.duration, 0);
+
+console.log(`Total DOM Patching Time: ${totalPatchTime.toFixed(2)} ms`);
+```
+
 
 ## Logging Options
 

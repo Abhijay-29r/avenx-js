@@ -540,3 +540,103 @@ logger.error("Unable to connect to the server.");
 
 logger.fatal("Unexpected unrecoverable error.");
 ```
+
+---
+
+## `LruCache` Utility Class
+
+`LruCache` is a Least Recently Used (LRU) cache implementation built using JavaScript `Map`'s key insertion order preservation. It is used internally for features like page keep-alive caching and is exported from `avenx-core/runtime` for application-level data caching.
+
+### Constructor
+
+```javascript
+import { LruCache } from 'avenx-core/runtime';
+
+const cache = new LruCache(limit, onEvict);
+```
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `limit` | `number` | *Required* | Maximum number of items allowed in the cache. Must be a positive number (> 0). |
+| `onEvict` | `(key: string, value: any) => void` | `null` | Optional callback function invoked whenever an item is evicted due to exceeding capacity. |
+
+---
+
+### Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `limit` | `number` | Capacity limit of the cache instance. |
+| `size` | `number` | Getter returning the current count of items stored in the cache. |
+
+---
+
+### Methods
+
+#### `get(key)`
+
+Retrieves an item from the cache and updates its recency to make it the most recently used item.
+
+- **Parameters:** `key: string`
+- **Returns:** `any` — The cached item, or `undefined` if the key does not exist.
+
+#### `set(key, value)`
+
+Inserts or updates a key-value pair in the cache. If the cache size reaches the specified `limit`, the least recently used (LRU) item is evicted and the optional `onEvict` callback is triggered.
+
+- **Parameters:**
+  - `key: string` — Item identifier.
+  - `value: any` — Data payload to cache.
+- **Returns:** `void`
+
+#### `has(key)`
+
+Checks whether a key exists in the cache **without** altering its recency ordering.
+
+- **Parameters:** `key: string`
+- **Returns:** `boolean` — `true` if the key exists, otherwise `false`.
+
+#### `delete(key)`
+
+Removes a specific item from the cache.
+
+- **Parameters:** `key: string`
+- **Returns:** `boolean` — `true` if the item existed and was removed, otherwise `false`.
+
+#### `clear()`
+
+Removes all items from the cache.
+
+- **Returns:** `void`
+
+---
+
+### Usage Example
+
+```javascript
+import { LruCache } from 'avenx-core/runtime';
+
+// Create a cache holding up to 3 items with an eviction listener
+const userCache = new LruCache(3, (evictedKey, evictedValue) => {
+  console.log(`Cache full. Evicted key "${evictedKey}":`, evictedValue);
+});
+
+// Store items
+userCache.set('user:101', { name: 'Alice', role: 'admin' });
+userCache.set('user:102', { name: 'Bob', role: 'editor' });
+userCache.set('user:103', { name: 'Charlie', role: 'viewer' });
+
+console.log(userCache.size); // 3
+
+// Accessing 'user:101' refreshes its recency
+const user = userCache.get('user:101');
+console.log(user.name); // 'Alice'
+
+// Inserting a 4th item triggers LRU eviction of 'user:102' (since 'user:101' was recently accessed)
+userCache.set('user:104', { name: 'Diana', role: 'manager' });
+// Output: Cache full. Evicted key "user:102": { name: 'Bob', role: 'editor' }
+
+console.log(userCache.has('user:102')); // false
+console.log(userCache.has('user:101')); // true
+```
+

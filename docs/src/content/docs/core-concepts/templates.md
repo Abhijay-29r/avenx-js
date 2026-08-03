@@ -201,6 +201,11 @@ When `state.showToolbar` becomes `true`, the element correctly reverts to `displ
 
 For a complete guide and code examples on animating visibility toggles, see the [Transition Animations](./transitions.md#conditional-rendering-transitions) documentation.
 
+:::tip
+If evaluating a `data-ax-show` expression fails (for instance, when referencing an undefined property on `state`), Avenx-JS emits warning **AVX_W22** (`DIRECTIVE_SHOW_EVALUATION_FAILED`). Refer to the [Error Codes reference](/troubleshooting/errors#avx_w22--directive_show_evaluation_failed) for detailed troubleshooting steps.
+:::
+
+
 ## 5. Reactive Style Bindings (`data-ax-style`)
 
 Use the `data-ax-style` directive to dynamically apply inline CSS styles using a JavaScript object.

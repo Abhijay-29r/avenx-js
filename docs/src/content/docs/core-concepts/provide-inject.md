@@ -1,0 +1,218 @@
+---
+title: 'Provide & Inject'
+description: 'Share reactive state, methods, and services down the component tree without prop drilling.'
+---
+
+Avenx-JS provides a native **Provide & Inject** mechanism for ancestor-descendant component communication. It allows a parent or ancestor component to serve as a dependency provider for all its descendant components, regardless of how deeply nested they are, without having to pass props through intermediate components ("prop drilling").
+
+## How Provide & Inject Works
+
+1. **Ancestor Component**: Defines `provide` (as an object, an array, or a function returning an object) to specify state, properties, or methods made available to descendants.
+2. **Descendant Component**: Defines `inject` (as an array of keys or an object mapping local property names to ancestor keys) to consume provided dependencies.
+3. **Targeted Reactivity**: When an injected property or reactive state changes, Avenx-JS automatically updates only the subscribing descendant components without forcing intermediate components or parent templates to re-render.
+
+```mermaid
+graph TD
+    A["Ancestor Component<br/>provide: { theme, user }"] --> B["Intermediate Component<br/>(passes no props)"]
+    B --> C["Descendant Component<br/>inject: ['theme', 'user']"]
+```
+
+---
+
+## Providing Dependencies (`provide`)
+
+You can define `provide` on a component class or page in three ways:
+
+### 1. Object-Based `provide`
+
+Define `provide` as an object property on your component instance:
+
+```javascript
+import { AvenxPage } from 'avenx-core/runtime';
+
+export default class LayoutPage extends AvenxPage {
+  constructor(bridges, registry) {
+    super({}, {}, bridges, '<div><slot></slot></div>', {}, registry);
+
+    this.provide = {
+      theme: 'dark',
+      changeTheme: (newTheme) => {
+        this.state.theme = newTheme;
+      },
+    };
+  }
+}
+```
+
+### 2. Function-Based `provide()`
+
+Define `provide()` as an instance method when you need to access initialised component state or dynamic instance properties:
+
+```javascript
+import { AvenxPage } from 'avenx-core/runtime';
+
+export default class UserProfilePage extends AvenxPage {
+  constructor(bridges, registry) {
+    super({ currentTheme: 'dark', userRole: 'admin' }, {}, bridges, template, {}, registry);
+  }
+
+  provide() {
+    return {
+      theme: this.state.currentTheme,
+      role: this.state.userRole,
+    };
+  }
+}
+```
+
+### 3. Array-Based `provide`
+
+Provide state properties directly by name from your component's state or scope:
+
+```javascript
+export default class ThemeProvider extends AvenxComponent {
+  constructor(bridges, props) {
+    super({ color: 'blue', mode: 'light' }, {}, bridges, template, {}, props);
+    this.provide = ['color', 'mode'];
+  }
+}
+```
+
+---
+
+## Injecting Dependencies (`inject`)
+
+Descendant components declare dependencies using `inject`, which can be specified as a static class property or an instance property:
+
+### 1. Array-Based `inject`
+
+Inject properties using the exact key names defined by ancestor components:
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export default class ThemeBadge extends AvenxComponent {
+  static inject = ['theme'];
+
+  constructor(bridges, props) {
+    super(
+      {},
+      {},
+      bridges,
+      '<span class="badge {{ theme }}">Current Theme: {{ theme }}</span>',
+      {},
+      props
+    );
+  }
+}
+```
+
+Inside the child component template and methods, `this.theme` is accessible directly and resolves to the value provided by the nearest ancestor.
+
+### 2. Object-Based `inject` (Aliasing / Property Mapping)
+
+Inject ancestor properties under custom local names:
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export default class UserCard extends AvenxComponent {
+  // Maps local 'activeRole' property to ancestor provided key 'role'
+  static inject = {
+    activeRole: 'role',
+    activeTheme: 'theme',
+  };
+
+  constructor(bridges, props) {
+    super(
+      {},
+      {},
+      bridges,
+      '<div>User Role: {{ activeRole }} (Theme: {{ activeTheme }})</div>',
+      {},
+      props
+    );
+  }
+}
+```
+
+---
+
+## Reactivity & Scope Shadowing
+
+### Targeted Reactivity Updates
+
+When an ancestor component updates a provided property or reactive state:
+- All child components injecting that property receive targeted reactivity updates and re-render.
+- Intermediate components that do not inject the property are **not** re-rendered, optimizing runtime rendering performance.
+
+### Ancestor Scope Shadowing
+
+If multiple ancestors in a nested hierarchy provide the same key, a descendant component resolves the value from the **nearest ancestor** in its parent chain:
+
+```javascript
+// Grandparent provides { theme: 'dark', apiVersion: 'v1' }
+// Intermediate parent provides { theme: 'light' }
+// Child injects ['theme', 'apiVersion']
+// Result: child receives theme = 'light' (shadowed) and apiVersion = 'v1' (inherited from grandparent)
+```
+
+---
+
+## Real-World Example: Theme & State Provider
+
+Below is an end-to-end example demonstrating how an application layout component provides theme state and toggle actions to a deeply nested child button.
+
+### Ancestor Provider (`AppLayout.js`)
+
+```javascript
+import { AvenxPage } from 'avenx-core/runtime';
+
+export default class AppLayout extends AvenxPage {
+  constructor(bridges, registry) {
+    super(
+      { theme: 'dark', user: { name: 'Alice' } },
+      {},
+      bridges,
+      '<div class="app {{ state.theme }}"><slot></slot></div>',
+      {},
+      registry
+    );
+  }
+
+  provide() {
+    return {
+      theme: this.state.theme,
+      user: this.state.user,
+      toggleTheme: () => {
+        this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+      },
+    };
+  }
+}
+```
+
+### Deeply Nested Consumer (`ThemeToggleButton.js`)
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export default class ThemeToggleButton extends AvenxComponent {
+  static inject = ['theme', 'toggleTheme'];
+
+  constructor(bridges, props) {
+    super(
+      {},
+      {
+        handleClick() {
+          this.toggleTheme();
+        },
+      },
+      bridges,
+      '<button @click="handleClick()">Switch theme (Current: {{ theme }})</button>',
+      {},
+      props
+    );
+  }
+}
+```

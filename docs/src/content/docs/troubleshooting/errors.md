@@ -1340,27 +1340,31 @@ Deriving the value through a guarded `computed` property ensures `data-ax-html` 
 ### AVX_W22 — DIRECTIVE_SHOW_EVALUATION_FAILED
 
 **Warning Message**
-Failed to evaluate data-ax-show: {0}. Error: {1}
 
-**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the condition bound to a `data-ax-show="..."` directive, but the expression throws an exception. Since `data-ax-show` toggles an element's visibility based on the truthiness of the evaluated expression, any error during evaluation — such as accessing a property on `null`/`undefined`, calling an undeclared method, or a malformed expression — prevents the renderer from determining whether the element should be shown or hidden.
+```text
+Failed to evaluate data-ax-show: {0}. Error: {1}
+```
+
+**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the condition expression bound to a `data-ax-show="..."` directive, but the evaluation throws a runtime exception. Since `data-ax-show` dynamically toggles an element's visibility based on the truthiness of the evaluated expression, an evaluation error — such as accessing properties on an uninitialized or `undefined` state property — prevents the renderer from determining whether the element should be shown or hidden.
 
 This typically happens for a few common reasons:
 
-- The bound expression accesses a nested property on a value that is `null` or `undefined` (e.g. `state.user.isActive` when `state.user` hasn't loaded yet).
-- A method referenced in the expression was never declared in `actions` or `computed`.
-- Asynchronous data the condition depends on hasn't resolved yet.
-- A typo or syntax error in the expression itself.
+- The bound expression accesses a property on an `undefined` or `null` state object (e.g. `state.user.isActive` when `state.user` is uninitialized or pending an async fetch).
+- An uninitialised state variable is referenced directly before component state setup completes.
+- A method referenced in the expression is missing from `actions` or `computed`.
+- A syntax error or typo exists within the directive expression string.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure any object referenced in the expression is initialized before `data-ax-show` evaluates, even if just as an empty object or `null` with a guarded check.
-2. Guard nested property access with optional chaining or an explicit check, e.g. `state.user && state.user.isActive`.
-3. If the condition depends on asynchronous data, default it to `false` until the data has loaded so the element stays hidden safely.
-4. Move complex conditions into a `computed` property, where the logic is easier to guard and test.
+1. **Initialize State Properties**: Ensure state variables referenced in `data-ax-show` are defined in initial component state (e.g. `user: null` or `user: {}`).
+2. **Use Defensive Guarding / Optional Chaining**: Guard property access on potentially undefined state values (e.g. `state.user && state.user.isActive` or `state.user?.isActive`).
+3. **Handle Async Data State**: Default state properties to safe initial fallback values (e.g., `false`) so `data-ax-show` evaluates safely while waiting for API responses.
+4. **Use Computed Properties for Complex Expressions**: Encapsulate conditional state evaluation in a `computed` property with internal error handling or fallback logic.
 
 **Incorrect**
 
 ```javascript
+// State initialised without 'user' property
 const state = {};
 ```
 
@@ -1368,7 +1372,7 @@ const state = {};
 <div data-ax-show="state.user.isActive">Welcome back!</div>
 ```
 
-Since `state.user` is `undefined`, accessing `.isActive` throws, and the directive fails to evaluate.
+Since `state.user` is `undefined`, accessing `.isActive` throws a `TypeError`, triggering **AVX_W22**.
 
 **Correct**
 
@@ -1397,6 +1401,7 @@ const computed = {
 ```
 
 Deriving the condition through a guarded `computed` property ensures `data-ax-show` always receives a safe boolean and prevents evaluation failures.
+
 
 ### AVX_W23 — DIRECTIVE_CLASS_EVALUATION_FAILED
 
@@ -1466,7 +1471,89 @@ const computed = {
 
 Deriving class maps through guarded `computed` properties ensures `data-ax-class` receives a safe value and prevents evaluation failures when optional state is missing.
 
+### AVX_W27 — ROUTER_GUARD_UNDEFINED_RETURN
+
+**Warning Message**
+
+```text
+Navigation guard for route "{0}" returned undefined. Guards should explicitly return true, false, a redirect string, or a control object. Defaulting to allow.
+```
+
+**Cause:** This warning is emitted at runtime when a route guard's `canActivate(to, from)` method resolves to `undefined` instead of returning an explicit decision. By design, route guards must explicitly dictate navigation behavior by returning:
+- `true`: Allow navigation
+- `false`: Abort navigation
+- `string`: Redirect to another route (e.g., `'#/login'`)
+- `object`: Guard control object (e.g., `{ cancel: true }` or `{ redirect: '#/login' }`)
+
+When a guard returns `undefined`, Avenx-JS logs **AVX_W27** and defaults to allowing the transition. This usually indicates a logic bug such as a missing `return` statement or an unhandled code branch in an `if/else` block within the guard.
+
+This typically happens for a few common reasons:
+
+- Forgetting an explicit `return` statement at the end of `canActivate()`.
+- An `if` condition branch performs a check but fails to return `true` on the fallback/else branch.
+- An `async` guard resolves an asynchronous operation without explicitly returning a boolean or redirect string.
+
+**Resolution:** To resolve this warning:
+
+1. Ensure every execution path inside `canActivate()` explicitly returns a `boolean`, `string`, or control object.
+2. Add a default fallback `return true;` (or `return false;`) at the end of the `canActivate()` method.
+3. Review `if/else` conditional logic inside custom route guards to guarantee all branches return an explicit value.
+
+**Incorrect**
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    if (!localStorage.getItem('authToken')) {
+      return '#/login';
+    }
+    // Missing explicit return true on authorized path!
+    // Implicitly returns undefined, triggering AVX_W27
+  }
+}
+```
+
+**Correct**
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    if (!localStorage.getItem('authToken')) {
+      return '#/login';
+    }
+
+    // Explicit return for allowed navigation
+    return true;
+  }
+}
+```
+
+**Async Example**
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AsyncRoleGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    try {
+      const user = await fetchCurrentUser();
+      if (!user || user.role !== 'admin') {
+        return '#/unauthorized';
+      }
+      return true;
+    } catch {
+      return false; // Explicit return on error
+    }
+  }
+}
+```
+
 ### AVX_W24 — COMPILER_PREPROCESSOR_MISSING
+
 
 **Warning Message**
 
@@ -1524,7 +1611,66 @@ If your project does not use a preprocessor, omit the field entirely or set it e
 
 This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 
+### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
+**Warning Message**
+
+```text
+Multiple <state> tags found in component template. Only the first <state> tag will be processed; subsequent <state> tags are ignored.
+```
+
+**Cause:** This warning is emitted during compilation when a single component template file contains more than one `<state>` tag declaration. Avenx-JS enforces a single `<state>` block per component to maintain predictable state initialization and scoping. When multiple `<state>` blocks are detected, the compiler parses properties from the first `<state>` tag and ignores all subsequent `<state>` tags.
+
+This typically happens for a few common reasons:
+
+- Accidentally declaring separate `<state>` tags for different categories of properties instead of merging them.
+- Copy-pasting template code that includes another `<state>` block.
+- Splitting initial state and default values across multiple `<state>` tags.
+
+**Resolution:** To resolve this warning:
+
+1. Consolidate all reactive property declarations into a single `<state>` block within the component template.
+2. Remove any duplicate or extra `<state>` tags.
+3. If necessary, organize reactive properties within a single nested object structure inside the primary `<state>` block.
+
+**Incorrect**
+
+```html
+<!-- Multiple separate <state> blocks -->
+<state count="0" />
+<state user="null" isLoading="false" />
+
+<div>
+  <p>Count: {{ count }}</p>
+</div>
+```
+
+The compiler emits **AVX_W28** and ignores the second `<state>` tag, leaving `user` and `isLoading` uninitialized.
+
+**Correct**
+
+```html
+<!-- Consolidated into a single <state> block -->
+<state count="0" user="null" isLoading="false" />
+
+<div>
+  <p>Count: {{ count }}</p>
+</div>
+```
+
+**Complex State Object Example**
+
+For larger components with complex state requirements, group properties inside a single `<state>` tag:
+
+```html
+<state 
+  counter="0"
+  settings='{ "theme": "dark", "notifications": true }'
+/>
+```
+
 ### AVX_W29 — COMPILER_CIRCULAR_DEPENDENCY
+
 
 **Warning Message**
 
