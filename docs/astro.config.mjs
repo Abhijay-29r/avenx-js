@@ -40,9 +40,11 @@ export default defineConfig({
 						{ label: 'Scoped & Global CSS', slug: 'core-concepts/styling' },
 						{ label: 'Shared State & Bridges', slug: 'core-concepts/bridges' },
 						{ label: 'Provide & Inject', slug: 'core-concepts/provide-inject' },
+						{ label: 'Custom Directives', slug: 'core-concepts/directives' },
 						{ label: 'Pages & Routing', slug: 'core-concepts/routing' },
 					],
 				},
+
 
 				{
 					label: 'CLI Reference',
