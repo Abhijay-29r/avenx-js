@@ -25,8 +25,12 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 | `.prevent` | Any event | Calls `event.preventDefault()` before invoking the handler. |
 | `.stop` | Any event | Calls `event.stopPropagation()` before invoking the handler. |
 | `.once` | Any event | Automatically removes the listener after it fires a single time. |
-| `.enter` | Keyboard events | Only invokes the handler if the event's key is `Enter`. |
-| `.escape` | Keyboard events | Only invokes the handler if the event's key is `Escape`. |
+| `.enter` | Keyboard events | Only invokes the handler if the pressed key is `Enter`. |
+| `.esc` / `.escape` | Keyboard events | Only invokes the handler if the pressed key is `Escape` (`.esc` is an alias for `.escape`). |
+| `.space` | Keyboard events | Only invokes the handler if the pressed key is Space (`' '`). |
+| `.tab` | Keyboard events | Only invokes the handler if the pressed key is `Tab`. |
+| `.delete` | Keyboard events | Only invokes the handler if the pressed key is `Delete`. |
+
 `.prevent` and `.stop` wrap the handler with the corresponding DOM method call:
 
 ```html
@@ -44,16 +48,20 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 <button @click.once="dismissBanner()">Got it</button>
 ```
 
-`.enter` and `.escape` act as key filters on keyboard events, so the handler only runs when the matching key is pressed:
+Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`) act as key filters on keyboard events, so the handler only runs when the matching key is pressed:
 
 ```html
 <input @keydown.enter="submit()" placeholder="Press Enter to submit" />
-<input @keydown.escape="clearInput()" placeholder="Press Escape to clear" />
+<input @keydown.esc="clearInput()" placeholder="Press Esc to clear" />
+<input @keydown.space="togglePlay()" placeholder="Press Space to toggle" />
+<input @keydown.tab.prevent="focusNext()" placeholder="Press Tab to navigate" />
+<button @keydown.delete="removeItem()">Delete Item</button>
 ```
 
 :::note
-**Combining modifiers:** Modifiers can be chained together, for example `@keydown.enter.prevent="submit()"` filters for the Enter key and prevents the default action (such as form submission) in a single binding.
+**Combining modifiers:** Modifiers can be chained together. For example, `@keydown.enter.prevent="submit()"` filters for the Enter key and prevents default form submission, while `@keydown.tab.prevent="focusNext()"` catches the Tab key and suppresses default browser focus shifting in a single binding.
 :::
+
 
 ## Event Delegation
 
