@@ -21,41 +21,29 @@ graph TD
 
 ## Providing Dependencies (`provide`)
 
-You can define `provide` on a component class or page in three ways:
+You can define `provide` on a component or page instance in three ways:
 
 ### 1. Object-Based `provide`
 
 Define `provide` as an object property on your component instance:
 
 ```javascript
-import { AvenxPage } from 'avenx-core/runtime';
-
-export default class LayoutPage extends AvenxPage {
-  constructor(bridges, registry) {
-    super({}, {}, bridges, '<div><slot></slot></div>', {}, registry);
-
-    this.provide = {
-      theme: 'dark',
-      changeTheme: (newTheme) => {
-        this.state.theme = newTheme;
-      },
-    };
-  }
-}
+// Provider Component / Page
+this.provide = {
+  theme: 'dark',
+  changeTheme: (newTheme) => {
+    this.state.theme = newTheme;
+  },
+};
 ```
 
 ### 2. Function-Based `provide()`
 
-Define `provide()` as an instance method when you need to access initialised component state or dynamic instance properties:
+Define `provide()` as an instance method when you need to access reactive component state dynamically:
 
 ```javascript
-import { AvenxPage } from 'avenx-core/runtime';
-
+// Provider Page / Component
 export default class UserProfilePage extends AvenxPage {
-  constructor(bridges, registry) {
-    super({ currentTheme: 'dark', userRole: 'admin' }, {}, bridges, template, {}, registry);
-  }
-
   provide() {
     return {
       theme: this.state.currentTheme,
@@ -67,22 +55,18 @@ export default class UserProfilePage extends AvenxPage {
 
 ### 3. Array-Based `provide`
 
-Provide state properties directly by name from your component's state or scope:
+Provide state properties directly by name from your component's reactive `state`:
 
 ```javascript
-export default class ThemeProvider extends AvenxComponent {
-  constructor(bridges, props) {
-    super({ color: 'blue', mode: 'light' }, {}, bridges, template, {}, props);
-    this.provide = ['color', 'mode'];
-  }
-}
+// Provider Component
+this.provide = ['color', 'mode'];
 ```
 
 ---
 
 ## Injecting Dependencies (`inject`)
 
-Descendant components declare dependencies using `inject`, which can be specified as a static class property or an instance property:
+Descendant components declare dependencies using `inject`, which can be specified as a static property on the component class or an instance property:
 
 ### 1. Array-Based `inject`
 
@@ -107,7 +91,7 @@ export default class ThemeBadge extends AvenxComponent {
 }
 ```
 
-Inside the child component template and methods, `this.theme` is accessible directly and resolves to the value provided by the nearest ancestor.
+Inside the child component template, `{{ theme }}` and `this.theme` are accessible directly and resolve to the value provided by the nearest ancestor.
 
 ### 2. Object-Based `inject` (Aliasing / Property Mapping)
 
@@ -150,11 +134,13 @@ When an ancestor component updates a provided property or reactive state:
 
 If multiple ancestors in a nested hierarchy provide the same key, a descendant component resolves the value from the **nearest ancestor** in its parent chain:
 
-```javascript
-// Grandparent provides { theme: 'dark', apiVersion: 'v1' }
-// Intermediate parent provides { theme: 'light' }
-// Child injects ['theme', 'apiVersion']
-// Result: child receives theme = 'light' (shadowed) and apiVersion = 'v1' (inherited from grandparent)
+```text
+Grandparent provides { theme: 'dark', apiVersion: 'v1' }
+  ↓
+Intermediate parent provides { theme: 'light' }
+  ↓
+Child injects ['theme', 'apiVersion']
+Result: Child receives theme = 'light' (shadowed) and apiVersion = 'v1' (inherited from grandparent)
 ```
 
 ---
@@ -163,36 +149,33 @@ If multiple ancestors in a nested hierarchy provide the same key, a descendant c
 
 Below is an end-to-end example demonstrating how an application layout component provides theme state and toggle actions to a deeply nested child button.
 
-### Ancestor Provider (`AppLayout.js`)
+### Ancestor Provider (`AppLayout.page.js`)
 
-```javascript
-import { AvenxPage } from 'avenx-core/runtime';
+```html
+<state theme="dark" username="Alice" />
 
-export default class AppLayout extends AvenxPage {
-  constructor(bridges, registry) {
-    super(
-      { theme: 'dark', user: { name: 'Alice' } },
-      {},
-      bridges,
-      '<div class="app {{ state.theme }}"><slot></slot></div>',
-      {},
-      registry
-    );
-  }
-
-  provide() {
-    return {
-      theme: this.state.theme,
-      user: this.state.user,
-      toggleTheme: () => {
-        this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
-      },
-    };
-  }
-}
+<div>
+  <header>
+    <h2>Welcome, {{ username }}</h2>
+  </header>
+  <main class="app-content">
+    <ChildWidget />
+  </main>
+</div>
 ```
 
-### Deeply Nested Consumer (`ThemeToggleButton.js`)
+In the compiled component class or constructor initialization:
+
+```javascript
+this.provide = {
+  theme: this.state.theme,
+  toggleTheme: () => {
+    this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+  },
+};
+```
+
+### Deeply Nested Consumer (`ThemeToggleButton.component.js`)
 
 ```javascript
 import { AvenxComponent } from 'avenx-core/runtime';

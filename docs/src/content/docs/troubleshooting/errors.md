@@ -1363,44 +1363,36 @@ This typically happens for a few common reasons:
 
 **Incorrect**
 
-```javascript
-// State initialised without 'user' property
-const state = {};
-```
-
 ```html
-<div data-ax-show="state.user.isActive">Welcome back!</div>
+<!-- State initialised without 'user' property -->
+<state />
+
+<div data-ax-show="user.isActive">Welcome back!</div>
 ```
 
-Since `state.user` is `undefined`, accessing `.isActive` throws a `TypeError`, triggering **AVX_W22**.
+Since `user` is `undefined`, accessing `.isActive` throws a `TypeError`, triggering **AVX_W22**.
 
 **Correct**
 
-```javascript
-const state = {
-  user: null,
-};
-```
-
 ```html
-<div data-ax-show="state.user && state.user.isActive">Welcome back!</div>
+<state user="null" />
+
+<div data-ax-show="user && user.isActive">Welcome back!</div>
 ```
 
 **Defensive Example**
 
-```javascript
-const computed = {
-  isUserActive() {
-    return Boolean(state.user && state.user.isActive);
-  },
-};
-```
-
 ```html
-<div data-ax-show="computed.isUserActive">Welcome back!</div>
+<state user="null" />
+
+<computed isUserActive>
+  return Boolean(this.state.user && this.state.user.isActive);
+</computed>
+
+<div data-ax-show="isUserActive">Welcome back!</div>
 ```
 
-Deriving the condition through a guarded `computed` property ensures `data-ax-show` always receives a safe boolean and prevents evaluation failures.
+Deriving the condition through a guarded `<computed>` property ensures `data-ax-show` always receives a safe boolean and prevents evaluation failures.
 
 
 ### AVX_W23 — DIRECTIVE_CLASS_EVALUATION_FAILED
@@ -1412,8 +1404,8 @@ Failed to evaluate data-ax-class: {0}. Error: {1}
 
 This typically happens for a few common reasons:
 
-- The bound expression accesses a nested property on a value that is `null` or `undefined` (e.g. `state.user.role` before `state.user` has loaded).
-- A class map references a method or computed value that has not been declared.
+- The bound expression accesses a nested property on a value that is `null` or `undefined` (e.g. `user.role` before `user` has loaded).
+- A class map references an action or computed value that has not been declared.
 - Asynchronous data used to choose classes has not resolved yet.
 - A typo or syntax error prevents the expression from evaluating.
 
@@ -1422,54 +1414,47 @@ This typically happens for a few common reasons:
 1. Initialize any state used by `data-ax-class` before the component renders.
 2. Guard nested property access with optional chaining or explicit checks.
 3. Return either a string of class names or an object whose keys are class names and whose values are booleans.
-4. Move complex class decisions into a `computed` property so the template stays small and the logic is easier to test.
+4. Move complex class decisions into a `<computed>` property so the template stays small and the logic is easier to test.
 
 **Incorrect**
 
-```javascript
-const state = {};
-```
-
 ```html
-<button data-ax-class="{ admin: state.user.role === 'admin' }">
+<state />
+
+<button data-ax-class="{ admin: user.role === 'admin' }">
   Save
 </button>
 ```
 
-Since `state.user` is `undefined`, accessing `.role` throws, and the dynamic class expression fails to evaluate.
+Since `user` is `undefined`, accessing `.role` throws, and the dynamic class expression fails to evaluate.
 
 **Correct**
 
-```javascript
-const state = {
-  user: null,
-};
-```
-
 ```html
-<button data-ax-class="{ admin: state.user && state.user.role === 'admin' }">
+<state user="null" />
+
+<button data-ax-class="{ admin: user && user.role === 'admin' }">
   Save
 </button>
 ```
 
 **Defensive Example**
 
-```javascript
-const computed = {
-  buttonClasses() {
-    return {
-      admin: state.user?.role === 'admin',
-      loading: state.isSaving === true,
-    };
-  },
-};
-```
-
 ```html
-<button data-ax-class="computed.buttonClasses">Save</button>
+<state user="null" isSaving="false" />
+
+<computed buttonClasses>
+  return {
+    admin: this.state.user?.role === 'admin',
+    loading: this.state.isSaving === true,
+  };
+</computed>
+
+<button data-ax-class="buttonClasses">Save</button>
 ```
 
-Deriving class maps through guarded `computed` properties ensures `data-ax-class` receives a safe value and prevents evaluation failures when optional state is missing.
+Deriving class maps through guarded `<computed>` properties ensures `data-ax-class` receives a safe value and prevents evaluation failures when optional state is missing.
+
 
 ### AVX_W27 — ROUTER_GUARD_UNDEFINED_RETURN
 

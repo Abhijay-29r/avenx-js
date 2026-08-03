@@ -3,9 +3,9 @@ title: 'TypeScript & JSDoc Support'
 description: 'Configure IDE autocompletion, type-checking with jsconfig.json, and JSDoc annotations in Avenx-JS projects.'
 ---
 
-Avenx-JS ships built-in TypeScript declarations (`.d.ts`), enabling full IDE autocompletion, hover documentation, and type safety for your components, pages, bridges, and router guards — without requiring a complex TypeScript compilation build pipeline.
+Avenx-JS ships built-in TypeScript declarations (`.d.ts`), enabling full IDE autocompletion, hover documentation, and type safety for your single-file components, pages, state bridges, router guards, and custom directives — without requiring a complex TypeScript compilation build pipeline.
 
-Whether you write pure JavaScript annotated with JSDoc or type-checked code via VS Code's `"checkJs"`, Avenx-JS provides complete IDE support out of the box.
+Whether you write Avenx Single-File Components (`.component.js` / `.page.js`), class-based state bridges (`AvenxBridge`), or route guards (`AvenxGuard`), Avenx-JS provides complete IDE support out of the box.
 
 ---
 
@@ -43,115 +43,50 @@ To enable type checking and intelligent code completion in VS Code or WebStorm, 
 
 ## Type Annotations with JSDoc
 
-Avenx-JS components inherit from `AvenxComponent<S>`, where `S` represents the shape of the component's reactive `state`.
+Avenx-JS components and framework utilities integrate seamlessly with JSDoc annotations.
 
-### 1. Component State & Props Typing
+### 1. Single-File Components (`.component.js`)
 
-Use JSDoc `@typedef` and generic type annotations to type reactive `state` and component `props`:
+In Avenx-JS single-file components, state properties, actions, and computed getters are declared using `<state>`, `<action>`, and `<computed>` tags. You can add JSDoc comments to type state properties and action parameters:
 
-```javascript
-import { AvenxComponent } from 'avenx-core/runtime';
+```html
+<!-- src/components/user-card.component.js -->
+<state
+  /** @type {string} */
+  name="Alice"
+  /** @type {number} */
+  age="28"
+/>
 
-/**
- * @typedef {Object} UserState
- * @property {string} name - User display name
- * @property {number} age - User age in years
- * @property {boolean} isActive - Account activation status
- */
+<action name="incrementAge">
+  /** Increment user age */
+  this.state.age++;
+</action>
 
-/**
- * @typedef {Object} UserCardProps
- * @property {string} userId - Unique user identifier
- */
+<computed uppercaseName>
+  return this.state.name.toUpperCase();
+</computed>
 
-export default class UserCard extends AvenxComponent {
-  /**
-   * @param {Object} bridges - Registered global bridges
-   * @param {UserCardProps} props - Component properties
-   */
-  constructor(bridges, props) {
-    /** @type {UserState} */
-    const initialState = {
-      name: 'Alice',
-      age: 28,
-      isActive: true,
-    };
-
-    super(
-      initialState,
-      {
-        /** @this {UserCard} */
-        toggleStatus() {
-          this.state.isActive = !this.state.isActive;
-        },
-      },
-      bridges,
-      '<div>{{ state.name }} ({{ state.age }})</div>',
-      {},
-      props
-    );
-  }
-}
+<div>
+  <h3>{{ uppercaseName }}</h3>
+  <p>Age: {{ age }}</p>
+  <button @click="incrementAge()">Birthday</button>
+</div>
 ```
 
-### 2. Page Components (`AvenxPage`)
+---
 
-Page components extend `AvenxPage` and can annotate dynamic parameters, registered subcomponents, and route lifecycle hooks:
+### 2. Route Guards (`AvenxGuard`)
 
-```javascript
-import { AvenxPage } from 'avenx-core/runtime';
-
-/**
- * @typedef {Object} DashboardState
- * @property {number} activeUsers - Number of active concurrent users
- * @property {boolean} isLoading - Loading state indicator
- */
-
-export default class DashboardPage extends AvenxPage {
-  /**
-   * @param {Object} bridges
-   * @param {Map<string, typeof AvenxComponent>} registry
-   */
-  constructor(bridges, registry) {
-    /** @type {DashboardState} */
-    const initialState = {
-      activeUsers: 0,
-      isLoading: true,
-    };
-
-    super(initialState, {}, bridges, '<div>Dashboard</div>', {}, registry);
-  }
-
-  /**
-   * Executed when the page mounts to the DOM.
-   * @returns {Promise<void>}
-   */
-  async onMount() {
-    this.state.isLoading = true;
-    this.state.activeUsers = await this.fetchMetrics();
-    this.state.isLoading = false;
-  }
-
-  /**
-   * @private
-   * @returns {Promise<number>}
-   */
-  async fetchMetrics() {
-    return 142;
-  }
-}
-```
-
-### 3. Route Guards (`AvenxGuard`)
-
-Annotate parameter types (`to`, `from`) and return types (`boolean | string | Object`) in route guard `canActivate` methods:
+Route guards extend `AvenxGuard` and implement `canActivate(to, from)`. JSDoc annotations type route parameter objects and return values:
 
 ```javascript
+// src/guards/auth.guard.js
 import { AvenxGuard } from 'avenx-core/runtime';
 
 export default class AuthGuard extends AvenxGuard {
   /**
-   * Determines whether a route transition can proceed.
+   * Determines whether the route transition can proceed.
    *
    * @param {Object} to - Target route object (contains hash, page, params)
    * @param {Object} from - Current route object (contains hash, page, params)
@@ -170,31 +105,82 @@ export default class AuthGuard extends AvenxGuard {
 }
 ```
 
-### 4. Global State Bridges (`AvenxBridge`)
+---
 
-Type global reactive bridges to get autocompletion across all consuming components:
+### 3. Global State Bridges (`AvenxBridge`)
+
+Bridges extend `AvenxBridge` and hold shared reactive state and methods across components. Type bridge properties and methods directly on the class:
 
 ```javascript
+// src/bridges/theme.bridge.js
 import { AvenxBridge } from 'avenx-core/runtime';
 
 /**
- * @typedef {Object} ThemeState
- * @property {'light' | 'dark'} mode - Active UI theme
+ * @typedef {'light' | 'dark'} ThemeMode
  */
 
 export default class ThemeBridge extends AvenxBridge {
   constructor() {
-    /** @type {ThemeState} */
-    const state = {
-      mode: 'dark',
-    };
+    super();
+    /** @type {ThemeMode} */
+    this.mode = 'dark';
+  }
 
-    super(state, {
-      /** @param {'light' | 'dark'} newMode */
-      setMode(newMode) {
-        this.state.mode = newMode;
-      },
-    });
+  /**
+   * Updates the active UI theme mode.
+   * @param {ThemeMode} newMode
+   */
+  setMode(newMode) {
+    this.mode = newMode;
+  }
+}
+```
+
+---
+
+### 4. Custom Directives (`app.directive`)
+
+Register custom directives on `AvenxApp` with typed lifecycle hooks (`mounted`, `updated`, `unmounted`):
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+
+const app = new AvenxApp({ target: '#app' });
+
+app.directive('focus', {
+  /**
+   * @param {HTMLElement} el
+   */
+  mounted(el) {
+    el.focus();
+  },
+});
+```
+
+---
+
+### 5. Programmatic Component Classes (`AvenxComponent`)
+
+For unit testing, custom wrappers, or programmatic rendering, component classes extend `AvenxComponent<S>`:
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+/**
+ * @typedef {Object} UserState
+ * @property {string} name
+ * @property {number} age
+ */
+
+export default class UserCard extends AvenxComponent {
+  /**
+   * @param {Object} bridges
+   * @param {Object} props
+   */
+  constructor(bridges, props) {
+    /** @type {UserState} */
+    const initialState = { name: 'Alice', age: 28 };
+    super(initialState, {}, bridges, '<div>{{ state.name }}</div>', {}, props);
   }
 }
 ```
