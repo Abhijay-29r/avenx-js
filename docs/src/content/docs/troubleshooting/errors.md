@@ -1471,7 +1471,89 @@ const computed = {
 
 Deriving class maps through guarded `computed` properties ensures `data-ax-class` receives a safe value and prevents evaluation failures when optional state is missing.
 
+### AVX_W27 — ROUTER_GUARD_UNDEFINED_RETURN
+
+**Warning Message**
+
+```text
+Navigation guard for route "{0}" returned undefined. Guards should explicitly return true, false, a redirect string, or a control object. Defaulting to allow.
+```
+
+**Cause:** This warning is emitted at runtime when a route guard's `canActivate(to, from)` method resolves to `undefined` instead of returning an explicit decision. By design, route guards must explicitly dictate navigation behavior by returning:
+- `true`: Allow navigation
+- `false`: Abort navigation
+- `string`: Redirect to another route (e.g., `'#/login'`)
+- `object`: Guard control object (e.g., `{ cancel: true }` or `{ redirect: '#/login' }`)
+
+When a guard returns `undefined`, Avenx-JS logs **AVX_W27** and defaults to allowing the transition. This usually indicates a logic bug such as a missing `return` statement or an unhandled code branch in an `if/else` block within the guard.
+
+This typically happens for a few common reasons:
+
+- Forgetting an explicit `return` statement at the end of `canActivate()`.
+- An `if` condition branch performs a check but fails to return `true` on the fallback/else branch.
+- An `async` guard resolves an asynchronous operation without explicitly returning a boolean or redirect string.
+
+**Resolution:** To resolve this warning:
+
+1. Ensure every execution path inside `canActivate()` explicitly returns a `boolean`, `string`, or control object.
+2. Add a default fallback `return true;` (or `return false;`) at the end of the `canActivate()` method.
+3. Review `if/else` conditional logic inside custom route guards to guarantee all branches return an explicit value.
+
+**Incorrect**
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    if (!localStorage.getItem('authToken')) {
+      return '#/login';
+    }
+    // Missing explicit return true on authorized path!
+    // Implicitly returns undefined, triggering AVX_W27
+  }
+}
+```
+
+**Correct**
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    if (!localStorage.getItem('authToken')) {
+      return '#/login';
+    }
+
+    // Explicit return for allowed navigation
+    return true;
+  }
+}
+```
+
+**Async Example**
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AsyncRoleGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    try {
+      const user = await fetchCurrentUser();
+      if (!user || user.role !== 'admin') {
+        return '#/unauthorized';
+      }
+      return true;
+    } catch {
+      return false; // Explicit return on error
+    }
+  }
+}
+```
+
 ### AVX_W24 — COMPILER_PREPROCESSOR_MISSING
+
 
 **Warning Message**
 
