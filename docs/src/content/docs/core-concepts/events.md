@@ -10,12 +10,48 @@ Avenx-JS simplifies capturing DOM events by letting you attach action handlers d
 To bind an event listener, prefix the event name with `@` followed by the expression to execute:
 
 ```html
-<button @click="increment()">Increment</button> <input @input="state.inputValue = event.target.value" />
+<button @click="increment()">Increment</button>
+<input @input="state.inputValue = event.target.value" />
 ```
 
 :::note
-**Context Availability:** Inside event expressions, you have access to the component's `state`, `computed` values, `methods`, registered `bridges`, and the native DOM `event` object.
+**Context Availability:** Inside event expressions, you have access to the component's `state`, computed values, component `methods`, registered `bridges`, the native DOM `event` object, and scoped slot properties (when available).
+
+Event handlers can also pass the `event` object to methods (for example, `@click="selectItem(item.id, event)"`). Compiled action handlers additionally expose an implicit `args` array containing the arguments supplied when the handler is invoked.
 :::
+
+## Implicit Event Handler Scope
+
+Event handlers execute inside the component's runtime scope, so several values are automatically available without needing to import or declare them.
+
+### Using the DOM Event
+
+The native DOM `event` object is always available inside inline event handlers.
+
+```html
+<button @click="event.preventDefault()">
+  Prevent Default
+</button>
+
+<input
+  @input="state.username = event.target.value"
+  placeholder="Enter your username"
+/>
+```
+
+### Passing Event to Methods
+
+The `event` object can be passed directly to component methods together with your own arguments.
+
+```html
+<button @click="selectItem(item.id, event)">
+  Select Item
+</button>
+```
+
+### Action Arguments
+
+Compiled action handlers expose an implicit `args` array containing the arguments supplied when the handler is invoked. This allows reusable actions to receive values passed from event bindings.
 
 ## Event Modifiers
 
@@ -62,10 +98,65 @@ Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`) act as 
 **Combining modifiers:** Modifiers can be chained together. For example, `@keydown.enter.prevent="submit()"` filters for the Enter key and prevents default form submission, while `@keydown.tab.prevent="focusNext()"` catches the Tab key and suppresses default browser focus shifting in a single binding.
 :::
 
+## Scoped Slot Event Handling
+
+Event handlers inside transcluded slot content automatically have access to scoped slot properties exposed through the `data-slot-props` attribute. This allows event handlers to work directly with slot data without requiring additional wiring.
+
+```html
+<ListContainer>
+  <template data-slot-props="slotProps">
+    <button @click="handleItemClick(slotProps.item)">
+      Click Me
+    </button>
+  </template>
+</ListContainer>
+```
+
+In this example, `slotProps.item` is available directly inside the event handler because the runtime resolves the scoped slot context before executing the handler.
 
 ## Event Delegation
 
 Avenx does not attach event listeners to every single DOM node. Instead, the runtime's `EventBinder` uses **event delegation**. It listens for events at the component's root element and determines the correct target on invocation, saving browser memory and keeping dynamic list updates fast.
+
+When rendering into a `DocumentFragment`, Avenx falls back to direct event binding because event delegation is not available in that context.
+
+### Modifier Execution Order
+
+When multiple modifiers are chained together, they execute in the following order:
+
+1. `.once`
+2. System key modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)
+3. Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`)
+4. `.prevent`
+5. `.stop`
+6. Execute the event handler
+
+For example:
+
+```html
+<input @keydown.enter.prevent="submit()" />
+```
+
+The runtime first verifies the key modifier, then applies `.prevent`, and finally executes the event handler.
+
+### Modifier Execution Order
+
+When multiple modifiers are chained together, they execute in the following order:
+
+1. `.once`
+2. System key modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)
+3. Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`)
+4. `.prevent`
+5. `.stop`
+6. Execute the event handler
+
+For example:
+
+```html
+<input @keydown.enter.prevent="submit()" />
+```
+
+The runtime first verifies the key modifier, then applies `.prevent`, and finally executes the event handler.
 
 ## Custom Component Events
 
