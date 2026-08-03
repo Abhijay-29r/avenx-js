@@ -27,7 +27,8 @@ Generates boilerplate code for components, pages, bridges, and guards.
 
 - **Bridge**: `npx avenx g bridge settings` Creates a global state bridge at `src/global/settings.bridge.js`.
 
-- **Guard**: `npx avenx g guard admin` Creates a routing guard at `src/guards/admin.guard.js`.
+- **Guard**: `npx avenx g guard admin` Creates a routing guard class at `src/guards/admin.guard.js` extending `AvenxGuard` with a scaffolded `canActivate(to, from)` method for inspecting auth state and redirecting unauthorized users.
+
 
 #### Command Options
 

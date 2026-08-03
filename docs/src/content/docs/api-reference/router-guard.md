@@ -56,15 +56,73 @@ const brandingRouter = AvenxApp.initRouter(
 - ### `navigate(hash)`
   Programs a programmatic navigation to the specified route hash. It updates the browser history and triggers the matching route lifecycle.
 
-### `destroy()`
+- ### `beforeEach(callback)`
+  Registers a global guard callback or `AvenxGuard` instance/class that runs before every route transition.
+  - **Arguments:** `callback: Function | typeof AvenxGuard | AvenxGuard`
+  - **Returns:** `Function` (Unregister function)
 
-Tears down the active router instance. It cleans up all global event listeners (like `hashchange` or `popstate`), unmounts the active route component, and releases internal memory references to prevent leaks.
+- ### `afterEach(callback)`
+  Registers a global hook callback executed after successful route navigation completes.
+  - **Arguments:** `callback: Function`
+  - **Returns:** `Function` (Unregister function)
 
-### `matches(hash)`
+- ### `destroy()`
+  Tears down the active router instance. It cleans up all global event listeners (like `hashchange` or `popstate`), unmounts the active route component, and releases internal memory references to prevent leaks.
 
-- **Arguments:** `hash: string`
-- **Returns:** `boolean`
-- Evaluates whether a given URL hash matches any registered route pattern in the router configuration. Returns `true` if a match is found, otherwise `false`.
+- ### `matches(hash)`
+  - **Arguments:** `hash: string`
+  - **Returns:** `boolean`
+  - Evaluates whether a given URL hash matches any registered route pattern in the router configuration. Returns `true` if a match is found, otherwise `false`.
+
+---
+
+## Registering Route Guards
+
+Guards can be registered either per route in the router configuration or globally across all routes.
+
+### Route-Level Guards
+
+Attach an array of guard classes or instances to individual route definitions in `initRouter`:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import AuthGuard from './guards/auth.guard.js';
+import AdminGuard from './guards/admin.guard.js';
+
+AvenxApp.initRouter({
+  '#/': 'Home',
+  '#/login': 'Login',
+  '#/dashboard': {
+    page: 'Dashboard',
+    guards: [AuthGuard],
+  },
+  '#/admin': {
+    page: 'AdminSettings',
+    guards: [AuthGuard, AdminGuard],
+  },
+});
+```
+
+When navigating to `#/admin`, the router executes `AuthGuard` first, followed by `AdminGuard`. If any guard returns `false` or a redirect target, subsequent guards in the chain are skipped and navigation halts or redirects immediately.
+
+### Global Navigation Guards
+
+Use `router.beforeEach()` to register guards that execute before **every** route transition:
+
+```javascript
+const router = AvenxApp.initRouter(routes);
+
+// Register a global guard function or class
+const unregister = router.beforeEach((to, from) => {
+  if (to.hash.startsWith('#/admin') && !window.isAdmin) {
+    return '#/unauthorized';
+  }
+  return true;
+});
+
+// Clean up when no longer needed
+unregister();
+```
 
 ---
 
@@ -72,24 +130,34 @@ Tears down the active router instance. It cleans up all global event listeners (
 
 The `AvenxGuard` class allows you to intercept navigation requests before a route is fully loaded. Custom route guards should extend this base class.
 
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class CustomGuard extends AvenxGuard {
+  canActivate(to, from) {
+    return true;
+  }
+}
+```
+
 ### `canActivate(to, from)`
 
 This lifecycle method is executed prior to entering a route.
 
 - **Parameters:**
-  - `to`: The target route object being navigated to.
+  - `to`: The target route object being navigated to (contains `hash`, `page`, `params`, etc.).
   - `from`: The current route object being navigated away from.
-- **Return Values:** The method can return a `boolean`, a `string` (redirect path), or a `Promise` resolving to either:
+- **Return Values:** The method can return a `boolean`, a `string` (redirect path), a control object, or a `Promise` resolving to any of these:
   - `true`: Allows the navigation to proceed.
   - `false`: Cancels the navigation.
-  - `string`: Redirects the user to the specified path/hash (e.g., `'#/login'`).
+  - `string`: Redirects the user to the specified hash path (e.g., `'#/login'`).
 
 :::caution
 Redirect paths returned from `canActivate` must start with `#`. `AvenxRouter.navigate` only applies the configured `prefix` and namespace settings to hash paths — a path without the `#` prefix bypasses this resolution and can break navigation in apps served with a custom `prefix`.
 :::
 
 :::note
-When the matched route hash includes query parameters,both `to.params.query` and `from.params.query` contain the parsed query object- using the type coercion rules described in [Query Parameters](/core-concepts/routing/#query-parameters). This lets a guard make decisions based on query values, for example:
+When the matched route hash includes query parameters, both `to.params.query` and `from.params.query` contain the parsed query object — using the type coercion rules described in [Query Parameters](/core-concepts/routing/#query-parameters). This lets a guard make decisions based on query values, for example:
 ```javascript
   canActivate(to, from) {
     if (to.hash.startsWith('#/dashboard') && to.params.query?.tab === 'admin' && !window.isAdmin) {
@@ -108,48 +176,71 @@ Instead of a boolean or string, `canActivate` can return a control object for fi
 |------------|-----------|----------------------------------------------------------------|
 | `cancel`   | `boolean` | Aborts the navigation and reverts the URL to the previous route. |
 | `silent`   | `boolean` | When `cancel` is true, suppresses the console warning normally logged on denial. |
-| `redirect` | `string`  | Path to redirect to instead.                                    |
+| `redirect` | `string`  | Path to redirect to instead (must start with `#`).             |
 | `query`    | `object`  | Key/value pairs serialized into the redirect URL's search params. |
 | `state`    | `object`  | Also serialized into the search params (merged with `query`, which takes priority on conflicting keys). |
 
 #### Example: silent cancellation
 
-​```js
+```javascript
 canActivate() {
   return { cancel: true, silent: true };
 }
-​```
+```
 
 #### Example: redirect with query parameters
 
-​```js
+```javascript
 canActivate(to) {
   if (!isAuthenticated()) {
-    return { redirect: '/login', query: { next: to.hash } };
+    return { redirect: '#/login', query: { next: to.hash } };
   }
   return true;
 }
-​```
-This produces a redirect to `#/login?next=/dashboard`.
+```
 
-### Navigation Redirects
+This produces a redirect to `#/login?next=%23%2Fdashboard`.
 
-A route guard can return a hash path instead of a boolean to redirect the user to another route. This is useful for authentication, authorization, or onboarding flows where navigation should continue to a different page instead of simply being allowed or blocked.
+### Navigation Redirects & Async Activation
 
-For example, an authentication guard can wait for the session check to resolve and redirect unauthenticated users to the login route:
+A route guard can return a hash path or a Promise resolving to a hash path to redirect the user to another route. This is essential for authentication, authorization, or onboarding flows.
+
+#### Real-World AuthGuard Example
 
 ```javascript
-import { AvenxGuard } from 'avenx';
+// src/guards/auth.guard.js
+import { AvenxGuard } from 'avenx-core/runtime';
 
-export class AuthGuard extends AvenxGuard {
+export default class AuthGuard extends AvenxGuard {
+  /**
+   * Asynchronously inspects user auth token and redirects unauthorized users to login.
+   */
   async canActivate(to, from) {
-    const isAuthenticated = await checkUserSession();
+    const token = localStorage.getItem('authToken');
 
-    if (!isAuthenticated) {
-      return '#/login';
+    if (!token) {
+      // Redirect to login page with original target hash as query parameter
+      return {
+        redirect: '#/login',
+        query: { redirectUrl: to.hash },
+      };
     }
 
-    return true;
+    try {
+      // Validate session with remote authentication service
+      const user = await fetch('/api/auth/verify', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => res.ok ? res.json() : null);
+
+      if (!user) {
+        localStorage.removeItem('authToken');
+        return '#/login';
+      }
+
+      return true;
+    } catch {
+      return '#/login';
+    }
   }
 }
 ```
@@ -162,8 +253,5 @@ When a guard returns a redirect path:
 - Any resolvers associated with the original route are **not executed** because that navigation never completes.
 - Resolvers for the redirected route execute normally as part of the new navigation lifecycle.
 
-The router waits for a promise returned by `canActivate` to resolve before acting on its value. When the resolved value is a string, the router stops the current guard chain and starts a new navigation to that hash. The destination route is then matched normally and its own guards are resolved before the page is mounted. Avoid redirecting to a route protected by the same guard unless that route can pass the guard, or the redirects will repeat.
+The router waits for a promise returned by `canActivate` to resolve before acting on its value. When the resolved value is a string or redirect control object, the router stops the current guard chain and starts a new navigation to that hash. Avoid redirecting to a route protected by the same guard unless that route can pass the guard, or the redirects will loop indefinitely.
 
-:::warning
-Redirect paths must start with a `#` prefix to ensure router prefix and namespace settings are respected.
-:::
