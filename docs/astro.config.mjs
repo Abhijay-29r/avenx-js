@@ -23,8 +23,10 @@ export default defineConfig({
 						{ label: 'Quick Start Tutorial', slug: 'getting-started/quickstart' },
 						{ label: 'Project Structure', slug: 'getting-started/structure' },
 						{ label: 'Configuration', slug: 'getting-started/configuration' },
+						{ label: 'TypeScript & JSDoc', slug: 'getting-started/typescript' },
 					],
 				},
+
 				{
 					label: 'Core Concepts',
 					items: [
