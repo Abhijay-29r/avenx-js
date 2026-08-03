@@ -1340,27 +1340,31 @@ Deriving the value through a guarded `computed` property ensures `data-ax-html` 
 ### AVX_W22 — DIRECTIVE_SHOW_EVALUATION_FAILED
 
 **Warning Message**
-Failed to evaluate data-ax-show: {0}. Error: {1}
 
-**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the condition bound to a `data-ax-show="..."` directive, but the expression throws an exception. Since `data-ax-show` toggles an element's visibility based on the truthiness of the evaluated expression, any error during evaluation — such as accessing a property on `null`/`undefined`, calling an undeclared method, or a malformed expression — prevents the renderer from determining whether the element should be shown or hidden.
+```text
+Failed to evaluate data-ax-show: {0}. Error: {1}
+```
+
+**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the condition expression bound to a `data-ax-show="..."` directive, but the evaluation throws a runtime exception. Since `data-ax-show` dynamically toggles an element's visibility based on the truthiness of the evaluated expression, an evaluation error — such as accessing properties on an uninitialized or `undefined` state property — prevents the renderer from determining whether the element should be shown or hidden.
 
 This typically happens for a few common reasons:
 
-- The bound expression accesses a nested property on a value that is `null` or `undefined` (e.g. `state.user.isActive` when `state.user` hasn't loaded yet).
-- A method referenced in the expression was never declared in `actions` or `computed`.
-- Asynchronous data the condition depends on hasn't resolved yet.
-- A typo or syntax error in the expression itself.
+- The bound expression accesses a property on an `undefined` or `null` state object (e.g. `state.user.isActive` when `state.user` is uninitialized or pending an async fetch).
+- An uninitialised state variable is referenced directly before component state setup completes.
+- A method referenced in the expression is missing from `actions` or `computed`.
+- A syntax error or typo exists within the directive expression string.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure any object referenced in the expression is initialized before `data-ax-show` evaluates, even if just as an empty object or `null` with a guarded check.
-2. Guard nested property access with optional chaining or an explicit check, e.g. `state.user && state.user.isActive`.
-3. If the condition depends on asynchronous data, default it to `false` until the data has loaded so the element stays hidden safely.
-4. Move complex conditions into a `computed` property, where the logic is easier to guard and test.
+1. **Initialize State Properties**: Ensure state variables referenced in `data-ax-show` are defined in initial component state (e.g. `user: null` or `user: {}`).
+2. **Use Defensive Guarding / Optional Chaining**: Guard property access on potentially undefined state values (e.g. `state.user && state.user.isActive` or `state.user?.isActive`).
+3. **Handle Async Data State**: Default state properties to safe initial fallback values (e.g., `false`) so `data-ax-show` evaluates safely while waiting for API responses.
+4. **Use Computed Properties for Complex Expressions**: Encapsulate conditional state evaluation in a `computed` property with internal error handling or fallback logic.
 
 **Incorrect**
 
 ```javascript
+// State initialised without 'user' property
 const state = {};
 ```
 
@@ -1368,7 +1372,7 @@ const state = {};
 <div data-ax-show="state.user.isActive">Welcome back!</div>
 ```
 
-Since `state.user` is `undefined`, accessing `.isActive` throws, and the directive fails to evaluate.
+Since `state.user` is `undefined`, accessing `.isActive` throws a `TypeError`, triggering **AVX_W22**.
 
 **Correct**
 
@@ -1397,6 +1401,7 @@ const computed = {
 ```
 
 Deriving the condition through a guarded `computed` property ensures `data-ax-show` always receives a safe boolean and prevents evaluation failures.
+
 
 ### AVX_W23 — DIRECTIVE_CLASS_EVALUATION_FAILED
 
