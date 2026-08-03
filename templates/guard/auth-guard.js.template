@@ -1,11 +1,12 @@
 import { AvenxGuard } from 'avenx-core/runtime';
 
 /**
- * {{ name }} handles route protection and authentication checks.
+ * AuthGuard handles route protection by verifying user authentication status.
+ * Unauthorized users are redirected to the login page.
  */
-export default class {{ name }} extends AvenxGuard {
+export default class AuthGuard extends AvenxGuard {
     /**
-     * Determines whether the route can be activated.
+     * Determines whether the requested route can be activated.
      * Inspects user authentication state and redirects unauthorized users to the login page.
      *
      * @param {Object} to - The target route object (contains hash, page, params).
@@ -13,7 +14,7 @@ export default class {{ name }} extends AvenxGuard {
      * @returns {boolean|string|Object|Promise<boolean|string|Object>}
      */
     canActivate(to, from) {
-        // Inspect user authentication state (e.g., checking token from localStorage, session, or auth state)
+        // Inspect user authentication state (e.g., checking token in localStorage, cookie, or auth store)
         const isAuthenticated = Boolean(localStorage.getItem('authToken'));
 
         if (!isAuthenticated) {
@@ -21,8 +22,7 @@ export default class {{ name }} extends AvenxGuard {
             return '#/login';
         }
 
-        // Return true to allow navigation to protected route
+        // Allow access to protected route
         return true;
     }
 }
-
