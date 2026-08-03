@@ -1611,7 +1611,66 @@ If your project does not use a preprocessor, omit the field entirely or set it e
 
 This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 
+### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
+**Warning Message**
+
+```text
+Multiple <state> tags found in component template. Only the first <state> tag will be processed; subsequent <state> tags are ignored.
+```
+
+**Cause:** This warning is emitted during compilation when a single component template file contains more than one `<state>` tag declaration. Avenx-JS enforces a single `<state>` block per component to maintain predictable state initialization and scoping. When multiple `<state>` blocks are detected, the compiler parses properties from the first `<state>` tag and ignores all subsequent `<state>` tags.
+
+This typically happens for a few common reasons:
+
+- Accidentally declaring separate `<state>` tags for different categories of properties instead of merging them.
+- Copy-pasting template code that includes another `<state>` block.
+- Splitting initial state and default values across multiple `<state>` tags.
+
+**Resolution:** To resolve this warning:
+
+1. Consolidate all reactive property declarations into a single `<state>` block within the component template.
+2. Remove any duplicate or extra `<state>` tags.
+3. If necessary, organize reactive properties within a single nested object structure inside the primary `<state>` block.
+
+**Incorrect**
+
+```html
+<!-- Multiple separate <state> blocks -->
+<state count="0" />
+<state user="null" isLoading="false" />
+
+<div>
+  <p>Count: {{ count }}</p>
+</div>
+```
+
+The compiler emits **AVX_W28** and ignores the second `<state>` tag, leaving `user` and `isLoading` uninitialized.
+
+**Correct**
+
+```html
+<!-- Consolidated into a single <state> block -->
+<state count="0" user="null" isLoading="false" />
+
+<div>
+  <p>Count: {{ count }}</p>
+</div>
+```
+
+**Complex State Object Example**
+
+For larger components with complex state requirements, group properties inside a single `<state>` tag:
+
+```html
+<state 
+  counter="0"
+  settings='{ "theme": "dark", "notifications": true }'
+/>
+```
+
 ### AVX_W29 — COMPILER_CIRCULAR_DEPENDENCY
+
 
 **Warning Message**
 
