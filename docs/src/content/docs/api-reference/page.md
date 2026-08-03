@@ -30,8 +30,47 @@ constructor(bridges, componentRegistry, props) {
 ```
 
 This differs from a regular component constructor, which receives only
-`bridges` and `props`. The extra `componentRegistry` argument lets `AvenxPage`
-mount child components inside the page template.
+`bridges` and `props`. The extra `componentRegistry` argument is an object mapping component names to their class definitions. This registry allows `AvenxPage` to resolve and mount child components found inside the page's template.
+
+### Manual Component Registration
+
+If you are not using the Avenx compiler and prefer to set up your pages manually, you must provide the `componentRegistry` to the page constructor.
+
+Here is an example of manually registering a `Navbar` component within a `HomePage`:
+
+```javascript
+import { AvenxPage, AvenxComponent } from 'avenx';
+
+// 1. Define the child component
+class Navbar extends AvenxComponent {
+  // ... Navbar implementation
+}
+
+// 2. Define the page
+class HomePage extends AvenxPage {
+  constructor(bridges, componentRegistry, props) {
+    // 3. Provide the components used in this page's template
+    const myRegistry = {
+      ...componentRegistry,
+      Navbar: Navbar
+    };
+
+    super(
+      { /* initialState */ },
+      { /* computed */ },
+      bridges,
+      `<div>
+         <div data-avenx-comp="Navbar" title="Home"></div>
+       </div>`,
+      { /* methods */ },
+      myRegistry,
+      props
+    );
+  }
+}
+```
+
+In the example above, the `HomePage` template references the `Navbar` component via `data-avenx-comp="Navbar"`. By providing `{ Navbar: Navbar }` in the registry, the `AvenxPage` can successfully find, instantiate, and mount the `Navbar` when the page renders.
 
 ## Route Parameters
 
