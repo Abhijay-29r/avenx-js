@@ -505,6 +505,10 @@ async function runTest() {
     execSync(`node ${BIN_PATH} generate guard auth-test`, { cwd: TEST_DIR });
     const authGuardPath = path.join(TEST_DIR, 'src/guards/auth-test.guard.js');
     assert.ok(fs.existsSync(authGuardPath), 'auth-test guard should exist');
+    const guardContent = fs.readFileSync(authGuardPath, 'utf8');
+    assert.ok(guardContent.includes("localStorage.getItem('authToken')"), 'guard template should check auth state');
+    assert.ok(guardContent.includes("return '#/login'"), 'guard template should redirect unauthorized users to login page');
+
 
     const guardDestroyOutput = execSync(`node ${BIN_PATH} d guard auth-test`, {
       cwd: TEST_DIR,
