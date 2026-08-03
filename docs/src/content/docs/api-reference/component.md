@@ -9,6 +9,9 @@ The base class from which all standard UI components inherit. It manages reactiv
 
 - `this.state` (Proxy): The reactive state instance for local properties. Changing state triggers updates automatically.
 - `this.props` (Proxy): The reactive attributes passed by parent tags. Modifications from parents trigger updates.
+- `this.provide` / `provide()`: Defines state, properties, or methods to provide to descendant components.
+- `static inject` / `this.inject`: Defines ancestor properties to inject and make available locally on `this`.
+
 
 ## Lifecycle Hooks
 

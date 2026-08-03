@@ -37,9 +37,11 @@ export default defineConfig({
 						{ label: 'Transition Animations', slug: 'core-concepts/transitions' },
 						{ label: 'Scoped & Global CSS', slug: 'core-concepts/styling' },
 						{ label: 'Shared State & Bridges', slug: 'core-concepts/bridges' },
+						{ label: 'Provide & Inject', slug: 'core-concepts/provide-inject' },
 						{ label: 'Pages & Routing', slug: 'core-concepts/routing' },
 					],
 				},
+
 				{
 					label: 'CLI Reference',
 					items: [
