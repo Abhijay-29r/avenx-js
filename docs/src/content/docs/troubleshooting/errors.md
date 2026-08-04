@@ -788,57 +788,75 @@ router.add('*', NotFoundPage);
 
 Using a wildcard (fallback) route allows unknown hashes to be redirected to a dedicated 404 page instead of producing an unresolved navigation.
 
-### AVX_W11 — ROUTE_TITLE_EVALUATION_FAILED
+### AVX_W11 — ROUTER_DUPLICATE_ROUTE_NAME
 
 **Warning Message**
 
-```
-title() threw an error: {0}
+```text
+Duplicate route name "{0}". Route names should be unique.
 ```
 
-**Cause:** This warning is emitted when the `title()` callback defined in a route configuration throws an unhandled exception while the router is evaluating the page title during navigation.This can occur when the callback accesses undefined properties, assumes route data is always available, or performs operations that result in a runtime exception.
+**Cause:** This warning is emitted during router setup when multiple route definitions in the router configuration share the exact same `name` property. Route names serve as unique string keys for named route navigation (e.g., `router.push({ name: 'user-profile' })`) and path resolution. When two or more routes use identical names, the router cannot determine which route to resolve and emits **AVX_W11**.
+
+This typically happens for a few common reasons:
+
+- Copying and pasting a route configuration block without updating the `name` property.
+- Assigning generic names (such as `'details'` or `'index'`) across multiple nested or feature route modules.
+- Registering duplicate routes dynamically during application initialization.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure the `title()` callback safely handles missing or undefined values.
-2. Use optional chaining when accessing nested properties.
-3. Provide a fallback title when the required data is unavailable.
+1. Ensure every route in your router configuration has a unique `name` string identifier.
+2. Follow a consistent naming convention (e.g. prefixing route names with feature areas like `'user-profile'` and `'company-profile'`).
+3. Audit route definitions to remove duplicate entries or conflicting names.
 
 **Incorrect**
 
-```js
-export default {
-  path: '/users/:id',
-  title: (route) => route.data.user.name,
-};
+```javascript
+const routes = [
+  {
+    path: '/users/:id',
+    name: 'profile', // Duplicate route name!
+    component: UserProfilePage,
+  },
+  {
+    path: '/company/profile',
+    name: 'profile', // Conflict triggers AVX_W11
+    component: CompanyProfilePage,
+  },
+];
 ```
-
-If `route.data` or `route.data.user` is undefined, the callback throws an exception and AVX_W11 is emitted.
 
 **Correct**
 
-```js
-export default {
-  path: '/users/:id',
-  title: (route) => route.data?.user?.name ?? 'Users',
-};
-```
-
-The callback safely accesses nested properties and returns a fallback title if the expected data is unavailable.
-
-**Defensive Example**
-
-```js
-export default {
-  path: '/users/:id',
-  title: (route) => {
-    const user = route.data?.user;
-    return user?.name ?? 'Users';
+```javascript
+const routes = [
+  {
+    path: '/users/:id',
+    name: 'user-profile', // Unique route name
+    component: UserProfilePage,
   },
+  {
+    path: '/company/profile',
+    name: 'company-profile', // Unique route name
+    component: CompanyProfilePage,
+  },
+];
+```
+
+**Route Title Evaluation Warning (`title()` Error)**
+
+If `AVX_W11` is triggered during dynamic page title evaluation when a route's `title()` callback throws an exception:
+
+```javascript
+// Ensure title() safely accesses route parameters or fallback titles
+export default {
+  path: '/users/:id',
+  name: 'user-profile',
+  title: (route) => route.params?.id ? `User ${route.params.id}` : 'User Profile',
 };
 ```
 
-Using optional chaining and fallback values helps prevent runtime exceptions during route title evaluation.
 
 ### AVX_W12 — PAGE_PROP_EVALUATION_FAILED
 
