@@ -1,41 +1,67 @@
 ---
 title: 'VirtualList'
-description: 'Full API reference for the built-in VirtualList component.'
+description: 'Full API reference and template slot scope documentation for the built-in VirtualList component.'
 ---
 
-The `<VirtualList>` component is a built-in, globally available component designed for high-performance virtualized list rendering of massive datasets. It automatically handles dynamic element recycling, layout paddings, and dynamic item height updates.
+The `<VirtualList>` component is a built-in, globally available component designed for high-performance virtualized rendering of large datasets. It dynamically recycles DOM elements and only renders rows currently visible within the viewport scroll area.
 
 ## Props
 
-| Prop | Type | Description |
-| :--- | :--- | :--- |
-| `items` | `Array` | The dataset array to be rendered in the list. |
-| `itemHeight` / `item-height` | `Number` | The height of each item. Supports both camelCase (`itemHeight`) and kebab-case (`item-height`). |
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `items` | `Array` | `[]` | The array of dataset items to render in the virtual list. |
+| `itemHeight` / `item-height` | `Number` | `40` | Default row height in pixels. Supports both camelCase (`itemHeight`) and kebab-case (`item-height`). |
 
-> **Note:** `<VirtualList>` includes built-in `ResizeObserver` support to handle dynamic row resizing automatically.
+> [!NOTE]
+> `<VirtualList>` incorporates a built-in `ResizeObserver` to monitor item sizes and container dimensions automatically, adjusting scroll offsets when dynamic content resizes.
 
 ---
 
-## Usage Example
+## Template Slot Scope & `index` Variable
 
-To pass templates into the `<VirtualList>`, use the `data-ax-as="item"` directive on your template slot.
+To define row markup inside `<VirtualList>`, place a `<template data-ax-as="...">` slot tag inside the `<VirtualList>` component element. 
 
-The template exposes the following variables:
+The slot scope automatically exposes two variables during rendering:
 
-| Variable | Description |
-| :--- | :--- |
-| `item` | The current item being rendered. |
-| `index` | The zero-based index of the current item in the list. |
+| Variable | Type | Description |
+| :--- | :--- | :--- |
+| `item` *(or custom alias)* | `Object \| any` | The dataset item object for the current row. Customize the variable name using `data-ax-as="alias"`. |
+| `index` | `Number` | The zero-based numerical index of the current item in the `items` array. |
+
+---
+
+## Usage Examples
+
+### 1. Basic Usage with `index` and Item Properties
 
 ```html
-<VirtualList :item-height="50" :items="myLargeDataset">
-  <template data-ax-as="item" let:item let:index>
-    <div class="list-item">
-      <span>#{{ index }}</span>
-      <h3>{{ item.title }}</h3>
-      <p>{{ item.description }}</p>
+<state items="[
+  { id: 1, name: 'Alice' },
+  { id: 2, name: 'Bob' },
+  { id: 3, name: 'Charlie' }
+]" />
+
+<VirtualList :item-height="50" :items="items">
+  <template data-ax-as="user">
+    <div class="user-row">
+      <span class="user-index">#{{ index + 1 }}</span>
+      <span class="user-name">{{ user.name }}</span>
     </div>
   </template>
 </VirtualList>
+```
 
-The `index` variable is automatically provided by `<VirtualList>` and represents the zero-based position of the current item in the rendered list.
+### 2. Custom Item Alias (`data-ax-as`)
+
+By default, the item variable is named `item`. Use `data-ax-as="customName"` on the `<template>` element to rename the item variable while keeping `index` available:
+
+```html
+<VirtualList :item-height="60" :items="products">
+  <template data-ax-as="product">
+    <div class="product-item">
+      <span class="badge">Row {{ index }}</span>
+      <strong>{{ product.title }}</strong> — ${{ product.price }}
+    </div>
+  </template>
+</VirtualList>
+```
