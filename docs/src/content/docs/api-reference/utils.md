@@ -138,20 +138,61 @@ state.count++;
 state.user.name = 'Updated User';
 ```
 
-Options supplied to `create()` are forwarded to the underlying `ProxyHandlerFactory`.
+### Options Schema
+
+The `options` object passed to `create(initialState, options)` configures the behavior of the created reactive proxy and its underlying `ProxyHandlerFactory`:
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `onChange` | `Function` | `() => {}` | A change notification callback executed whenever any reactive property on the target (or nested reactive child objects, arrays, Sets, or Maps) is modified, set, or deleted. |
+| `computedKeys` | `Array<String>` | `[]` | An array of property names to treat as dynamic computed properties on the target object. |
+| `instance` | `Object` | `null` | Optional component or context instance reference passed for scope resolution and method binding. |
+| `bypassSymbol` | `Boolean` | `false` | When `true`, prevents `StateFactory` from defining the internal non-enumerable `__avenx_proxy_ref__` symbol property on the target object. |
+
+---
+
+### The `onChange` Callback API
+
+The `onChange` option allows developers to attach a change listener to a standalone reactive state object created outside of a component lifecycle. 
+
+Whenever a property on the reactive state proxy (or any nested reactive object/array) is modified, set, or deleted, `onChange` is invoked automatically. This enables building custom state management stores, state persistence sync (e.g. with `localStorage`), or external event logs.
+
+#### Example: Standalone Reactive Store with `onChange` Persistence
 
 ```javascript
-const state = stateFactory.create(
+import { StateFactory } from 'avenx-core/runtime';
+
+const stateFactory = new StateFactory();
+
+// Load initial state from localStorage or fallback defaults
+const savedState = JSON.parse(localStorage.getItem('app_settings') || '{}');
+
+const settingsState = stateFactory.create(
   {
-    count: 0,
+    theme: savedState.theme || 'dark',
+    notifications: savedState.notifications ?? true,
+    user: {
+      name: 'Alice',
+    },
   },
   {
     onChange() {
-      console.log('State changed');
+      // Sync state updates to localStorage whenever any property changes
+      localStorage.setItem('app_settings', JSON.stringify({
+        theme: settingsState.theme,
+        notifications: settingsState.notifications,
+        user: settingsState.user,
+      }));
+      console.log('Settings persisted to localStorage:', settingsState);
     },
-  },
+  }
 );
+
+// Mutating top-level or nested properties automatically triggers onChange
+settingsState.theme = 'light'; // Logs and saves to localStorage
+settingsState.user.name = 'Bob'; // Triggers onChange for nested mutations
 ```
+
 
 ## 7. `AvenxWatcher`
 
