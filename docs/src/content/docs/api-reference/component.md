@@ -166,6 +166,25 @@ class ProfilePage extends AvenxPage {
 
 Unlike `onMount()`, which runs only once when the component is first created, `onActivate(params)` runs every time a cached page is restored, making it the preferred place to reload data that depends on the current route.
 
+### Error Boundaries with `onErrorCaptured`
+
+The `onErrorCaptured(error, instance, info)` hook captures unhandled exceptions thrown by descendant child components during lifecycle execution or action evaluation.
+
+- Return `false` from `onErrorCaptured` to stop error propagation up the component tree and prevent triggering global error handlers.
+- Update reactive state inside `onErrorCaptured` to render fallback UI components cleanly.
+
+```javascript
+class ErrorBoundary extends AvenxComponent {
+  onErrorCaptured(error, childInstance, info) {
+    console.error(`Captured error from ${childInstance.constructor.name} during ${info}:`, error);
+    this.state.hasError = true;
+    this.state.errorMessage = error.message;
+    return false; // Stop propagation
+  }
+}
+```
+
+
 
 ## DOM Events
 

@@ -300,9 +300,103 @@ If a lifecycle hook is defined in both the `methods` object and the subclass, th
 
 Available lifecycle hooks:
 
-- `onMount()` — Runs when the component is mounted.
-- `onUpdate()` — Runs when the component updates.
-- `onUnmount()` — Runs when the component is removed.
+- `onBeforeMount()` — Runs right before initial component template rendering.
+- `onMount()` — Runs when the component is mounted to the DOM.
+- `onBeforeUpdate()` — Runs before DOM patching upon state changes.
+- `onUpdate()` — Runs when the component updates and finishes DOM patching.
+- `onUnmount()` — Runs when the component is removed from the DOM.
+- `onActivate(params)` / `onDeactivate()` — Runs for cached `keepAlive: true` pages.
+- `onErrorCaptured(error, instance, info)` — Captures unhandled errors from descendant components.
+
+---
+
+## Centralized Error Boundaries (`onErrorCaptured`)
+
+Avenx components can act as **Error Boundaries** by implementing the `onErrorCaptured` lifecycle hook. When an unhandled error occurs in a descendant component's lifecycle hook (such as `onMount`) or event action, the error bubbles up the parent component hierarchy until an `onErrorCaptured` handler intercepts it.
+
+### Hook Signature & Parameters
+
+```javascript
+onErrorCaptured(error, instance, info)
+```
+
+- `error` (`Error`): The error instance caught from the descendant component.
+- `instance` (`AvenxComponent`): The component instance where the error occurred.
+- `info` (`string`): Description string of where the error originated (e.g., `'onMount'`, `'action click'`, `'template render'`).
+
+### Stopping Error Propagation (`return false`)
+
+By default, an error captured by `onErrorCaptured` continues bubbling up to ancestor components and eventually triggers the global application error handler (`app.config.errorHandler`).
+
+To **stop error propagation** and prevent the application from crashing, return `false` explicitly from `onErrorCaptured`:
+
+```javascript
+onErrorCaptured(error, instance, info) {
+  console.error(`Caught error from ${instance.constructor.name} during ${info}:`, error);
+  this.state.hasError = true;
+  this.state.errorMessage = error.message;
+  return false; // Prevents error from bubbling further
+}
+```
+
+---
+
+### Building an Error Boundary Component
+
+Error Boundaries are reusable container components that wrap dynamic UI sections (such as charts, external feeds, or user-generated widgets) to display fallback UI when something breaks inside them.
+
+#### Single-File Component Example (`ErrorBoundary.component.js`)
+
+```html
+<state hasError="false" errorMessage="''" />
+
+<action name="onErrorCaptured">
+  const [error, instance, info] = args;
+  console.error('ErrorBoundary captured exception:', error, info);
+  
+  // Set fallback UI state
+  this.state.hasError = true;
+  this.state.errorMessage = error.message || 'An unexpected error occurred';
+  
+  // Stop propagation to prevent full application crash
+  return false;
+</action>
+
+<action name="resetError">
+  this.state.hasError = false;
+  this.state.errorMessage = '';
+</action>
+
+<div class="error-boundary-wrapper">
+  <div data-ax-show="hasError" class="error-fallback-card">
+    <h3>Something went wrong</h3>
+    <p>{{ errorMessage }}</p>
+    <button @click="resetError()">Try Again</button>
+  </div>
+
+  <div data-ax-show="!hasError">
+    <slot></slot>
+  </div>
+</div>
+```
+
+#### Consuming the Error Boundary
+
+Wrap unstable or third-party components inside the `<ErrorBoundary>` component:
+
+```html
+<!-- src/pages/dashboard.page.js -->
+<div class="dashboard-page">
+  <h2>Analytics Dashboard</h2>
+
+  <ErrorBoundary>
+    <UnstableChartWidget />
+  </ErrorBoundary>
+</div>
+```
+
+If `<UnstableChartWidget>` throws an exception during data fetching in `onMount()`, `<ErrorBoundary>` catches the exception, returns `false` to stop propagation, and renders the fallback card with a "Try Again" button without affecting the rest of the dashboard page.
+
 
 ## Compilation Lifecycle & Limits
 
