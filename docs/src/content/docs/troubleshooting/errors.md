@@ -1687,7 +1687,56 @@ If your project does not use a preprocessor, omit the field entirely or set it e
 
 This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 
+### AVX_W25 — COMPILER_INVALID_CONFIG
+
+**Warning Message**
+
+```text
+Failed to parse avenx.config.json at "{0}": {1}
+```
+
+**Cause:** This warning is emitted during project build or compilation when Avenx-JS attempts to load and parse `avenx.config.json` at the root of your project, but the JSON configuration file is malformed (e.g. invalid JSON syntax, trailing commas, missing quotes) or contains unparseable values. When config parsing fails, Avenx-JS catches the exception, logs warning **AVX_W25**, and gracefully falls back to default compiler settings.
+
+This typically happens for a few common reasons:
+
+- Syntax errors in `avenx.config.json` such as trailing commas, single quotes instead of double quotes, or missing closing braces.
+- Invalid data types or malformed configuration schemas.
+- File encoding issues or partial writes during build tooling execution.
+
+**Resolution:** To resolve this warning:
+
+1. Validate the syntax of `avenx.config.json` using a JSON validator or IDE formatting tool.
+2. Ensure standard double quotes (`"`) are used around all keys and string values.
+3. Remove any trailing commas after the last key-value pair in JSON objects or arrays.
+4. Verify configuration schema keys (e.g. `preprocessors`, `bundleBudget`, `voidTags`) match the expected framework options.
+
+**Incorrect**
+
+```json
+// Malformed JSON: single quotes and trailing comma -> Triggers AVX_W25
+{
+  'srcDir': 'src',
+  'bundleBudget': 500,
+}
+```
+
+**Correct**
+
+```json
+{
+  "srcDir": "src",
+  "build": {
+    "bundleBudget": {
+      "javascript": 500,
+      "css": 100
+    }
+  },
+  "voidTags": ["my-custom-tag"]
+}
+```
+
 ### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
 
 **Warning Message**
 
