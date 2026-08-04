@@ -300,3 +300,56 @@ comp.$watch('items.length', () => {
 ### `update()`
 
 Forces a DOM patch and re-evaluates slots. Typically called automatically by the scheduler.
+
+---
+
+## Component Style Lifecycle & StyleMountManager
+
+Avenx-JS manages component scoped CSS stylesheets dynamically in the browser runtime via the `StyleMountManager` singleton service.
+
+Rather than bundling all component styles into a monolithic static CSS bundle or duplicating `<style>` tags for every component instance, `StyleMountManager` injects styles **lazily on demand** and manages their lifecycle using **instance reference counting**.
+
+### Dynamic `<style>` Element Injection
+
+When the first instance of a component class is mounted into the DOM:
+
+1. `StyleMountManager` generates a unique style identifier for the component class (e.g. `data-avenx-style="avenx-style-UserCard"`).
+2. It creates a `<style data-avenx-style="avenx-style-UserCard">` element in the document `<head>` containing the compiled scoped CSS rules.
+3. It initializes an internal reference counter for the component class (`refCount = 1`).
+
+```html
+<!-- Automatically injected into document <head> on first mount -->
+<style data-avenx-style="avenx-style-UserCard">
+  .user-card[data-ax-c="c1"] { padding: 1rem; border-radius: 8px; }
+  .user-card[data-ax-c="c1"] .avatar { width: 48px; height: 48px; }
+</style>
+```
+
+---
+
+### Instance Reference Counting
+
+When additional instances of the same component class are created and mounted (for example, rendering 50 `<UserCard>` instances in a list):
+
+- `StyleMountManager` detects that a `<style>` element for `avenx-style-UserCard` already exists in `<head>`.
+- It increments the internal reference count (`refCount++`) without creating duplicate `<style>` tags.
+
+| Mounted Instances | Action | `refCount` | `<head>` DOM State |
+| :--- | :--- | :--- | :--- |
+| **0** | None | `0` | No `<style>` tag present. |
+| **1 (First)** | Injects `<style data-avenx-style="...">` | `1` | Single `<style>` tag created. |
+| **2..N** | Increments ref count | `N` | Shared single `<style>` tag reused. |
+| **N - 1 (Unmount)**| Decrements ref count | `N - 1` | `<style>` tag remains active. |
+| **0 (Last Unmount)**| Detaches `<style>` element from `<head>` | `0` | `<style>` tag removed cleanly. |
+
+---
+
+### Automatic Unmount Cleanup
+
+When a component instance unmounts:
+
+1. `StyleMountManager` decrements the component class reference counter (`refCount--`).
+2. When the reference counter reaches `0` (or no active instances of the component class remain in the DOM tree), `StyleMountManager` automatically removes the matching `<style>` tag from document `<head>` and purges its registry entry.
+
+This automatic reference counting prevents CSS memory leaks, avoids stylesheet pollution in long-running Single Page Applications (SPAs), and ensures unused component styles do not accumulate as users navigate between pages.
+
