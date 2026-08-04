@@ -248,6 +248,93 @@ If the parent omits either slot, only that slot's fallback content is rendered.
 Fallback content should provide meaningful defaults so components remain usable even when slot content is omitted.
 :::
 
+---
+
+## Scoped Slots & Passing Slot Props
+
+While standard slots allow parent components to inject HTML markup into a child component, **Scoped Slots** allow child components to pass dynamic data back to the parent's slot template. This allows parent components to customize how child data is rendered while keeping data management inside the child component.
+
+### 1. Child Component Syntax (`<slot :prop="value">`)
+
+To expose data to the parent slot template, bind properties onto the `<slot>` tag using the `:` attribute prefix:
+
+```html
+<!-- src/components/ListContainer.component.js -->
+<state currentItem="{ id: 1, name: 'Avenx Framework', category: 'Web' }" isVisible="true" />
+
+<div class="list-container">
+  <!-- Exposing child state onto the default slot -->
+  <slot :item="state.currentItem" :visible="state.isVisible"></slot>
+</div>
+```
+
+Child components can also expose data on **named scoped slots**:
+
+```html
+<header class="card-header">
+  <slot name="header" :title="state.title" :badgeCount="state.badges.length"></slot>
+</header>
+```
+
+---
+
+### 2. Parent Component Syntax (`data-slot-props`)
+
+Parent components receive the child's exposed data by wrapping the transcluded slot markup in a `<template>` tag with the `data-slot-props` attribute. The attribute value defines the local variable name used to access child data:
+
+```html
+<!-- src/pages/HomePage.page.js -->
+<state selectedItem="null" />
+
+<action name="handleItemSelect">
+  const [item] = args;
+  this.state.selectedItem = item;
+</action>
+
+<div class="home-page">
+  <ListContainer>
+    <template data-slot-props="slotProps">
+      <div class="custom-item" data-ax-show="slotProps.visible">
+        <h3>{{ slotProps.item.name }}</h3>
+        <span class="badge">{{ slotProps.item.category }}</span>
+        <button @click="handleItemSelect(slotProps.item)">Select</button>
+      </div>
+    </template>
+  </ListContainer>
+</div>
+```
+
+---
+
+### 3. Named Scoped Slots
+
+When using named slots together with scoped slot props, specify both the `name` attribute and `data-slot-props` on the `<template>` tag:
+
+```html
+<CardWidget>
+  <!-- Consuming a named scoped slot -->
+  <template name="header" data-slot-props="headerProps">
+    <h2>{{ headerProps.title }}</h2>
+    <span class="count-pill">{{ headerProps.badgeCount }} new</span>
+  </template>
+
+  <!-- Default slot content -->
+  <template data-slot-props="bodyProps">
+    <p>{{ bodyProps.content }}</p>
+  </template>
+</CardWidget>
+```
+
+---
+
+### 4. Scope Availability & Directive Support
+
+Inside a scoped slot template:
+- Interpolations (`{{ slotProps.item.name }}`), directives (`data-ax-show="slotProps.visible"`), and action handlers (`@click="handleItemSelect(slotProps.item)"`) automatically evaluate against `slotProps`.
+- Event action handlers inside scoped slots can pass `slotProps` properties directly to component methods.
+- Updates to child state automatically re-evaluate expressions inside the parent's scoped slot template without unmounting the slot DOM nodes.
+
+
 ## Lifecycle Hooks
 
 Avenx components support lifecycle hooks that allow you to run logic at different stages of a component's lifecycle.
