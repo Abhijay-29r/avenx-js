@@ -17,42 +17,136 @@ The base class from which all standard UI components inherit. It manages reactiv
 
 Implement these functions in your component logic to execute code at specific points in the component's lifespan:
 
-Lifecycle hooks can also be defined as class methods when creating a component by extending `AvenxComponent`.
+## Component Lifecycle Hooks
+
+Avenx-JS component instances transition through a well-defined lifecycle: creation, initial template compilation, DOM mounting, reactive updates, deactivation (for `keepAlive` pages), and unmounting.
+
+You can implement lifecycle hooks either as `<action name="...">` tags inside Single-File Components (`.component.js` / `.page.js`) or as class methods when extending `AvenxComponent` / `AvenxPage`.
+
+```html
+<!-- Single-File Component (.component.js) Example -->
+<state items="[]" isLoading="true" />
+
+<action name="onBeforeMount">
+  console.log('onBeforeMount: Template compiled, about to attach to DOM');
+</action>
+
+<action name="onMount">
+  console.log('onMount: Attached to DOM. Fetching initial data...');
+  this.loadItems();
+</action>
+
+<action name="loadItems">
+  this.state.items = ['Item 1', 'Item 2'];
+  this.state.isLoading = false;
+</action>
+
+<action name="onBeforeUpdate">
+  console.log('onBeforeUpdate: Reactive state changed, about to patch DOM');
+</action>
+
+<action name="onUpdate">
+  console.log('onUpdate: DOM patch complete');
+</action>
+
+<action name="onUnmount">
+  console.log('onUnmount: Component detaching from DOM');
+</action>
+
+<div>
+  <p data-ax-show="isLoading">Loading items...</p>
+  <ul>
+    <@for item="item" in="items">
+      <li>{{ item }}</li>
+    </@for>
+  </ul>
+</div>
+```
 
 ```javascript
-class MyComponent extends AvenxComponent {
+// Class-Based Component Example
+export default class MyComponent extends AvenxComponent {
+  onBeforeMount() {
+    console.log('onBeforeMount');
+  }
+
   onMount() {
-    console.log('Component mounted');
+    console.log('onMount');
   }
 
-  onActivate(params) {
-    console.log('Component activated', params);
-  }
-
-  onDeactivate() {
-    console.log('Component deactivated');
+  onBeforeUpdate() {
+    console.log('onBeforeUpdate');
   }
 
   onUpdate() {
-    console.log('Component updated');
+    console.log('onUpdate');
   }
 
   onUnmount() {
-    console.log('Component unmounted');
+    console.log('onUnmount');
+  }
+
+  onErrorCaptured(error, childInstance, info) {
+    console.error('onErrorCaptured:', error, info);
+    return false; // Prevent further error propagation
   }
 }
 ```
 
-When lifecycle hooks are provided through both the constructor `methods` object and class methods, the constructor `methods` object takes priority.
+### Complete Lifecycle Hooks Reference
 
-| Method Name          | Description                                                                                                                                                                         |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onMount()`          | Called immediately after the component's element is attached to the DOM. Place your initial data fetches here.                                                                      |
-| `onActivate(params)` | Called whenever a page configured with `keepAlive: true` becomes active. Receives the latest route parameters. Use this to refresh data or resume work without recreating the page. |
-| `onDeactivate()`     | Called when navigating away from a page configured with keepAlive: true. The page is cached instead of being unmounted, allowing its state and DOM to be restored later.            |
-| `onBeforeUpdate()`   | Called before the component's DOM is patched during reactive state updates. Use this to read the current DOM state (e.g. scroll positions).                                         |
-| `onUpdate()`         | Called after the component has updated and patched the DOM tree. Use this for DOM measurements.                                                                                     |
-| `onUnmount()`        | Called before the component is detached and cleaned up. Ideal for removing timers and global listeners.                                                                             |
+| Hook Name | Parameters | Description |
+| :--- | :--- | :--- |
+| `onBeforeMount()` | None | Called after state and actions are set up, right before the component template is compiled and inserted into the DOM. |
+| `onMount()` | None | Called immediately after the component element is attached to the DOM. Ideal for initial API data fetches, setting up timers, or DOM queries. |
+| `onBeforeUpdate()` | None | Called right before the DOM is patched following a reactive state or props change. Useful for reading current DOM scroll positions or focus states. |
+| `onUpdate()` | None | Called immediately after the DOM patch update finishes. Ideal for DOM measurements or re-initializing third-party UI widgets. |
+| `onActivate(params)` | `params: Object` | Called whenever a cached page configured with `keepAlive: true` becomes active. Receives current route parameters. |
+| `onDeactivate()` | None | Called when navigating away from a page configured with `keepAlive: true`. The page remains cached in memory rather than unmounted. |
+| `onUnmount()` | None | Called right before the component element is unmounted and detached from the DOM. Use this to clean up timers, global event listeners, and subscriptions. |
+| `onErrorCaptured(err, instance, info)` | `err: Error, instance: Object, info: String` | Called when an unhandled exception is caught from a descendant child component. Return `false` to stop error propagation. |
+
+---
+
+### Execution Order Lifecycle Flowchart
+
+```mermaid
+graph TD
+    A["Constructor / State Init"] --> B["onBeforeMount()"]
+    B --> C["Initial DOM Template Render"]
+    C --> D["onMount()"]
+    D --> E{"State / Props Changed?"}
+    E -- "Yes" --> F["onBeforeUpdate()"]
+    F --> G["DOM Patch Session"]
+    G --> H["onUpdate()"]
+    H --> E
+    E -- "Component Removed" --> I["onUnmount()"]
+    E -- "KeepAlive Page Inactive" --> J["onDeactivate()"]
+    J -- "Re-activated" --> K["onActivate(params)"]
+    K --> E
+```
+
+### Parent-Child Lifecycle Execution Order
+
+When a parent component renders child components:
+
+1. **Mount Phase**:
+   - `Parent.onBeforeMount()`
+   - `Child.onBeforeMount()`
+   - `Child.onMount()` (Child mounts first)
+   - `Parent.onMount()` (Parent mounts after all children finish mounting)
+
+2. **Update Phase**:
+   - `Parent.onBeforeUpdate()`
+   - `Child.onBeforeUpdate()`
+   - `Child.onUpdate()`
+   - `Parent.onUpdate()`
+
+3. **Unmount Phase**:
+   - `Parent.onUnmount()`
+   - `Child.onUnmount()`
+
+---
 
 ### Example: Refreshing Data on Activation
 
@@ -71,6 +165,7 @@ class ProfilePage extends AvenxPage {
 ```
 
 Unlike `onMount()`, which runs only once when the component is first created, `onActivate(params)` runs every time a cached page is restored, making it the preferred place to reload data that depends on the current route.
+
 
 ## DOM Events
 

@@ -197,7 +197,57 @@ Loading large features only when they are required helps reduce the application'
 
 Adjust bundle budgets only when larger assets are expected. Increasing the limits should complement optimization efforts, not replace them.
 
+### AVX_W02 — COMPILER_EMPTY_TEMPLATE
+
+**Warning Message**
+
+```text
+Component "{0}" has an empty template.
+```
+
+**Cause:** This warning is emitted during compilation when a `.component.js` or `.page.js` file contains no HTML template markup or contains only whitespace. Every component in Avenx-JS is expected to define a visual structure. When the component parser extracts the component's HTML template and finds it empty, the compiler emits **AVX_W02**.
+
+This typically happens for a few common reasons:
+
+- A newly scaffolded `.component.js` file has not had HTML markup added to it yet.
+- The HTML template portion of a component file was accidentally deleted during refactoring.
+- A placeholder component file contains only `<state>` or `<action>` tags without any HTML element markup.
+
+**Resolution:** To resolve this warning:
+
+1. Add valid HTML markup to the component file.
+2. If the component is a placeholder or no longer used, remove the component file or add a minimal element (e.g. `<div></div>`).
+
+**Incorrect**
+
+```html
+<!-- Empty component file containing only state and action tags -->
+<state count="0" />
+
+<action name="increment">
+  count++;
+</action>
+
+<!-- Missing HTML element markup! Emits AVX_W02 -->
+```
+
+**Correct**
+
+```html
+<state count="0" />
+
+<action name="increment">
+  count++;
+</action>
+
+<div>
+  <p>Count: {{ count }}</p>
+  <button @click="increment()">Increment</button>
+</div>
+```
+
 ### AVX_W03 — COMPILER_UNDECLARED_REFERENCE
+
 
 **Warning Message**
 
@@ -394,7 +444,58 @@ You can also override the generated class names directly instead of relying on t
 
 Ensuring these parameters follow the expected `key: value` pairs, separated by semicolons, with numeric-only duration values, allows the compiler to parse the transition block successfully.
 
+### AVX_W05 — COMPONENT_PROPS_TYPE_MISMATCH
+
+**Warning Message**
+
+```text
+Invalid prop type for "{0}" in component {1}. Expected {2}, got {3}.
+```
+
+**Cause:** This warning is emitted at runtime when a parent component passes a prop to a child component, but the type of the passed value does not match the expected type defined in the child component's `props` schema (e.g., passing a `string` when `Number` is required, or passing a `number` when `Boolean` is expected).
+
+This typically happens for a few common reasons:
+
+- Passing a static string literal attribute (e.g. `count="5"`) instead of a dynamic bound property expression (e.g. `:count="5"`).
+- Omitting type conversions when passing values parsed from user input, forms, or URL query parameters.
+- An overly restrictive or mismatched type definition in the child component's `props` schema declaration.
+
+**Resolution:** To resolve this warning:
+
+1. Use dynamic property binding syntax (`:propName="value"`) to pass non-string primitive types (numbers, booleans, objects, arrays).
+2. Convert values to their expected data types (e.g. `Number(state.inputCount)`) before passing them as props.
+3. Update the child component's `props` schema if the prop's accepted types should be broadened (e.g., using `[String, Number]`).
+
+**Incorrect**
+
+```html
+<!-- Parent Component: Passing a string "10" for a prop expecting Number -->
+<UserCard count="10" :isActive="true" />
+```
+
+Passing `count="10"` as a static attribute sends the string `'10'`, causing Avenx-JS to emit **AVX_W05** (`Expected Number, got String`).
+
+**Correct**
+
+```html
+<!-- Parent Component: Using dynamic binding :count="10" to pass numeric 10 -->
+<UserCard :count="10" :isActive="true" />
+```
+
+```html
+<!-- Child Component (UserCard.component.js) prop declaration -->
+<script>
+export default {
+  props: {
+    count: Number,
+    isActive: Boolean,
+  },
+};
+</script>
+```
+
 ### AVX_W06 — COMPILER_STATIC_SUBTREE_OPTIMIZATION_FAILED
+
 
 **Warning Message**
 Failed to optimize static subtrees: {0}
@@ -580,7 +681,53 @@ const routes = [
 
 Normalizing route paths before registration helps prevent configuration mistakes and ensures all routes follow the expected format.
 
+### AVX_W09 — ROUTE_PARAM_DECODE_FAILED
+
+**Warning Message**
+
+```text
+Failed to decode route parameter "{0}": {1}
+```
+
+**Cause:** This warning is emitted at runtime when the router matches a URL hash containing dynamic path parameters or query arguments, but `decodeURIComponent` fails to decode one of the percent-encoded values due to a malformed or invalid percent sequence (such as `#/profile/%invalid` or `#/search?query=%E0%A4%A`).
+
+**Fallback Behavior:** When URI decoding fails, Avenx-JS catches the `URIError`, logs warning **AVX_W09**, and falls back to passing the raw, undecoded parameter string directly to the component props / route `params` object. This prevents routing navigation from crashing with an unhandled exception.
+
+This typically happens for a few common reasons:
+
+- A link or user input contains an unescaped `%` character followed by invalid hexadecimal digits.
+- A URL parameter string was manually constructed without using `encodeURIComponent()`.
+- An external redirect or truncated URL link passed malformed percent-encoded sequences into the hash path.
+
+**Resolution:** To resolve this warning:
+
+1. Ensure all dynamically generated URL path parameters and query strings are encoded using `encodeURIComponent()` before appending them to navigation hashes.
+2. Validate user-entered search queries or input before interpolating them into URL hashes.
+3. Handle potential raw undecoded string fallbacks defensively inside route components if malformed external links are expected.
+
+**Incorrect**
+
+```javascript
+// Manually concatenating parameter strings without encoding
+const category = "books & magazines % special";
+// Creates malformed hash with unescaped '%' -> '#/category/books%20&%20magazines%20%20special'
+window.location.hash = `#/category/${category}`;
+```
+
+The malformed percent sequence triggers a `URIError` inside `decodeURIComponent`, causing Avenx-JS to emit **AVX_W09** and pass the raw undecoded string into `params.category`.
+
+**Correct**
+
+```javascript
+// Correctly encoding dynamic route parameters
+const category = "books & magazines % special";
+const safeCategory = encodeURIComponent(category);
+// Produces valid percent-encoded hash: '#/category/books%20%26%20magazines%20%25%20special'
+window.location.hash = `#/category/${safeCategory}`;
+```
+
 ### AVX_W10 — ROUTE_NOT_FOUND
+
 
 **Warning Message**
 
@@ -641,57 +788,75 @@ router.add('*', NotFoundPage);
 
 Using a wildcard (fallback) route allows unknown hashes to be redirected to a dedicated 404 page instead of producing an unresolved navigation.
 
-### AVX_W11 — ROUTE_TITLE_EVALUATION_FAILED
+### AVX_W11 — ROUTER_DUPLICATE_ROUTE_NAME
 
 **Warning Message**
 
-```
-title() threw an error: {0}
+```text
+Duplicate route name "{0}". Route names should be unique.
 ```
 
-**Cause:** This warning is emitted when the `title()` callback defined in a route configuration throws an unhandled exception while the router is evaluating the page title during navigation.This can occur when the callback accesses undefined properties, assumes route data is always available, or performs operations that result in a runtime exception.
+**Cause:** This warning is emitted during router setup when multiple route definitions in the router configuration share the exact same `name` property. Route names serve as unique string keys for named route navigation (e.g., `router.push({ name: 'user-profile' })`) and path resolution. When two or more routes use identical names, the router cannot determine which route to resolve and emits **AVX_W11**.
+
+This typically happens for a few common reasons:
+
+- Copying and pasting a route configuration block without updating the `name` property.
+- Assigning generic names (such as `'details'` or `'index'`) across multiple nested or feature route modules.
+- Registering duplicate routes dynamically during application initialization.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure the `title()` callback safely handles missing or undefined values.
-2. Use optional chaining when accessing nested properties.
-3. Provide a fallback title when the required data is unavailable.
+1. Ensure every route in your router configuration has a unique `name` string identifier.
+2. Follow a consistent naming convention (e.g. prefixing route names with feature areas like `'user-profile'` and `'company-profile'`).
+3. Audit route definitions to remove duplicate entries or conflicting names.
 
 **Incorrect**
 
-```js
-export default {
-  path: '/users/:id',
-  title: (route) => route.data.user.name,
-};
+```javascript
+const routes = [
+  {
+    path: '/users/:id',
+    name: 'profile', // Duplicate route name!
+    component: UserProfilePage,
+  },
+  {
+    path: '/company/profile',
+    name: 'profile', // Conflict triggers AVX_W11
+    component: CompanyProfilePage,
+  },
+];
 ```
-
-If `route.data` or `route.data.user` is undefined, the callback throws an exception and AVX_W11 is emitted.
 
 **Correct**
 
-```js
-export default {
-  path: '/users/:id',
-  title: (route) => route.data?.user?.name ?? 'Users',
-};
-```
-
-The callback safely accesses nested properties and returns a fallback title if the expected data is unavailable.
-
-**Defensive Example**
-
-```js
-export default {
-  path: '/users/:id',
-  title: (route) => {
-    const user = route.data?.user;
-    return user?.name ?? 'Users';
+```javascript
+const routes = [
+  {
+    path: '/users/:id',
+    name: 'user-profile', // Unique route name
+    component: UserProfilePage,
   },
+  {
+    path: '/company/profile',
+    name: 'company-profile', // Unique route name
+    component: CompanyProfilePage,
+  },
+];
+```
+
+**Route Title Evaluation Warning (`title()` Error)**
+
+If `AVX_W11` is triggered during dynamic page title evaluation when a route's `title()` callback throws an exception:
+
+```javascript
+// Ensure title() safely accesses route parameters or fallback titles
+export default {
+  path: '/users/:id',
+  name: 'user-profile',
+  title: (route) => route.params?.id ? `User ${route.params.id}` : 'User Profile',
 };
 ```
 
-Using optional chaining and fallback values helps prevent runtime exceptions during route title evaluation.
 
 ### AVX_W12 — PAGE_PROP_EVALUATION_FAILED
 
@@ -1278,64 +1443,65 @@ When items do not possess guaranteed unique IDs, construct a composite key or us
 ### AVX_W21 — DIRECTIVE_HTML_EVALUATION_FAILED
 
 **Warning Message**
-Failed to evaluate data-ax-html: {0}. Error: {1}
 
-**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the expression bound to a `data-ax-html="..."` directive, but the expression throws an exception during evaluation. Since `data-ax-html` injects raw HTML directly into the DOM, any error in the underlying expression — such as referencing an undefined variable, calling a method that doesn't exist, or a malformed expression — prevents the directive from resolving to a valid HTML string.
+```text
+Failed to evaluate data-ax-html: {0}. Error: {1}
+```
+
+**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the expression bound to a `data-ax-html="..."` directive, but the expression throws an exception during evaluation. Since `data-ax-html` injects raw HTML directly into the element's `innerHTML`, any error in the underlying expression — such as referencing an uninitialized variable, calling an undefined method, or a malformed expression — prevents the directive from resolving to a valid HTML string.
 
 This typically happens for a few common reasons:
 
-- The bound expression references a variable or property that is `undefined` or `null` at the time of evaluation.
+- The bound expression references a state variable or property that is `undefined` or `null` at the time of evaluation.
 - A method called within the expression throws internally (e.g. a formatting or sanitization helper failing on unexpected input).
-- Asynchronous data the expression depends on hasn't loaded yet.
-- A typo or syntax error in the expression itself.
+- Asynchronous data the expression depends on has not finished loading.
+- A typo or syntax error exists in the expression itself.
+
+> [!WARNING]
+> **Security Guidelines for Raw HTML Bindings (`data-ax-html`):**
+> `data-ax-html` renders unescaped raw HTML using `innerHTML`. Inserting untrusted user input directly via `data-ax-html` creates severe Cross-Site Scripting (XSS) vulnerabilities.
+> 1. **Use Interpolation by Default**: Use standard template interpolations (`{{ content }}`) whenever possible. Avenx-JS automatically escapes HTML in interpolations to protect against XSS.
+> 2. **Sanitize Untrusted HTML**: If you must render dynamic HTML from an API or user input, sanitize the content using a trusted HTML sanitizer (such as DOMPurify) before binding it to `data-ax-html`.
+> 3. **Avoid Dynamic Code Execution**: Never construct executable scripts or event handlers within HTML strings bound to `data-ax-html`.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure the variable or property bound to `data-ax-html` is declared and initialized before the directive evaluates.
-2. Guard against `undefined`/`null` values with a fallback, e.g. an empty string.
-3. Wrap any custom formatting or sanitization logic in a `try...catch` so failures degrade gracefully instead of throwing during evaluation.
-4. If the HTML content depends on asynchronous data, initialize the bound property with a safe default (empty string) until the data has loaded.
-5. Avoid embedding complex logic directly in the `data-ax-html` expression — compute the HTML string in a `computed` property instead, where it's easier to test and guard.
+1. Ensure all state variables referenced in `data-ax-html` are declared in `<state />`.
+2. Guard against `undefined`/`null` values with defensive checks or fallback strings.
+3. Handle asynchronous data by providing safe initial default values (e.g. `description=""`).
+4. Encapsulate complex HTML generation logic within `<computed />` properties to keep template expressions clean and testable.
 
 **Incorrect**
 
-```javascript
-const state = {};
-```
-
 ```html
-<div data-ax-html="state.description.toUpperCase()"></div>
+<!-- State initialized without 'description' property -->
+<state />
+
+<div data-ax-html="description.toUpperCase()"></div>
 ```
 
-Since `state.description` is `undefined`, calling `.toUpperCase()` on it throws, and the directive fails to evaluate.
+Since `description` is `undefined`, calling `.toUpperCase()` throws a `TypeError`, triggering **AVX_W21**.
 
 **Correct**
 
-```javascript
-const state = {
-  description: '',
-};
+```html
+<state description="" />
+
+<div data-ax-html="description"></div>
 ```
+
+**Defensive Example with Computed Property**
 
 ```html
-<div data-ax-html="state.description"></div>
+<state rawContent="null" />
+
+<computed name="safeContent" value="typeof rawContent === 'string' ? rawContent : ''" />
+
+<div data-ax-html="safeContent"></div>
 ```
 
-**Defensive Example**
+Deriving the HTML content through a guarded `<computed>` property ensures `data-ax-html` always receives a valid string and prevents evaluation failures.
 
-```javascript
-const computed = {
-  safeDescription() {
-    return typeof state.description === 'string' ? state.description : '';
-  },
-};
-```
-
-```html
-<div data-ax-html="computed.safeDescription"></div>
-```
-
-Deriving the value through a guarded `computed` property ensures `data-ax-html` always receives a valid string and prevents evaluation failures.
 
 ### AVX_W22 — DIRECTIVE_SHOW_EVALUATION_FAILED
 
@@ -1590,7 +1756,56 @@ If your project does not use a preprocessor, omit the field entirely or set it e
 
 This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 
+### AVX_W25 — COMPILER_INVALID_CONFIG
+
+**Warning Message**
+
+```text
+Failed to parse avenx.config.json at "{0}": {1}
+```
+
+**Cause:** This warning is emitted during project build or compilation when Avenx-JS attempts to load and parse `avenx.config.json` at the root of your project, but the JSON configuration file is malformed (e.g. invalid JSON syntax, trailing commas, missing quotes) or contains unparseable values. When config parsing fails, Avenx-JS catches the exception, logs warning **AVX_W25**, and gracefully falls back to default compiler settings.
+
+This typically happens for a few common reasons:
+
+- Syntax errors in `avenx.config.json` such as trailing commas, single quotes instead of double quotes, or missing closing braces.
+- Invalid data types or malformed configuration schemas.
+- File encoding issues or partial writes during build tooling execution.
+
+**Resolution:** To resolve this warning:
+
+1. Validate the syntax of `avenx.config.json` using a JSON validator or IDE formatting tool.
+2. Ensure standard double quotes (`"`) are used around all keys and string values.
+3. Remove any trailing commas after the last key-value pair in JSON objects or arrays.
+4. Verify configuration schema keys (e.g. `preprocessors`, `bundleBudget`, `voidTags`) match the expected framework options.
+
+**Incorrect**
+
+```json
+// Malformed JSON: single quotes and trailing comma -> Triggers AVX_W25
+{
+  'srcDir': 'src',
+  'bundleBudget': 500,
+}
+```
+
+**Correct**
+
+```json
+{
+  "srcDir": "src",
+  "build": {
+    "bundleBudget": {
+      "javascript": 500,
+      "css": 100
+    }
+  },
+  "voidTags": ["my-custom-tag"]
+}
+```
+
 ### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
 
 **Warning Message**
 
