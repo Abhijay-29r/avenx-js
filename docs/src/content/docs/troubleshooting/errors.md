@@ -630,7 +630,53 @@ const routes = [
 
 Normalizing route paths before registration helps prevent configuration mistakes and ensures all routes follow the expected format.
 
+### AVX_W09 — ROUTE_PARAM_DECODE_FAILED
+
+**Warning Message**
+
+```text
+Failed to decode route parameter "{0}": {1}
+```
+
+**Cause:** This warning is emitted at runtime when the router matches a URL hash containing dynamic path parameters or query arguments, but `decodeURIComponent` fails to decode one of the percent-encoded values due to a malformed or invalid percent sequence (such as `#/profile/%invalid` or `#/search?query=%E0%A4%A`).
+
+**Fallback Behavior:** When URI decoding fails, Avenx-JS catches the `URIError`, logs warning **AVX_W09**, and falls back to passing the raw, undecoded parameter string directly to the component props / route `params` object. This prevents routing navigation from crashing with an unhandled exception.
+
+This typically happens for a few common reasons:
+
+- A link or user input contains an unescaped `%` character followed by invalid hexadecimal digits.
+- A URL parameter string was manually constructed without using `encodeURIComponent()`.
+- An external redirect or truncated URL link passed malformed percent-encoded sequences into the hash path.
+
+**Resolution:** To resolve this warning:
+
+1. Ensure all dynamically generated URL path parameters and query strings are encoded using `encodeURIComponent()` before appending them to navigation hashes.
+2. Validate user-entered search queries or input before interpolating them into URL hashes.
+3. Handle potential raw undecoded string fallbacks defensively inside route components if malformed external links are expected.
+
+**Incorrect**
+
+```javascript
+// Manually concatenating parameter strings without encoding
+const category = "books & magazines % special";
+// Creates malformed hash with unescaped '%' -> '#/category/books%20&%20magazines%20%20special'
+window.location.hash = `#/category/${category}`;
+```
+
+The malformed percent sequence triggers a `URIError` inside `decodeURIComponent`, causing Avenx-JS to emit **AVX_W09** and pass the raw undecoded string into `params.category`.
+
+**Correct**
+
+```javascript
+// Correctly encoding dynamic route parameters
+const category = "books & magazines % special";
+const safeCategory = encodeURIComponent(category);
+// Produces valid percent-encoded hash: '#/category/books%20%26%20magazines%20%25%20special'
+window.location.hash = `#/category/${safeCategory}`;
+```
+
 ### AVX_W10 — ROUTE_NOT_FOUND
+
 
 **Warning Message**
 
