@@ -1804,7 +1804,75 @@ This typically happens for a few common reasons:
 }
 ```
 
+### AVX_W26 — COMPILER_PREPROCESSOR_FAILED
+
+**Warning Message**
+
+```text
+Error compiling {0}: {1}
+```
+
+**Cause:** This warning is emitted during project build or template compilation when a preprocessor (e.g. Sass/SCSS, Less, PostCSS, or a custom template transformer hook configured in `avenx.config.json`) throws an exception during execution. When a preprocessor fails due to syntax errors in the source language, invalid preprocessor hooks, or unexpected return values, `AvenxCompiler` catches the exception, logs warning **AVX_W26**, and gracefully falls back to using the raw, un-preprocessed template or stylesheet content.
+
+This typically happens for a few common reasons:
+
+- Syntax errors inside preprocessed stylesheets or templates (e.g. invalid SCSS syntax, unclosed braces, or malformed Pug template indentations).
+- A custom preprocessor function throws an unhandled exception or returns `undefined` / `null` instead of a compiled string.
+- Incompatible preprocessor plugin versions or missing secondary plugins (e.g., PostCSS plugins configured with invalid options).
+
+**Resolution:** To resolve this warning:
+
+1. Inspect the detailed error message in build logs to pinpoint the exact file path and line number where the preprocessor failed.
+2. Fix syntax errors inside your `.scss`, `.less`, or preprocessed template blocks.
+3. Wrap custom preprocessor functions in `try...catch` blocks or ensure they always return a valid compiled string.
+4. Verify preprocessor dependencies and plugin configurations in `avenx.config.json`.
+
+**Incorrect**
+
+```scss
+/* Invalid SCSS syntax inside <@css> block -> Triggers AVX_W26 */
+<@css>
+    card {
+        color: #333
+        /* Missing semicolon and closing brace */
+</@css>
+```
+
+**Correct**
+
+```scss
+/* Valid SCSS syntax */
+<@css>
+    card {
+        color: #333;
+
+        &:hover {
+            color: #6366f1;
+        }
+    }
+</@css>
+```
+
+**Custom Preprocessor Error Handling Example**
+
+```javascript
+// Custom preprocessor hook in avenx.config.js
+module.exports = {
+  style: {
+    preprocessor: (code, filename) => {
+      try {
+        return customTransform(code);
+      } catch (err) {
+        console.error(`Preprocessing failed for ${filename}:`, err);
+        throw err; // Re-throw to allow compiler to handle AVX_W26 reporting
+      }
+    },
+  },
+};
+```
+
 ### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
 
 
 **Warning Message**
@@ -1987,8 +2055,9 @@ Use `class` or `data-*` attributes for repeated elements:
 | `[AVX_R07]` | Navigation guard threw an error.                                                        | **Cause:** Route guard evaluations failed.<br />**Resolution:** Wrap asynchronous fetches in try/catch blocks.                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `[AVX_R08]` | Failed to render interpolation expression "{expr}".                                     | **Cause:** Accessing properties on undefined or null properties.<br />**Resolution:** Guard properties in template: `{{ state.user ? state.user.name : '' }}`.                                                                                                                                                                                                                                                                                                                                                               |
 | `[AVX_R09]` | Event handler execution failed.                                                         | **Cause:** Unhandled exceptions in event listener actions.<br />**Resolution:** Verify method declarations match event expressions.                                                                                                                                                                                                                                                                                                                                                                                          |
-| `[AVX_R10]` | Bridge "{name}" already exists.                                                         | **Cause:** Duplicate registrations.<br />**Resolution:** Assign unique names to bridges.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `[AVX_R10]` | Bridge "{0}" is already registered. Available bridges: {1}. Suggestion: {2} | **Cause:** An attempt was made to register a global bridge using a name (`app.registerBridge(name, data)`) that has already been registered on the `AvenxApp` instance. Bridge names must be unique across the application.<br />**Resolution:** Assign a unique string identifier to each bridge, or check if the bridge is already registered (`app.hasBridge(name)`) before calling `app.registerBridge()`. |
 | `[AVX_R11]` | STATE_MUTATION_IN_UPDATE: Synchronous state mutation detected during component update.  | **Cause:** Modifying reactive state synchronously inside a template expression, computed property, or `onUpdate` hook causes the runtime to re-trigger the same update cycle, resulting in an infinite update/render loop.<br />**Resolution:** Never mutate state directly inside templates or computed getters. If a side-effect state change is required after an update, defer it asynchronously (e.g. `setTimeout(() => { this.state.value = newValue; }, 0)`) or derive the value through a computed property instead. |
+
 | `[AVX_R12]` | Error in component "{name}" during lifecycle hook "{hook}": {error}                     | **Cause:** An unhandled error was thrown inside a component lifecycle hook (`onMount`, `onUpdate`, or `onUnmount`).<br />**Resolution:** Wrap lifecycle hook logic in a `try...catch` block, inspect the hook implementation for bugs, and ensure asynchronous operations properly handle rejected promises.                                                                                                                                                                                                                 |
 | `[AVX_R13]` | DOM parsing failed due to malformed HTML. Parser error: {error}. HTML context: "{html}" | **Cause:** DOM parsing failed due to malformed HTML in component templates or dynamically rendered content (e.g., unclosed tags or mismatched elements).<br />**Resolution:** Verify your template HTML is well-formed. Ensure all elements are properly nested and all tags are closed.                                                                                                                                                                                                                                     |
 | `[AVX_R14]` | ROUTER_GUARD_TIMEOUT: A route guard exceeded the configured timeout duration.           | **Cause:** One or more sequential route guards returned promises that failed to resolve within the configured timeout period, causing navigation transitions to stall.<br />**Resolution:** Inspect route guard logic for unresolved or hanging promises. Optimize long-running asynchronous operations, ensure all promises properly resolve or reject, or adjust the `guardTimeout` configuration if longer execution times are expected.                                                                                  |

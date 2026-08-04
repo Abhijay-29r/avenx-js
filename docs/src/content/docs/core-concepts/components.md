@@ -248,6 +248,93 @@ If the parent omits either slot, only that slot's fallback content is rendered.
 Fallback content should provide meaningful defaults so components remain usable even when slot content is omitted.
 :::
 
+---
+
+## Scoped Slots & Passing Slot Props
+
+While standard slots allow parent components to inject HTML markup into a child component, **Scoped Slots** allow child components to pass dynamic data back to the parent's slot template. This allows parent components to customize how child data is rendered while keeping data management inside the child component.
+
+### 1. Child Component Syntax (`<slot :prop="value">`)
+
+To expose data to the parent slot template, bind properties onto the `<slot>` tag using the `:` attribute prefix:
+
+```html
+<!-- src/components/ListContainer.component.js -->
+<state currentItem="{ id: 1, name: 'Avenx Framework', category: 'Web' }" isVisible="true" />
+
+<div class="list-container">
+  <!-- Exposing child state onto the default slot -->
+  <slot :item="state.currentItem" :visible="state.isVisible"></slot>
+</div>
+```
+
+Child components can also expose data on **named scoped slots**:
+
+```html
+<header class="card-header">
+  <slot name="header" :title="state.title" :badgeCount="state.badges.length"></slot>
+</header>
+```
+
+---
+
+### 2. Parent Component Syntax (`data-slot-props`)
+
+Parent components receive the child's exposed data by wrapping the transcluded slot markup in a `<template>` tag with the `data-slot-props` attribute. The attribute value defines the local variable name used to access child data:
+
+```html
+<!-- src/pages/HomePage.page.js -->
+<state selectedItem="null" />
+
+<action name="handleItemSelect">
+  const [item] = args;
+  this.state.selectedItem = item;
+</action>
+
+<div class="home-page">
+  <ListContainer>
+    <template data-slot-props="slotProps">
+      <div class="custom-item" data-ax-show="slotProps.visible">
+        <h3>{{ slotProps.item.name }}</h3>
+        <span class="badge">{{ slotProps.item.category }}</span>
+        <button @click="handleItemSelect(slotProps.item)">Select</button>
+      </div>
+    </template>
+  </ListContainer>
+</div>
+```
+
+---
+
+### 3. Named Scoped Slots
+
+When using named slots together with scoped slot props, specify both the `name` attribute and `data-slot-props` on the `<template>` tag:
+
+```html
+<CardWidget>
+  <!-- Consuming a named scoped slot -->
+  <template name="header" data-slot-props="headerProps">
+    <h2>{{ headerProps.title }}</h2>
+    <span class="count-pill">{{ headerProps.badgeCount }} new</span>
+  </template>
+
+  <!-- Default slot content -->
+  <template data-slot-props="bodyProps">
+    <p>{{ bodyProps.content }}</p>
+  </template>
+</CardWidget>
+```
+
+---
+
+### 4. Scope Availability & Directive Support
+
+Inside a scoped slot template:
+- Interpolations (`{{ slotProps.item.name }}`), directives (`data-ax-show="slotProps.visible"`), and action handlers (`@click="handleItemSelect(slotProps.item)"`) automatically evaluate against `slotProps`.
+- Event action handlers inside scoped slots can pass `slotProps` properties directly to component methods.
+- Updates to child state automatically re-evaluate expressions inside the parent's scoped slot template without unmounting the slot DOM nodes.
+
+
 ## Lifecycle Hooks
 
 Avenx components support lifecycle hooks that allow you to run logic at different stages of a component's lifecycle.
@@ -300,9 +387,103 @@ If a lifecycle hook is defined in both the `methods` object and the subclass, th
 
 Available lifecycle hooks:
 
-- `onMount()` — Runs when the component is mounted.
-- `onUpdate()` — Runs when the component updates.
-- `onUnmount()` — Runs when the component is removed.
+- `onBeforeMount()` — Runs right before initial component template rendering.
+- `onMount()` — Runs when the component is mounted to the DOM.
+- `onBeforeUpdate()` — Runs before DOM patching upon state changes.
+- `onUpdate()` — Runs when the component updates and finishes DOM patching.
+- `onUnmount()` — Runs when the component is removed from the DOM.
+- `onActivate(params)` / `onDeactivate()` — Runs for cached `keepAlive: true` pages.
+- `onErrorCaptured(error, instance, info)` — Captures unhandled errors from descendant components.
+
+---
+
+## Centralized Error Boundaries (`onErrorCaptured`)
+
+Avenx components can act as **Error Boundaries** by implementing the `onErrorCaptured` lifecycle hook. When an unhandled error occurs in a descendant component's lifecycle hook (such as `onMount`) or event action, the error bubbles up the parent component hierarchy until an `onErrorCaptured` handler intercepts it.
+
+### Hook Signature & Parameters
+
+```javascript
+onErrorCaptured(error, instance, info)
+```
+
+- `error` (`Error`): The error instance caught from the descendant component.
+- `instance` (`AvenxComponent`): The component instance where the error occurred.
+- `info` (`string`): Description string of where the error originated (e.g., `'onMount'`, `'action click'`, `'template render'`).
+
+### Stopping Error Propagation (`return false`)
+
+By default, an error captured by `onErrorCaptured` continues bubbling up to ancestor components and eventually triggers the global application error handler (`app.config.errorHandler`).
+
+To **stop error propagation** and prevent the application from crashing, return `false` explicitly from `onErrorCaptured`:
+
+```javascript
+onErrorCaptured(error, instance, info) {
+  console.error(`Caught error from ${instance.constructor.name} during ${info}:`, error);
+  this.state.hasError = true;
+  this.state.errorMessage = error.message;
+  return false; // Prevents error from bubbling further
+}
+```
+
+---
+
+### Building an Error Boundary Component
+
+Error Boundaries are reusable container components that wrap dynamic UI sections (such as charts, external feeds, or user-generated widgets) to display fallback UI when something breaks inside them.
+
+#### Single-File Component Example (`ErrorBoundary.component.js`)
+
+```html
+<state hasError="false" errorMessage="''" />
+
+<action name="onErrorCaptured">
+  const [error, instance, info] = args;
+  console.error('ErrorBoundary captured exception:', error, info);
+  
+  // Set fallback UI state
+  this.state.hasError = true;
+  this.state.errorMessage = error.message || 'An unexpected error occurred';
+  
+  // Stop propagation to prevent full application crash
+  return false;
+</action>
+
+<action name="resetError">
+  this.state.hasError = false;
+  this.state.errorMessage = '';
+</action>
+
+<div class="error-boundary-wrapper">
+  <div data-ax-show="hasError" class="error-fallback-card">
+    <h3>Something went wrong</h3>
+    <p>{{ errorMessage }}</p>
+    <button @click="resetError()">Try Again</button>
+  </div>
+
+  <div data-ax-show="!hasError">
+    <slot></slot>
+  </div>
+</div>
+```
+
+#### Consuming the Error Boundary
+
+Wrap unstable or third-party components inside the `<ErrorBoundary>` component:
+
+```html
+<!-- src/pages/dashboard.page.js -->
+<div class="dashboard-page">
+  <h2>Analytics Dashboard</h2>
+
+  <ErrorBoundary>
+    <UnstableChartWidget />
+  </ErrorBoundary>
+</div>
+```
+
+If `<UnstableChartWidget>` throws an exception during data fetching in `onMount()`, `<ErrorBoundary>` catches the exception, returns `false` to stop propagation, and renders the fallback card with a "Try Again" button without affecting the rest of the dashboard page.
+
 
 ## Compilation Lifecycle & Limits
 

@@ -296,3 +296,114 @@ app.initRouter({
   '/dashboard': { page: 'Dashboard', guards: [AuthGuard] },
 });
 ```
+
+---
+
+## 8. Nested Routes & Layout Components
+
+`AvenxRouter` supports **nested routing** and persistent **Layout components** (`children: [...]`, `layout: Component`), allowing child views to share persistent surrounding UI — such as navigation headers, sidebars, breadcrumbs, and footers — without re-rendering or unmounting the wrapper structure during navigation transitions.
+
+### Route Configuration Schema
+
+To configure nested routes, define a parent route object containing a `layout` component reference and a `children` array of child route definitions:
+
+```javascript
+import AppLayout from './layouts/app-layout.component.js';
+
+app.initRouter({
+  '/': { page: 'Home', title: 'Home' },
+
+  // Parent route with layout and nested children
+  '/admin': {
+    layout: AppLayout,
+    children: [
+      { path: '/dashboard', page: 'AdminDashboard', title: 'Admin Dashboard' },
+      { path: '/users', page: 'AdminUsers', title: 'User Management' },
+      { path: '/settings', page: 'AdminSettings', title: 'System Settings' },
+    ],
+  },
+
+  '*': { page: 'NotFound', title: 'Page Not Found' },
+});
+```
+
+### Layout Component Structure
+
+A Layout component acts as a shell that wraps nested child page components. During child route navigation, the Layout component remains mounted, preserving its internal reactive state, animations, and DOM tree:
+
+```html
+<!-- src/layouts/app-layout.component.js -->
+<state activeTab="'dashboard'" />
+
+<action name="navigateTab">
+  const [tabPath] = args;
+  this.state.activeTab = tabPath;
+</action>
+
+<div class="admin-layout">
+  <!-- Persistent Sidebar Navigation -->
+  <aside class="sidebar">
+    <nav>
+      <a href="#/admin/dashboard" @click="navigateTab('dashboard')">Dashboard</a>
+      <a href="#/admin/users" @click="navigateTab('users')">Users</a>
+      <a href="#/admin/settings" @click="navigateTab('settings')">Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Child View Mount Target -->
+  <main class="content-view">
+    <slot></slot>
+  </main>
+</div>
+```
+
+---
+
+### Key Behavior & Features
+
+#### 1. Layout Persistence During Transitions
+
+When navigating between child routes sharing the same parent `layout` (for example, moving from `#/admin/dashboard` to `#/admin/users`), `AvenxRouter` keeps the `AppLayout` instance intact. Only the child page component mounted inside the `<slot>` is swapped out. This eliminates layout flicker, preserves sidebar scroll positions, and prevents re-triggering API calls in `AppLayout.onMount()`.
+
+#### 2. Parameter Inheritance
+
+Child routes automatically inherit dynamic path parameters defined on parent route paths.
+
+```javascript
+app.initRouter({
+  '/org/:orgId': {
+    layout: OrgLayout,
+    children: [
+      { path: '/members/:memberId', page: 'MemberDetail' },
+    ],
+  },
+});
+```
+
+When navigating to `#/org/acme-corp/members/42`:
+- Parent parameter `:orgId` = `'acme-corp'`
+- Child parameter `:memberId` = `'42'`
+- Both parameters are merged and passed into `MemberDetail` page component props and `$route.params` (`{ orgId: 'acme-corp', memberId: '42' }`).
+
+#### 3. Multi-Level Layout Nesting
+
+`AvenxRouter` supports arbitrary levels of layout nesting. Each nested route layer renders its corresponding `layout` component, creating modular nested UI views:
+
+```javascript
+app.initRouter({
+  '/app': {
+    layout: GlobalAppLayout,
+    children: [
+      {
+        path: '/workspace/:id',
+        layout: WorkspaceLayout,
+        children: [
+          { path: '/kanban', page: 'KanbanPage' },
+          { path: '/timeline', page: 'TimelinePage' },
+        ],
+      },
+    ],
+  },
+});
+```
+

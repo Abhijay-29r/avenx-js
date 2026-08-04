@@ -166,6 +166,25 @@ class ProfilePage extends AvenxPage {
 
 Unlike `onMount()`, which runs only once when the component is first created, `onActivate(params)` runs every time a cached page is restored, making it the preferred place to reload data that depends on the current route.
 
+### Error Boundaries with `onErrorCaptured`
+
+The `onErrorCaptured(error, instance, info)` hook captures unhandled exceptions thrown by descendant child components during lifecycle execution or action evaluation.
+
+- Return `false` from `onErrorCaptured` to stop error propagation up the component tree and prevent triggering global error handlers.
+- Update reactive state inside `onErrorCaptured` to render fallback UI components cleanly.
+
+```javascript
+class ErrorBoundary extends AvenxComponent {
+  onErrorCaptured(error, childInstance, info) {
+    console.error(`Captured error from ${childInstance.constructor.name} during ${info}:`, error);
+    this.state.hasError = true;
+    this.state.errorMessage = error.message;
+    return false; // Stop propagation
+  }
+}
+```
+
+
 
 ## DOM Events
 
@@ -232,33 +251,105 @@ Cleans up event listeners and empties the mounted container.
 
 ### `$watch(source, callback, options)`
 
-Watches a deeply nested reactive property using a dot-separated string path. Unlike `watch()`, which accepts a getter function, `$watch()` resolves string paths like `'user.settings.theme'` against the component's reactive state, making it convenient for observing nested properties without writing inline getter functions.
+Watches a reactive state property or computed getter for changes. Supports dot-separated string paths (e.g., `'user.settings.theme'`) or inline getter functions (`() => this.state.user.settings.theme`).
 
-The method is also exposed in the evaluation scope of template expressions.
+The method is also exposed inside template expressions and component methods.
 
-| Param      | Type       | Description                                                                                                                         |
-| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `source`   | `string`   | A dot-separated string path to the property to watch (e.g. `'user.settings.theme'`).                                                |
-| `callback` | `Function` | A function invoked when the watched value changes. Receives the new value and the old value as arguments.                           |
-| `options`  | `object`   | Optional. An object with the `immediate` boolean property. When `true`, the callback is invoked immediately with the current value. |
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `source` | `string \| Function` | Dot-separated string path (e.g. `'user.settings.theme'`) or getter function returning the watched value. |
+| `callback` | `Function` | Invoked when the watched value changes. Receives `(newValue, oldValue)` as arguments. |
+| `options` | `object` | Optional. Configuration options: `immediate`, `deep`, `flush`. |
+
+#### Watcher Options (`options`)
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `immediate` | `boolean` | `false` | When `true`, executes the callback immediately upon watcher registration with the current value (`oldValue` is `undefined`). |
+| `deep` | `boolean` | `false` | When `true`, recursively tracks deep object and array mutations within nested structures. |
+| `flush` | `string` | `'pre'` | Controls callback execution timing relative to DOM updates: `'pre'` (before DOM patch), `'post'` (after DOM patch), or `'sync'` (synchronously). |
+
+#### Usage Examples
 
 ```javascript
 const comp = new SettingsComponent();
 
+// 1. Basic watcher
 comp.$watch('user.settings.theme', (newVal, oldVal) => {
   console.log(`Theme changed from ${oldVal} to ${newVal}`);
-  applyTheme(newVal);
 });
 
-comp.$watch(
-  'user.settings.theme',
-  (newVal, oldVal) => {
-    console.log(`Theme changed from ${oldVal} to ${newVal}`);
-  },
-  { immediate: true },
-);
+// 2. Immediate watcher for initial setup
+comp.$watch('filterQuery', (query) => {
+  this.fetchResults(query);
+}, { immediate: true });
+
+// 3. Deep watcher for nested state objects
+comp.$watch('user.profile', (newProfile) => {
+  console.log('Nested user profile updated:', newProfile);
+}, { deep: true });
+
+// 4. Post-flush watcher to access updated DOM nodes
+comp.$watch('items.length', () => {
+  const container = this.el.querySelector('.list-container');
+  container.scrollTop = container.scrollHeight;
+}, { flush: 'post' });
 ```
+
 
 ### `update()`
 
 Forces a DOM patch and re-evaluates slots. Typically called automatically by the scheduler.
+
+---
+
+## Component Style Lifecycle & StyleMountManager
+
+Avenx-JS manages component scoped CSS stylesheets dynamically in the browser runtime via the `StyleMountManager` singleton service.
+
+Rather than bundling all component styles into a monolithic static CSS bundle or duplicating `<style>` tags for every component instance, `StyleMountManager` injects styles **lazily on demand** and manages their lifecycle using **instance reference counting**.
+
+### Dynamic `<style>` Element Injection
+
+When the first instance of a component class is mounted into the DOM:
+
+1. `StyleMountManager` generates a unique style identifier for the component class (e.g. `data-avenx-style="avenx-style-UserCard"`).
+2. It creates a `<style data-avenx-style="avenx-style-UserCard">` element in the document `<head>` containing the compiled scoped CSS rules.
+3. It initializes an internal reference counter for the component class (`refCount = 1`).
+
+```html
+<!-- Automatically injected into document <head> on first mount -->
+<style data-avenx-style="avenx-style-UserCard">
+  .user-card[data-ax-c="c1"] { padding: 1rem; border-radius: 8px; }
+  .user-card[data-ax-c="c1"] .avatar { width: 48px; height: 48px; }
+</style>
+```
+
+---
+
+### Instance Reference Counting
+
+When additional instances of the same component class are created and mounted (for example, rendering 50 `<UserCard>` instances in a list):
+
+- `StyleMountManager` detects that a `<style>` element for `avenx-style-UserCard` already exists in `<head>`.
+- It increments the internal reference count (`refCount++`) without creating duplicate `<style>` tags.
+
+| Mounted Instances | Action | `refCount` | `<head>` DOM State |
+| :--- | :--- | :--- | :--- |
+| **0** | None | `0` | No `<style>` tag present. |
+| **1 (First)** | Injects `<style data-avenx-style="...">` | `1` | Single `<style>` tag created. |
+| **2..N** | Increments ref count | `N` | Shared single `<style>` tag reused. |
+| **N - 1 (Unmount)**| Decrements ref count | `N - 1` | `<style>` tag remains active. |
+| **0 (Last Unmount)**| Detaches `<style>` element from `<head>` | `0` | `<style>` tag removed cleanly. |
+
+---
+
+### Automatic Unmount Cleanup
+
+When a component instance unmounts:
+
+1. `StyleMountManager` decrements the component class reference counter (`refCount--`).
+2. When the reference counter reaches `0` (or no active instances of the component class remain in the DOM tree), `StyleMountManager` automatically removes the matching `<style>` tag from document `<head>` and purges its registry entry.
+
+This automatic reference counting prevents CSS memory leaks, avoids stylesheet pollution in long-running Single Page Applications (SPAs), and ensures unused component styles do not accumulate as users navigate between pages.
+

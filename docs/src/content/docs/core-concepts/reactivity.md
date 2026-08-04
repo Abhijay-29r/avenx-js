@@ -171,6 +171,69 @@ state.todos.push({ text: 'Learn Avenx', done: false }); // Reactive!
 state.user.profile.age = 35; // Reactive!
 ```
 
+---
+
+## Watchers & Advanced Options (`$watch`)
+
+Watchers allow components to run side effects (such as making API calls, persisting values to `localStorage`, or manipulating DOM elements) in response to reactive state changes.
+
+In Avenx-JS, watchers are registered using `this.$watch(source, callback, options)`.
+
+### Watcher Method Signature
+
+```javascript
+this.$watch(source, callback, options)
+```
+
+- `source`: Dot-separated string path (e.g. `'user.settings.theme'`) or getter function `() => this.state.searchQuery`.
+- `callback`: Function called when the watched value changes `(newValue, oldValue) => { ... }`.
+- `options`: Object specifying configuration options (`immediate`, `deep`, `flush`).
+
+---
+
+### Advanced Options (`options`)
+
+#### 1. Immediate Execution (`immediate: true`)
+
+By default, watcher callbacks run only when the watched property changes *after* watcher registration. Set `immediate: true` to invoke the callback immediately upon creation with the current value (`oldValue` will be `undefined`):
+
+```javascript
+// Triggers immediately with current searchQuery, then on subsequent changes
+this.$watch('searchQuery', (newQuery) => {
+  this.performSearch(newQuery);
+}, { immediate: true });
+```
+
+#### 2. Deep Tracking (`deep: true`)
+
+By default, string path watchers track shallow property replacements. Set `deep: true` to recursively observe nested object property mutations and array modifications:
+
+```javascript
+// Fires when any property inside state.user.settings changes
+this.$watch('user.settings', (newSettings) => {
+  this.saveSettingsToLocalStorage(newSettings);
+}, { deep: true });
+```
+
+#### 3. Execution Timing (`flush: 'pre' | 'post' | 'sync'`)
+
+The `flush` option controls when the watcher callback is executed relative to the component's DOM patch lifecycle:
+
+| Value | Timing & Behavior | Common Use Cases |
+| :--- | :--- | :--- |
+| `'pre'` *(Default)* | Fires **before** DOM patch rendering takes place. | Preparing state calculations or computing secondary values before render. |
+| `'post'` | Fires **after** DOM patch update completes. | Accessing updated DOM element measurements, scroll positions, or canvas elements. |
+| `'sync'` | Fires **synchronously** immediately upon state mutation. | Real-time validation or synchronizing state with external non-DOM stores. |
+
+```javascript
+// 'post' flush: container scroll position updated after DOM list re-renders
+this.$watch('messages.length', () => {
+  const listEl = this.el.querySelector('.chat-messages');
+  listEl.scrollTop = listEl.scrollHeight;
+}, { flush: 'post' });
+```
+
+
 ## Reactivity Injection (Provide / Inject)
 
 For deeply nested component trees, passing data down through props at every level ("prop drilling") gets unwieldy. Avenx-JS offers a lighter-weight alternative to global `bridges` for this specific case: an ancestor component can `provide` values, and any descendant, no matter how deeply nested, can `inject` them directly — without the value passing through, or being known by, the components in between.
