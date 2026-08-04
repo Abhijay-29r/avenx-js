@@ -33,8 +33,10 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 | `enableProfiling` | `boolean` | `false` | Enables performance profiling by wrapping lifecycle hooks, rendering, and DOM patching with browser Performance API marks and measures. |
 | `treeShakeComponents` | `boolean` | `true` | Removes unused components from the compiled bundle during compilation. Set to `false` to compile all discovered components. |
 | `voidTags`     | `string[]` | `[]`                   | Extra tag names the compiler treats as void (self-closing), in addition to the built-in HTML void tags (`img`, `br`, `input`, etc.). Each entry must be a non-empty string. |
+| `warnings`     | `object`   | `{}`                   | Map of compiler warning codes (`AVX_W01`, `AVX_W03`, etc.) to severity overrides (`"off"`, `"ignore"`, `"warn"`, or `"error"`). |
 
 Path options must be relative paths. Absolute paths are rejected during configuration loading.
+
 
 ## Custom void tags
 
@@ -256,3 +258,47 @@ Log levels are ordered by severity. Messages below the configured level are igno
 ```
 
 When both `silent` and `level` are provided, setting `silent` to `true` suppresses all log output regardless of the configured log level.
+
+---
+
+## Compiler Warning Configurations (`warnings`)
+
+The Avenx compiler allows project maintainers to customize how template validation and build warnings are handled across the project. Using the `warnings` configuration map in `avenx.config.json`, you can override the default severity of specific warning codes (e.g. `AVX_W01`, `AVX_W03`, `AVX_W09`).
+
+### Supported Severity Levels
+
+Each warning code in the `warnings` map accepts one of the following severity string values:
+
+| Severity | Behavior |
+| :--- | :--- |
+| `"warn"` | *(Default)* Prints a warning message to the console / build logs without halting compilation. |
+| `"off"` / `"ignore"` | Suppresses the warning completely. It will not be logged to the console or build output. |
+| `"error"` | Elevates the warning to a **fatal compilation error**. The compiler throws an exception and halts the build. |
+
+---
+
+### Configuration Example
+
+```json
+{
+  "warnings": {
+    "AVX_W03": "error",
+    "AVX_W01": "off",
+    "AVX_W02": "ignore"
+  }
+}
+```
+
+In this example:
+- **`AVX_W03` (`COMPILER_UNDECLARED_REFERENCE`)** is elevated to `"error"`. If a template references a variable or method that is not declared in `<state>`, `<computed>`, or `<action>`, the build fails immediately.
+- **`AVX_W01` (`COMPILER_BUNDLE_SIZE_EXCEEDED`)** is set to `"off"`, suppressing bundle size budget warnings.
+- **`AVX_W02` (`COMPILER_EMPTY_TEMPLATE`)** is set to `"ignore"`, suppressing empty component warnings.
+
+---
+
+### CI/CD Integration & Strict Mode
+
+Promoting specific warnings to `"error"` is a powerful tool for enforcing code quality checks in Continuous Integration (CI/CD) pipelines.
+
+By setting critical warnings (such as undeclared variables `AVX_W03` or invalid preprocessor configs `AVX_W25`) to `"error"`, your automated build checks (e.g. `avenx build` or `npm run build`) fail automatically if any component contains template errors, preventing buggy code from being merged or deployed to production.
+
