@@ -114,17 +114,49 @@ Registers a bridge instance under a given name in the sandbox.
 
 ### `setRoute(route)`
 
-Mocks the current router state, useful for testing route-dependent components without a real router.
+Mocks the current active router state, allowing components and pages that depend on route parameters, query strings, or the active page path to be tested in isolation without instantiating a full `AvenxRouter`.
 
 **Parameters**
 
-- `route` (object): The route object to set as the current route.
+- `route` (`object`): The mocked route object. Properties include:
+  - `hash` (`string`, optional): The mocked URL route hash (e.g. `'#/users/42'`).
+  - `page` (`string`, optional): The name of the active page component (e.g. `'UserProfile'`).
+  - `params` (`object`, optional): Key/value map of dynamic path parameters (e.g. `{ id: '42' }`).
+  - `params.query` (`object`, optional): Key/value map of parsed URL query parameters (e.g. `{ tab: 'settings', filter: 'active' }`).
 
 **Returns**
 
 - `AvenxSandbox`: The sandbox instance (chainable).
 
+**Example: Testing a Route-Dependent Component**
+
+```javascript
+import { AvenxMock } from 'avenx-core/runtime';
+import UserProfilePage from '../src/pages/user-profile.page.js';
+
+const sandbox = AvenxMock.createSandbox();
+
+// Mock active route with path parameter 'id' and query parameter 'tab'
+sandbox.setRoute({
+  hash: '#/users/42?tab=settings',
+  page: 'UserProfile',
+  params: {
+    id: '42',
+    query: {
+      tab: 'settings',
+      filter: 'active',
+    },
+  },
+});
+
+const wrapper = sandbox.mount(UserProfilePage);
+
+console.log(wrapper.html);
+// Component accesses route params and renders using mocked id '42' and tab 'settings'
+```
+
 ### `waitForUpdate()`
+
 
 Waits for any pending scheduled component updates to flush, before making assertions.
 
