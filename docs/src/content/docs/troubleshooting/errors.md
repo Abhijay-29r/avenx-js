@@ -197,7 +197,57 @@ Loading large features only when they are required helps reduce the application'
 
 Adjust bundle budgets only when larger assets are expected. Increasing the limits should complement optimization efforts, not replace them.
 
+### AVX_W02 — COMPILER_EMPTY_TEMPLATE
+
+**Warning Message**
+
+```text
+Component "{0}" has an empty template.
+```
+
+**Cause:** This warning is emitted during compilation when a `.component.js` or `.page.js` file contains no HTML template markup or contains only whitespace. Every component in Avenx-JS is expected to define a visual structure. When the component parser extracts the component's HTML template and finds it empty, the compiler emits **AVX_W02**.
+
+This typically happens for a few common reasons:
+
+- A newly scaffolded `.component.js` file has not had HTML markup added to it yet.
+- The HTML template portion of a component file was accidentally deleted during refactoring.
+- A placeholder component file contains only `<state>` or `<action>` tags without any HTML element markup.
+
+**Resolution:** To resolve this warning:
+
+1. Add valid HTML markup to the component file.
+2. If the component is a placeholder or no longer used, remove the component file or add a minimal element (e.g. `<div></div>`).
+
+**Incorrect**
+
+```html
+<!-- Empty component file containing only state and action tags -->
+<state count="0" />
+
+<action name="increment">
+  count++;
+</action>
+
+<!-- Missing HTML element markup! Emits AVX_W02 -->
+```
+
+**Correct**
+
+```html
+<state count="0" />
+
+<action name="increment">
+  count++;
+</action>
+
+<div>
+  <p>Count: {{ count }}</p>
+  <button @click="increment()">Increment</button>
+</div>
+```
+
 ### AVX_W03 — COMPILER_UNDECLARED_REFERENCE
+
 
 **Warning Message**
 
