@@ -251,15 +251,7 @@ Consider the following scoped style:
 </@css>
 ```
 
-The nested `h1` selector does not contain `&`, so the compiler prepends the generated scope class directly to the selector. Conceptually, the result is:
-
-```css
-.generated-hashh1 {
-  color: red;
-}
-```
-
-There is no space between the generated scope class and `h1`. As a result, this selector does not target an `h1` element that is a descendant of the scoped `card` block.
+The nested `h1` selector does not contain `&`, so the compiler prepends the generated scope class directly to the selector (`.avenx-hashh1`). There is no space between the generated scope class and `h1`. As a result, this selector does not target an `h1` element that is a descendant of the scoped `card` block.
 
 ### Descendant Selectors With `&`
 
@@ -275,17 +267,7 @@ To target an element inside the scoped block, use the `&` nesting reference char
 </@css>
 ```
 
-The `&` refers to the generated scoped selector. Conceptually, this compiles to:
-
-```css
-.generated-hash h1 {
-  color: red;
-}
-```
-
-The space creates a descendant selector, so the rule correctly targets `h1` elements inside the scoped block.
-
-For example:
+The `&` refers to the generated scoped selector (`.avenx-hash`). Conceptually, this compiles to `.avenx-hash h1`, creating a descendant selector that correctly targets `h1` elements inside the scoped block.
 
 ```html
 <div @css card>
@@ -293,85 +275,94 @@ For example:
 </div>
 ```
 
-> **Note:** When targeting child or descendant elements inside a scoped CSS block, always use `&` followed by the required selector.
+---
 
-### Parent Selectors and Pseudo-classes
+## 6. Deep Selectors & Target Patterns for Child Components / Slots
 
-The `&` character can also be used to reference the scoped parent selector when applying pseudo-classes or other selector modifiers.
+By default, scoped component styles only apply to elements defined directly within that component's template. When you need a parent component's styles to affect elements inside a child component, transcluded slot content, or third-party DOM elements, use deep selector patterns with the `&` nesting character.
 
-For example:
+
+### 1. Targeting Transcluded Slot Content
+
+Elements passed into a child component via slots are rendered inside the child, but can be styled from the parent component using `&` descendant selectors:
+
+```html
+<!-- ParentComponent.component.js -->
+<@css>
+    modal-wrapper {
+        & .slot-header {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        & p {
+            line-height: 1.6;
+        }
+    }
+</@css>
+
+<div @css modal-wrapper>
+  <CardDialog>
+    <template data-slot-props="slotProps">
+      <h2 class="slot-header">Modal Title</h2>
+      <p>Transcluded slot body content styled by parent modal wrapper.</p>
+    </template>
+  </CardDialog>
+</div>
+```
+
+### 2. Targeting Child Component Elements (Deep Styling)
+
+To target elements inside a child component's DOM tree from a parent component's `<@css>` block, use `&` followed by the child's class or element selector:
 
 ```css
 <@css>
-    card {
+    parent-container {
+        /* Styles the child component's root or child nodes */
+        & .child-badge {
+            background-color: #e0e7ff;
+            color: #3730a3;
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+        }
+
+        /* Targets third-party or child SVG icons */
+        & svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: currentColor;
+        }
+    }
+</@css>
+```
+
+### 3. Combining Scoped CSS with Global Tokens
+
+For complete design control, combine component-scoped styles with global design tokens declared inside `<@global>`:
+
+```css
+<@global>
+    @def primary-color #6366f1;
+    @def radius-md 8px;
+</@global>
+
+<@css>
+    badge-card {
+        border-radius: @radius-md;
+        border: 1px solid #cbd5e1;
+
+        & .badge-title {
+            color: @primary-color;
+        }
+
         &:hover {
-            border-color: #6366f1;
-        }
-
-        &:focus {
-            outline: 2px solid #6366f1;
+            border-color: @primary-color;
         }
     }
 </@css>
 ```
 
-Conceptually, these selectors compile to:
-
-```css
-.generated-hash:hover {
-  border-color: #6366f1;
-}
-
-.generated-hash:focus {
-  outline: 2px solid #6366f1;
-}
-```
-
-Use `&:hover`, `&:focus`, and similar patterns when the selector should apply directly to the scoped parent element.
-
-### Nesting At-rules
-
-Nesting at-rules such as `@media` and `@container` are resolved while preserving the scoped selector rules inside them.
-
-For example:
-
-```css
-<@css>
-    card {
-        @media (max-width: 768px) {
-            & h1 {
-                font-size: 1.5rem;
-            }
-        }
-    }
-</@css>
-```
-
-The descendant selector continues to require `&` because it targets an element inside the scoped block.
-
-The same rule applies when using container queries:
-
-```css
-<@css>
-    card {
-        @container (min-width: 500px) {
-            & .content {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-    }
-</@css>
-```
-
-In both cases, the at-rule is resolved while the nested selector remains scoped to the component.
-
-When writing nested scoped styles, remember:
-
-- Use `& h1`, `& .child`, or similar selectors to target descendants.
-- Use `&:hover`, `&:focus`, and similar selectors to target states of the scoped parent.
-- Continue using `&` for descendant selectors nested inside `@media` and `@container` rules.
-- A nested selector without `&` is scoped by directly prepending the generated hash and does not create a descendant selector.
 
 ## 7. CSS Preprocessors (Sass, SCSS, PostCSS, Less)
 
