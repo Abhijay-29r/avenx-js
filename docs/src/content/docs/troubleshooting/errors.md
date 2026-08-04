@@ -1804,7 +1804,75 @@ This typically happens for a few common reasons:
 }
 ```
 
+### AVX_W26 — COMPILER_PREPROCESSOR_FAILED
+
+**Warning Message**
+
+```text
+Error compiling {0}: {1}
+```
+
+**Cause:** This warning is emitted during project build or template compilation when a preprocessor (e.g. Sass/SCSS, Less, PostCSS, or a custom template transformer hook configured in `avenx.config.json`) throws an exception during execution. When a preprocessor fails due to syntax errors in the source language, invalid preprocessor hooks, or unexpected return values, `AvenxCompiler` catches the exception, logs warning **AVX_W26**, and gracefully falls back to using the raw, un-preprocessed template or stylesheet content.
+
+This typically happens for a few common reasons:
+
+- Syntax errors inside preprocessed stylesheets or templates (e.g. invalid SCSS syntax, unclosed braces, or malformed Pug template indentations).
+- A custom preprocessor function throws an unhandled exception or returns `undefined` / `null` instead of a compiled string.
+- Incompatible preprocessor plugin versions or missing secondary plugins (e.g., PostCSS plugins configured with invalid options).
+
+**Resolution:** To resolve this warning:
+
+1. Inspect the detailed error message in build logs to pinpoint the exact file path and line number where the preprocessor failed.
+2. Fix syntax errors inside your `.scss`, `.less`, or preprocessed template blocks.
+3. Wrap custom preprocessor functions in `try...catch` blocks or ensure they always return a valid compiled string.
+4. Verify preprocessor dependencies and plugin configurations in `avenx.config.json`.
+
+**Incorrect**
+
+```scss
+/* Invalid SCSS syntax inside <@css> block -> Triggers AVX_W26 */
+<@css>
+    card {
+        color: #333
+        /* Missing semicolon and closing brace */
+</@css>
+```
+
+**Correct**
+
+```scss
+/* Valid SCSS syntax */
+<@css>
+    card {
+        color: #333;
+
+        &:hover {
+            color: #6366f1;
+        }
+    }
+</@css>
+```
+
+**Custom Preprocessor Error Handling Example**
+
+```javascript
+// Custom preprocessor hook in avenx.config.js
+module.exports = {
+  style: {
+    preprocessor: (code, filename) => {
+      try {
+        return customTransform(code);
+      } catch (err) {
+        console.error(`Preprocessing failed for ${filename}:`, err);
+        throw err; // Re-throw to allow compiler to handle AVX_W26 reporting
+      }
+    },
+  },
+};
+```
+
 ### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
 
 
 **Warning Message**
