@@ -1278,64 +1278,65 @@ When items do not possess guaranteed unique IDs, construct a composite key or us
 ### AVX_W21 — DIRECTIVE_HTML_EVALUATION_FAILED
 
 **Warning Message**
-Failed to evaluate data-ax-html: {0}. Error: {1}
 
-**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the expression bound to a `data-ax-html="..."` directive, but the expression throws an exception during evaluation. Since `data-ax-html` injects raw HTML directly into the DOM, any error in the underlying expression — such as referencing an undefined variable, calling a method that doesn't exist, or a malformed expression — prevents the directive from resolving to a valid HTML string.
+```text
+Failed to evaluate data-ax-html: {0}. Error: {1}
+```
+
+**Cause:** This warning is emitted at runtime when Avenx-JS attempts to evaluate the expression bound to a `data-ax-html="..."` directive, but the expression throws an exception during evaluation. Since `data-ax-html` injects raw HTML directly into the element's `innerHTML`, any error in the underlying expression — such as referencing an uninitialized variable, calling an undefined method, or a malformed expression — prevents the directive from resolving to a valid HTML string.
 
 This typically happens for a few common reasons:
 
-- The bound expression references a variable or property that is `undefined` or `null` at the time of evaluation.
+- The bound expression references a state variable or property that is `undefined` or `null` at the time of evaluation.
 - A method called within the expression throws internally (e.g. a formatting or sanitization helper failing on unexpected input).
-- Asynchronous data the expression depends on hasn't loaded yet.
-- A typo or syntax error in the expression itself.
+- Asynchronous data the expression depends on has not finished loading.
+- A typo or syntax error exists in the expression itself.
+
+> [!WARNING]
+> **Security Guidelines for Raw HTML Bindings (`data-ax-html`):**
+> `data-ax-html` renders unescaped raw HTML using `innerHTML`. Inserting untrusted user input directly via `data-ax-html` creates severe Cross-Site Scripting (XSS) vulnerabilities.
+> 1. **Use Interpolation by Default**: Use standard template interpolations (`{{ content }}`) whenever possible. Avenx-JS automatically escapes HTML in interpolations to protect against XSS.
+> 2. **Sanitize Untrusted HTML**: If you must render dynamic HTML from an API or user input, sanitize the content using a trusted HTML sanitizer (such as DOMPurify) before binding it to `data-ax-html`.
+> 3. **Avoid Dynamic Code Execution**: Never construct executable scripts or event handlers within HTML strings bound to `data-ax-html`.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure the variable or property bound to `data-ax-html` is declared and initialized before the directive evaluates.
-2. Guard against `undefined`/`null` values with a fallback, e.g. an empty string.
-3. Wrap any custom formatting or sanitization logic in a `try...catch` so failures degrade gracefully instead of throwing during evaluation.
-4. If the HTML content depends on asynchronous data, initialize the bound property with a safe default (empty string) until the data has loaded.
-5. Avoid embedding complex logic directly in the `data-ax-html` expression — compute the HTML string in a `computed` property instead, where it's easier to test and guard.
+1. Ensure all state variables referenced in `data-ax-html` are declared in `<state />`.
+2. Guard against `undefined`/`null` values with defensive checks or fallback strings.
+3. Handle asynchronous data by providing safe initial default values (e.g. `description=""`).
+4. Encapsulate complex HTML generation logic within `<computed />` properties to keep template expressions clean and testable.
 
 **Incorrect**
 
-```javascript
-const state = {};
-```
-
 ```html
-<div data-ax-html="state.description.toUpperCase()"></div>
+<!-- State initialized without 'description' property -->
+<state />
+
+<div data-ax-html="description.toUpperCase()"></div>
 ```
 
-Since `state.description` is `undefined`, calling `.toUpperCase()` on it throws, and the directive fails to evaluate.
+Since `description` is `undefined`, calling `.toUpperCase()` throws a `TypeError`, triggering **AVX_W21**.
 
 **Correct**
 
-```javascript
-const state = {
-  description: '',
-};
+```html
+<state description="" />
+
+<div data-ax-html="description"></div>
 ```
+
+**Defensive Example with Computed Property**
 
 ```html
-<div data-ax-html="state.description"></div>
+<state rawContent="null" />
+
+<computed name="safeContent" value="typeof rawContent === 'string' ? rawContent : ''" />
+
+<div data-ax-html="safeContent"></div>
 ```
 
-**Defensive Example**
+Deriving the HTML content through a guarded `<computed>` property ensures `data-ax-html` always receives a valid string and prevents evaluation failures.
 
-```javascript
-const computed = {
-  safeDescription() {
-    return typeof state.description === 'string' ? state.description : '';
-  },
-};
-```
-
-```html
-<div data-ax-html="computed.safeDescription"></div>
-```
-
-Deriving the value through a guarded `computed` property ensures `data-ax-html` always receives a valid string and prevents evaluation failures.
 
 ### AVX_W22 — DIRECTIVE_SHOW_EVALUATION_FAILED
 
