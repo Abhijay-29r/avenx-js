@@ -444,7 +444,58 @@ You can also override the generated class names directly instead of relying on t
 
 Ensuring these parameters follow the expected `key: value` pairs, separated by semicolons, with numeric-only duration values, allows the compiler to parse the transition block successfully.
 
+### AVX_W05 — COMPONENT_PROPS_TYPE_MISMATCH
+
+**Warning Message**
+
+```text
+Invalid prop type for "{0}" in component {1}. Expected {2}, got {3}.
+```
+
+**Cause:** This warning is emitted at runtime when a parent component passes a prop to a child component, but the type of the passed value does not match the expected type defined in the child component's `props` schema (e.g., passing a `string` when `Number` is required, or passing a `number` when `Boolean` is expected).
+
+This typically happens for a few common reasons:
+
+- Passing a static string literal attribute (e.g. `count="5"`) instead of a dynamic bound property expression (e.g. `:count="5"`).
+- Omitting type conversions when passing values parsed from user input, forms, or URL query parameters.
+- An overly restrictive or mismatched type definition in the child component's `props` schema declaration.
+
+**Resolution:** To resolve this warning:
+
+1. Use dynamic property binding syntax (`:propName="value"`) to pass non-string primitive types (numbers, booleans, objects, arrays).
+2. Convert values to their expected data types (e.g. `Number(state.inputCount)`) before passing them as props.
+3. Update the child component's `props` schema if the prop's accepted types should be broadened (e.g., using `[String, Number]`).
+
+**Incorrect**
+
+```html
+<!-- Parent Component: Passing a string "10" for a prop expecting Number -->
+<UserCard count="10" :isActive="true" />
+```
+
+Passing `count="10"` as a static attribute sends the string `'10'`, causing Avenx-JS to emit **AVX_W05** (`Expected Number, got String`).
+
+**Correct**
+
+```html
+<!-- Parent Component: Using dynamic binding :count="10" to pass numeric 10 -->
+<UserCard :count="10" :isActive="true" />
+```
+
+```html
+<!-- Child Component (UserCard.component.js) prop declaration -->
+<script>
+export default {
+  props: {
+    count: Number,
+    isActive: Boolean,
+  },
+};
+</script>
+```
+
 ### AVX_W06 — COMPILER_STATIC_SUBTREE_OPTIMIZATION_FAILED
+
 
 **Warning Message**
 Failed to optimize static subtrees: {0}
