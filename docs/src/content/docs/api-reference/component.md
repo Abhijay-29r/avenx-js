@@ -251,32 +251,51 @@ Cleans up event listeners and empties the mounted container.
 
 ### `$watch(source, callback, options)`
 
-Watches a deeply nested reactive property using a dot-separated string path. Unlike `watch()`, which accepts a getter function, `$watch()` resolves string paths like `'user.settings.theme'` against the component's reactive state, making it convenient for observing nested properties without writing inline getter functions.
+Watches a reactive state property or computed getter for changes. Supports dot-separated string paths (e.g., `'user.settings.theme'`) or inline getter functions (`() => this.state.user.settings.theme`).
 
-The method is also exposed in the evaluation scope of template expressions.
+The method is also exposed inside template expressions and component methods.
 
-| Param      | Type       | Description                                                                                                                         |
-| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `source`   | `string`   | A dot-separated string path to the property to watch (e.g. `'user.settings.theme'`).                                                |
-| `callback` | `Function` | A function invoked when the watched value changes. Receives the new value and the old value as arguments.                           |
-| `options`  | `object`   | Optional. An object with the `immediate` boolean property. When `true`, the callback is invoked immediately with the current value. |
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `source` | `string \| Function` | Dot-separated string path (e.g. `'user.settings.theme'`) or getter function returning the watched value. |
+| `callback` | `Function` | Invoked when the watched value changes. Receives `(newValue, oldValue)` as arguments. |
+| `options` | `object` | Optional. Configuration options: `immediate`, `deep`, `flush`. |
+
+#### Watcher Options (`options`)
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `immediate` | `boolean` | `false` | When `true`, executes the callback immediately upon watcher registration with the current value (`oldValue` is `undefined`). |
+| `deep` | `boolean` | `false` | When `true`, recursively tracks deep object and array mutations within nested structures. |
+| `flush` | `string` | `'pre'` | Controls callback execution timing relative to DOM updates: `'pre'` (before DOM patch), `'post'` (after DOM patch), or `'sync'` (synchronously). |
+
+#### Usage Examples
 
 ```javascript
 const comp = new SettingsComponent();
 
+// 1. Basic watcher
 comp.$watch('user.settings.theme', (newVal, oldVal) => {
   console.log(`Theme changed from ${oldVal} to ${newVal}`);
-  applyTheme(newVal);
 });
 
-comp.$watch(
-  'user.settings.theme',
-  (newVal, oldVal) => {
-    console.log(`Theme changed from ${oldVal} to ${newVal}`);
-  },
-  { immediate: true },
-);
+// 2. Immediate watcher for initial setup
+comp.$watch('filterQuery', (query) => {
+  this.fetchResults(query);
+}, { immediate: true });
+
+// 3. Deep watcher for nested state objects
+comp.$watch('user.profile', (newProfile) => {
+  console.log('Nested user profile updated:', newProfile);
+}, { deep: true });
+
+// 4. Post-flush watcher to access updated DOM nodes
+comp.$watch('items.length', () => {
+  const container = this.el.querySelector('.list-container');
+  container.scrollTop = container.scrollHeight;
+}, { flush: 'post' });
 ```
+
 
 ### `update()`
 
