@@ -139,52 +139,168 @@ For example:
 
 The runtime first verifies the key modifier, then applies `.prevent`, and finally executes the event handler.
 
-### Modifier Execution Order
-
-When multiple modifiers are chained together, they execute in the following order:
-
-1. `.once`
-2. System key modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)
-3. Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`)
-4. `.prevent`
-5. `.stop`
-6. Execute the event handler
-
-For example:
-
-```html
-<input @keydown.enter.prevent="submit()" />
-```
-
-The runtime first verifies the key modifier, then applies `.prevent`, and finally executes the event handler.
-
 ## Custom Component Events
 
 Components can communicate with their parent containers by dispatching custom events. Avenx provides a built-in helper method, `$emit(eventName, detail)`, on the base `AvenxComponent` class to clean up component interactions.
 
-### Emitting Events
+### Emitting Events (`$emit`)
 
 To emit an event from a child component, call `$emit` inside actions or component methods. The second parameter is an optional payload (`detail`) passed to the parent handler:
 
 ```html
 <!-- src/components/child/child.component.js -->
 <state count="0" />
-<action name="increment"> state.count++; $emit('change', { count: state.count }); </action>
+
+<action name="increment">
+  this.state.count++;
+  this.$emit('change', { count: this.state.count });
+</action>
 
 <button @click="increment()">Click me</button>
 ```
 
-### Listening to Custom Events
+### Listening to Custom Events (`@eventName`)
 
-Parent components can bind listeners to these custom events using the standard `@eventName="handler"` syntax on the child component tag. You can access the event payload via `event.detail`:
+Parent components can bind listeners to these custom events using standard `@eventName="handler()"` syntax on the child component tag. Access the event payload via `event.detail`:
 
 ```html
 <!-- src/pages/home/home.page.js -->
 <state currentCount="0" />
-<action name="handleChildChange"> state.currentCount = event.detail.count; </action>
+
+<action name="handleChildChange">
+  this.state.currentCount = event.detail.count;
+</action>
 
 <div class="home-page">
   <p>Child count is: {{ currentCount }}</p>
-  <Child @change="handleChildChange()" />
+  <ChildComponent @change="handleChildChange()" />
 </div>
 ```
+
+---
+
+## Global Event Bus & Cross-Component Communication
+
+When two components do not share a direct parent-child relationship (for example, a global header component and a deeply nested shopping cart widget), passing props or bubbling events up through multiple levels becomes unwieldy.
+
+Avenx-JS supports two primary patterns for cross-component communication across unrelated components:
+
+### 1. Global Event Bus Utility
+
+You can create a standalone Event Bus module that implements `on`, `off`, and `emit` methods to publish and subscribe to application-wide events:
+
+```javascript
+// src/services/event-bus.js
+class EventBus {
+  constructor() {
+    /** @type {Map<string, Set<Function>>} */
+    this.listeners = new Map();
+  }
+
+  /**
+   * Subscribe to a global event.
+   * @param {string} event
+   * @param {Function} callback
+   */
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(callback);
+  }
+
+  /**
+   * Unsubscribe from a global event.
+   * @param {string} event
+   * @param {Function} callback
+   */
+  off(event, callback) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(callback);
+    }
+  }
+
+  /**
+   * Emit a global event with a payload.
+   * @param {string} event
+   * @param {any} [data]
+   */
+  emit(event, data) {
+    if (this.listeners.has(event)) {
+      for (const callback of this.listeners.get(event)) {
+        callback(data);
+      }
+    }
+  }
+}
+
+export const eventBus = new EventBus();
+```
+
+#### Emitter Component (`ProductCard.component.js`)
+
+```html
+<state productId="42" />
+
+<action name="addToCart">
+  // Emit event to global event bus
+  eventBus.emit('cart:add', { id: this.state.productId, quantity: 1 });
+</action>
+
+<button @click="addToCart()">Add to Cart</button>
+```
+
+#### Listener Component (`CartHeader.component.js`)
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+import { eventBus } from '../services/event-bus.js';
+
+export default class CartHeader extends AvenxComponent {
+  constructor(bridges, props) {
+    super({ cartCount: 0 }, {}, bridges, '<div>Cart ({{ state.cartCount }})</div>', {}, props);
+    this.handleCartAdd = this.handleCartAdd.bind(this);
+  }
+
+  onMount() {
+    // Subscribe to global event
+    eventBus.on('cart:add', this.handleCartAdd);
+  }
+
+  onUnmount() {
+    // Clean up listener to prevent memory leaks
+    eventBus.off('cart:add', this.handleCartAdd);
+  }
+
+  handleCartAdd(payload) {
+    this.state.cartCount += payload.quantity;
+  }
+}
+```
+
+---
+
+### 2. Global State Bridge Pattern (`AvenxBridge`)
+
+For state-driven cross-component communication, extending `AvenxBridge` is the recommended Avenx-JS architectural approach. Instead of managing manual event listeners, a global bridge holds shared reactive state that updates consuming components automatically:
+
+```javascript
+// src/bridges/cart.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class CartBridge extends AvenxBridge {
+  constructor() {
+    super();
+    this.items = [];
+    this.count = 0;
+  }
+
+  addItem(product) {
+    this.items.push(product);
+    this.count = this.items.length;
+  }
+}
+```
+
+Components consume the bridge via `this.bridges.cart` and automatically receive reactive updates whenever `addItem()` is called from anywhere in the application.
+
