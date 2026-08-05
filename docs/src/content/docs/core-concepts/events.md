@@ -61,11 +61,18 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 | `.prevent` | Any event | Calls `event.preventDefault()` before invoking the handler. |
 | `.stop` | Any event | Calls `event.stopPropagation()` before invoking the handler. |
 | `.once` | Any event | Automatically removes the listener after it fires a single time. |
+| `.ctrl` | Mouse & Keyboard events | Only invokes handler if the `Control` key (`event.ctrlKey`) is held down. |
+| `.alt` | Mouse & Keyboard events | Only invokes handler if the `Alt` / `Option` key (`event.altKey`) is held down. |
+| `.shift` | Mouse & Keyboard events | Only invokes handler if the `Shift` key (`event.shiftKey`) is held down. |
+| `.meta` | Mouse & Keyboard events | Only invokes handler if the `Meta` / `Command ⌘` / `Windows` key (`event.metaKey`) is held down. |
+| `.cmd` | Mouse & Keyboard events | Alias for `.meta`. Only invokes handler if `event.metaKey` is `true`. |
 | `.enter` | Keyboard events | Only invokes the handler if the pressed key is `Enter`. |
 | `.esc` / `.escape` | Keyboard events | Only invokes the handler if the pressed key is `Escape` (`.esc` is an alias for `.escape`). |
 | `.space` | Keyboard events | Only invokes the handler if the pressed key is Space (`' '`). |
 | `.tab` | Keyboard events | Only invokes the handler if the pressed key is `Tab`. |
 | `.delete` | Keyboard events | Only invokes the handler if the pressed key is `Delete`. |
+
+### DOM Modifiers (`.prevent`, `.stop`, `.once`)
 
 `.prevent` and `.stop` wrap the handler with the corresponding DOM method call:
 
@@ -84,7 +91,30 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 <button @click.once="dismissBanner()">Got it</button>
 ```
 
-Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`) act as key filters on keyboard events, so the handler only runs when the matching key is pressed:
+### System Key Modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)
+
+System key modifiers filter mouse and keyboard event execution based on whether modifier keys are currently pressed:
+
+```html
+<!-- Trigger openInNewTab only when Control or Command + Click occurs -->
+<a href="#/details" @click.ctrl="openInNewTab(event)" @click.cmd="openInNewTab(event)">
+  View Details
+</a>
+
+<!-- Trigger submitForm on Command + Enter (macOS) or Ctrl + Enter -->
+<textarea @keydown.cmd.enter="submitForm()" @keydown.ctrl.enter="submitForm()"></textarea>
+
+<!-- Multi-system key combination: Shift + Alt + Click -->
+<div @click.shift.alt="inspectElement()">Inspect Element</div>
+```
+
+:::tip
+**Cross-Platform Command Key:** `.cmd` is a built-in alias for `.meta`. Use `.cmd` for clean macOS Command key syntax (e.g. `@keydown.cmd.enter`).
+:::
+
+### Key Filters (`.enter`, `.esc`, `.space`, `.tab`, `.delete`)
+
+Key modifiers act as key filters on keyboard events, so the handler only runs when the matching key is pressed:
 
 ```html
 <input @keydown.enter="submit()" placeholder="Press Enter to submit" />
@@ -95,7 +125,7 @@ Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`) act as 
 ```
 
 :::note
-**Combining modifiers:** Modifiers can be chained together. For example, `@keydown.enter.prevent="submit()"` filters for the Enter key and prevents default form submission, while `@keydown.tab.prevent="focusNext()"` catches the Tab key and suppresses default browser focus shifting in a single binding.
+**Combining modifiers:** Modifiers can be chained together. For example, `@keydown.cmd.enter.prevent="submit()"` verifies the Command key and Enter key are pressed and calls `event.preventDefault()` before executing `submit()`.
 :::
 
 ## Scoped Slot Event Handling
