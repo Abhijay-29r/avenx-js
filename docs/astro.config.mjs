@@ -50,6 +50,7 @@ export default defineConfig({
 					label: 'CLI Reference',
 					items: [
 						{ label: 'CLI Commands', slug: 'cli-reference/commands' },
+						{ label: 'Vite Plugin (vite-plugin-avenx)', slug: 'cli-reference/vite-plugin' },
 					],
 				},
 				{
