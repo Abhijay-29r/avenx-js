@@ -41,6 +41,7 @@ export default defineConfig({
 						{ label: 'Shared State & Bridges', slug: 'core-concepts/bridges' },
 						{ label: 'Provide & Inject', slug: 'core-concepts/provide-inject' },
 						{ label: 'Custom Directives', slug: 'core-concepts/directives' },
+						{ label: 'Form Validation & $validation', slug: 'core-concepts/form-validation' },
 						{ label: 'Pages & Routing', slug: 'core-concepts/routing' },
 					],
 				},

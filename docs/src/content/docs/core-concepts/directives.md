@@ -3,7 +3,10 @@ title: 'Custom Directives'
 description: 'Learn how to extend HTML elements with custom reactive behaviors and low-level DOM manipulations using Avenx-JS Custom Directives.'
 ---
 
-Avenx-JS provides built-in directives like `data-ax-show`, `data-ax-class`, and `data-ax-html`. In addition to these built-in directives, Avenx-JS allows you to register **Custom Directives** to perform direct, low-level DOM manipulations when reactive data changes.
+Avenx-JS provides built-in directives like `data-ax-show`, `data-ax-class`, `data-ax-html`, and [`data-ax-validate`](/core-concepts/form-validation). In addition to these built-in directives, Avenx-JS allows you to register **Custom Directives** to perform direct, low-level DOM manipulations when reactive data changes.
+
+> [!TIP]
+> For declarative form validation using `data-ax-validate` and the `this.state.$validation` reactive schema, see the [Form Validation & $validation](/core-concepts/form-validation) guide.
 
 ---
 
