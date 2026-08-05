@@ -42,6 +42,7 @@ export default defineConfig({
 						{ label: 'Provide & Inject', slug: 'core-concepts/provide-inject' },
 						{ label: 'Custom Directives', slug: 'core-concepts/directives' },
 						{ label: 'Form Validation & $validation', slug: 'core-concepts/form-validation' },
+						{ label: 'Resources & Async Data', slug: 'core-concepts/resources' },
 						{ label: 'Pages & Routing', slug: 'core-concepts/routing' },
 					],
 				},

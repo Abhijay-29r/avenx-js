@@ -7,6 +7,9 @@ description: 'Deep dive into the Proxy-based reactive state and transparent depe
 
 Avenx-JS implements a **transparent reactivity system** powered by JavaScript ES6 `Proxy`. There are no state setter functions or hooks required to update the user interface.
 
+> [!TIP]
+> For reactive asynchronous data fetching with automatic dependency tracking, Suspense, and error handling, check out the [<resource> SFC Tag & Resource API](/core-concepts/resources) guide.
+
 ## How It Works
 
 When a component is instantiated, the framework wraps its initial state object in a reactive Proxy. When an action or callback modifies any field on `state`, the Proxy trap intercepts the change and queues a re-render job.
