@@ -249,6 +249,31 @@ btn.setProps({
 
 Cleans up event listeners and empties the mounted container.
 
+### `nextTick(callback)`
+
+Executes a callback or resolves a Promise after the current reactive update cycle finishes flushing pending DOM patches to the browser.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `callback` | `Function` (optional) | Callback function to execute after the microtask scheduler finishes flushing DOM updates. If omitted, returns a `Promise<void>`. |
+
+```javascript
+// 1. Callback pattern
+this.state.items.push(newItem);
+this.nextTick(() => {
+  const lastItem = this.$element.querySelector('li:last-child');
+  console.log('Last item height:', lastItem.offsetHeight);
+});
+
+// 2. Async/await Promise pattern
+async function handleExpand() {
+  this.state.isExpanded = true;
+  await this.nextTick();
+  this.$element.querySelector('.content').focus();
+}
+```
+
+
 ### `$watch(source, callback, options)`
 
 Watches a reactive state property or computed getter for changes. Supports dot-separated string paths (e.g., `'user.settings.theme'`) or inline getter functions (`() => this.state.user.settings.theme`).

@@ -48,6 +48,97 @@ In summary:
 
 ```text
 State Mutation
+  │
+  ▼
+Proxy Interception
+  │
+  ▼
+Scheduler Job Queue
+  │
+  ▼
+Microtask Flush
+  │
+  ▼
+DOM Patch
+  │
+  ▼
+Slot Re-fill
+  │
+  ▼
+onUpdate Execution
+```
+
+---
+
+## Microtask Scheduler & `nextTick` Utility
+
+Because state mutations are batched asynchronously, DOM updates do not happen immediately upon state assignment. If you inspect DOM dimensions or query rendered elements immediately after modifying `this.state`, you will read pre-update DOM measurements.
+
+The `nextTick` utility function allows you to execute callbacks or await Promises immediately after the scheduler finishes flushing pending DOM updates.
+
+### Usage Variants
+
+#### 1. Component Instance Method (`this.nextTick`)
+
+Inside component actions, methods, or lifecycle hooks, use `this.nextTick()`:
+
+```javascript
+// Callback usage
+this.state.items.push(newItem);
+this.nextTick(() => {
+  const lastItem = this.$element.querySelector('li:last-child');
+  console.log('New item offsetHeight:', lastItem.offsetHeight);
+});
+
+// Promise / Async-Await usage
+async function addItem() {
+  this.state.showModal = true;
+  await this.nextTick();
+  const inputEl = this.$element.querySelector('.modal input');
+  inputEl.focus();
+}
+```
+
+#### 2. Framework Import (`nextTick`)
+
+Import `nextTick` directly from `avenx-core/runtime` when working outside component instance methods:
+
+```javascript
+import { nextTick } from 'avenx-core/runtime';
+
+component.state.title = 'Updated Title';
+await nextTick();
+console.log(document.title);
+```
+
+### Scheduler Architecture & Execution Order (`scheduler.js`)
+
+Avenx-JS manages asynchronous rendering using an internal microtask scheduler (`lib/core/reactive/scheduler.js`).
+
+```
+State Mutation
+      │
+      ▼
+queueJob(job)  ──► Deduplicate & push to job queue
+      │
+      ▼
+queueFlush()   ──► Schedule microtask (Promise.resolve().then(...))
+      │
+      ▼
+  flushJobs()
+  ├─ 1. Sort job queue by component UID ascending (Parent before Child)
+  ├─ 2. Execute DOM patch jobs
+  └─ 3. Drain & execute flushCallbacks (nextTick callbacks)
+```
+
+1. **Job Queueing & Deduplication (`queueJob`)**: When a reactive state field mutates, the component's update job (`#updateJob`) is pushed to the queue. Multiple mutations to the same component are deduplicated.
+2. **Microtask Deferred Execution (`queueFlush`)**: The scheduler defers execution to a microtask using chained promises (`Promise.resolve().then(() => Promise.resolve().then(flushJobs))`).
+3. **Hierarchical Component Ordering**: Before executing jobs in `flushJobs()`, the scheduler sorts the queue ascending by component `id` (UID). This guarantees that parent components re-render and patch the DOM *before* child components, preventing redundant updates or orphaned child renders.
+4. **Flush Callback Phase**: After all DOM patch jobs finish, the scheduler drains and executes `flushCallbacks` (including `nextTick` callbacks). If a `nextTick` callback mutates reactive state again, the scheduler recursively re-flushes until all queues are empty.
+
+
+```text
+State Mutation
     ↓
 Proxy Interception
     ↓
