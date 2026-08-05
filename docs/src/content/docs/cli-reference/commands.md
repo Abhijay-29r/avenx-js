@@ -31,17 +31,49 @@ The following flags can be passed globally to `avenx` commands:
 
 Scaffolds a new Avenx-JS application workspace structure in the current working directory.
 
+#### Interactive Project Wizard (`runWizard`)
+
+When invoked in an interactive terminal, `avenx init` launches an interactive setup wizard prompting for project preferences:
+
+1. **Style Preprocessor Choice:**
+   - `1. None (Vanilla CSS)` (Default)
+   - `2. Sass (SCSS)`
+   - `3. Less`
+   - `4. PostCSS`
+   *(Writes chosen preprocessor to `avenx.config.json` under `"style": { "preprocessor": "..." }`).*
+
+2. **Layout Template Choice:**
+   - `1. Blank (Minimal setup)` (Default)
+   - `2. Routing (Basic navigation with Navbar, Home, and About pages)`
+
 #### Generated Structure
 
 - `src/components/`, `src/pages/`, `src/global/`, `src/guards/`, `dist/`
-- `index.html`, `src/main.app.js`, `avenx.config.json`, `.vscode/settings.json`
+- `index.html`, `src/main.app.js`, `avenx.config.json`, `.vscode/settings.json`, `.vscode/jsconfig.json`
 
-#### Options
+#### Options & Flags
 
-- `--force` / `-f`: Overwrites existing files or bypasses Git status checks.
+| Flag / Option | Alias | Description |
+| :--- | :--- | :--- |
+| `-y`, `--yes` | | Bypasses interactive wizard prompts in TTY terminals and uses default choices (`none` preprocessor, `blank` layout). Recommended for CI/CD and automated scaffolding scripts. |
+| `-i`, `--interactive` | | Forces interactive wizard prompts to run, even in non-TTY or piped terminal environments. |
+| `-f`, `--force` | | Overwrites existing files or bypasses uncommitted Git working tree status checks. |
+
+#### Environment Variables
+
+- **`AVENX_FORCE_INTERACTIVE=true`**: When set in the environment, forces the interactive project wizard prompts to execute regardless of TTY status.
+
+#### Usage Examples
 
 ```bash
+# Interactive project scaffolding wizard
 npx avenx init
+
+# Non-interactive / CI scaffolding with default options
+npx avenx init -y
+
+# Force interactive wizard in piped or scripted environments
+npx avenx init --interactive --force
 ```
 
 ---
