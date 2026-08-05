@@ -69,8 +69,30 @@ npx avenx d counter --dry-run
 This command previews which files would be removed without actually deleting them.
 
 ### 4. `avenx build` (alias: `b`)
+Compiles all components, styles, pages, and bridges into the configured distribution bundle files. By default, the compiler generates dist/bundle.js and dist/bundle.css. If outputName is specified in avenx.config.json, the generated files use that base name instead. It strips out runtime imports/exports to create a clean, single-file bundle that can be loaded in browsers directly.
 
-Compiles all components, styles, pages, and bridges into `dist/bundle.js` and `dist/bundle.css`. It strips out runtime imports/exports to create a clean, single-file bundle that can be loaded in browsers directly.
+Example:
+
+```json
+{
+  "outputName": "app.bundle"
+}
+```
+
+Generated files:
+
+```text
+dist/
+├── app.bundle.js
+└── app.bundle.css
+```
+
+If you customize the bundle name, make sure your `index.html` references the generated filenames:
+
+```html
+<link rel="stylesheet" href="dist/app.bundle.css">
+<script src="dist/app.bundle.js"></script>
+```
 
 ### 5. `avenx watch` (alias: `w`)
 
