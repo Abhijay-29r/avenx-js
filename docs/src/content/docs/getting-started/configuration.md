@@ -32,6 +32,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 | `server.host`  | `string`   | `"localhost"`         | Non-empty host name or address for the local dev server.              |
 | `server.liveReload` | `boolean` | `true`              | Enables file watching, automatic browser reloads, and inspection script injection. |
 | `enableProfiling` | `boolean` | `false` | Enables performance profiling by wrapping lifecycle hooks, rendering, and DOM patching with browser Performance API marks and measures. |
+| `debug.debugReactivity` | `boolean` | `false` | Enables verbose reactivity dependency tracking and watcher execution logging to the browser console during development. |
 | `treeShakeComponents` | `boolean` | `true` | Removes unused components from the compiled bundle during compilation. Set to `false` to compile all discovered components. |
 | `voidTags`     | `string[]` | `[]`                   | Extra tag names the compiler treats as void (self-closing), in addition to the built-in HTML void tags (`img`, `br`, `input`, etc.). Each entry must be a non-empty string. |
 | `warnings`     | `object`   | `{}`                   | Map of compiler warning codes (`AVX_W01`, `AVX_W03`, etc.) to severity overrides (`"off"`, `"ignore"`, `"warn"`, or `"error"`). |
@@ -208,6 +209,42 @@ const totalPatchTime = measures
 
 console.log(`Total DOM Patching Time: ${totalPatchTime.toFixed(2)} ms`);
 ```
+
+---
+
+## Reactivity Tracing & Debugging (`debug.debugReactivity`)
+
+Avenx-JS provides a reactivity tracing mode for diagnosing state updates, tracking Proxy dependency registrations, and identifying unnecessary component re-renders.
+
+### Configuration (`avenx.config.json`)
+
+Enable reactivity tracing project-wide by setting `debug.debugReactivity` to `true`:
+
+```json
+{
+  "debug": {
+    "debugReactivity": true
+  }
+}
+```
+
+### Runtime & Programmatic Tracing
+
+In addition to `avenx.config.json`, reactivity debugging can be toggled dynamically:
+
+1. **Browser Console Flag**:
+   ```javascript
+   window.__avenx_debug_reactivity__ = true;
+   ```
+2. **Programmatic API**:
+   ```javascript
+   import { setDebugReactivity } from 'avenx-core/runtime';
+
+   setDebugReactivity(true);
+   ```
+
+When active, the framework outputs detailed logs to the browser console for Proxy property reads, dependency tracking events, and watcher job executions.
+
 
 
 ## Logging Options

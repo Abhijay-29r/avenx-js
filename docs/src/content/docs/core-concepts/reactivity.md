@@ -489,3 +489,60 @@ For the best reactive experience:
 - ✅ Store primitive values such as strings, numbers, and booleans.
 - ✅ Convert native objects to serializable formats when appropriate.
 - ❌ Do not rely on mutations of `Date`, `Map`, `Set`, `RegExp`, `Symbol` properties, or frozen objects to trigger UI updates.
+
+---
+
+## Debugging Reactivity (`debugReactivity`)
+
+During development, tracing dependency graphs and understanding why a component re-rendered or why a watcher triggered can be tricky. Avenx-JS includes a reactivity tracing engine (`lib/core/reactive/watcher.js`) that logs detailed dependency registration and update events directly to the browser DevTools console.
+
+### Enabling Tracing
+
+Reactivity debugging can be enabled through three different mechanisms:
+
+#### 1. Build Configuration (`avenx.config.json`)
+
+Enable reactivity logging project-wide by setting `debug.debugReactivity` to `true`:
+
+```json
+{
+  "debug": {
+    "debugReactivity": true
+  }
+}
+```
+
+#### 2. Programmatic Runtime API (`setDebugReactivity`)
+
+Enable or disable reactivity debugging dynamically in your code using `setDebugReactivity`:
+
+```javascript
+import { setDebugReactivity, isDebugReactivityEnabled } from 'avenx-core/runtime';
+
+// Enable reactivity tracing programmatically
+setDebugReactivity(true);
+
+console.log('Reactivity tracing active:', isDebugReactivityEnabled()); // true
+```
+
+#### 3. Dynamic Browser Console Flag (`window.__avenx_debug_reactivity__`)
+
+Toggle reactivity logging on the fly inside the browser DevTools console without restarting your application:
+
+```javascript
+// Enable in browser DevTools
+window.__avenx_debug_reactivity__ = true;
+
+// Disable when finished debugging
+window.__avenx_debug_reactivity__ = false;
+```
+
+---
+
+### What Gets Logged
+
+When reactivity tracing is enabled, Avenx-JS outputs structured log messages:
+
+- **Dependency Tracking:** Logs whenever an `AvenxWatcher` accesses a Proxy property and registers a reactive dependency.
+- **State Mutations:** Logs property modifications and Proxy traps (e.g. state mutations and value updates).
+- **Watcher Invalidation:** Logs when dirty state notifications queue a watcher re-render job.
