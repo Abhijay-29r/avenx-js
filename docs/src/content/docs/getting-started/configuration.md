@@ -26,6 +26,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 | -------------- | ---------- | --------------------- | ---------------------------------------------------------------------- |
 | `srcDir`       | `string`   | `"src"`              | Non-empty relative path to application source files.                  |
 | `distDir`      | `string`   | `"dist"`              | Non-empty relative path where compiled output is written.             |
+| `outputName`   | `string`   | `"bundle"`         | Base name used for generated JavaScript and CSS bundles. The compiler generates <outputName>.js and <outputName>.css. Must be a non-empty filename without an extension.|
 | `templatesDir` | `string`   | `".avenxtemplates"`  | Non-empty relative path for local generator template overrides.       |
 | `server.port`  | `number`   | `3000`                | Valid TCP port from `0` to `65535`.                                    |
 | `server.host`  | `string`   | `"localhost"`         | Non-empty host name or address for the local dev server.              |
@@ -236,6 +237,30 @@ Log levels are ordered by severity. Messages below the configured level are igno
 | `fatal` | Critical errors requiring immediate attention. |
 | `off` | Disables all logging. |
 | `silent` | Alias for `off`. |
+
+
+### Custom Output Bundle Names
+
+```json
+{
+  "outputName": "app.bundle"
+}
+```
+
+This generates:
+
+```text
+dist/
+├── app.bundle.js
+└── app.bundle.css
+```
+
+Update your HTML to reference the generated bundle names:
+
+```html
+<script src="dist/app.bundle.js"></script>
+<link rel="stylesheet" href="dist/app.bundle.css">
+```
 
 ### Example: Enable Debug Logging
 
