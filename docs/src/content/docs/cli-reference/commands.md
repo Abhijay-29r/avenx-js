@@ -3,75 +3,161 @@ title: 'CLI Commands'
 description: 'Explore the command-line interface of Avenx-JS to create, compile, run, and watch projects.'
 ---
 
-The `avenx` command line tool streamlines your workflow. It handles application scaffolding, file generation, building, and serving.
+The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, and template validation.
 
 ## Command Syntax
 
 ```bash
-npx avenx <command> [type] [name]
+npx avenx <command> [type] [name] [options]
 ```
+
+---
+
+## Global Flags & Options
+
+The following flags can be passed globally to `avenx` commands:
+
+| Option | Alias | Description | Supported Commands |
+| :--- | :--- | :--- | :--- |
+| `--dry-run` | `-d` | Previews file creation, modification, or deletion actions without modifying disk. | `generate`, `destroy` |
+| `--force` | `-f` | Forces command execution by bypassing uncommitted Git working tree status checks. | `init`, `generate`, `destroy`, `build` |
+| `--version` | `-v` | Displays the installed version of the Avenx-JS CLI package. | Global |
+
+---
 
 ## Available Commands
 
 ### 1. `avenx init`
 
-Scaffolds a new project structure in the current working directory. It creates subdirectories (components, pages, global, guards, dist) and sets up standard configuration files (`index.html`, `src/main.app.js`, `.vscode/settings.json`).
+Scaffolds a new Avenx-JS application workspace structure in the current working directory.
+
+#### Interactive Project Wizard (`runWizard`)
+
+When invoked in an interactive terminal, `avenx init` launches an interactive setup wizard prompting for project preferences:
+
+1. **Style Preprocessor Choice:**
+   - `1. None (Vanilla CSS)` (Default)
+   - `2. Sass (SCSS)`
+   - `3. Less`
+   - `4. PostCSS`
+   *(Writes chosen preprocessor to `avenx.config.json` under `"style": { "preprocessor": "..." }`).*
+
+2. **Layout Template Choice:**
+   - `1. Blank (Minimal setup)` (Default)
+   - `2. Routing (Basic navigation with Navbar, Home, and About pages)`
+
+#### Generated Structure
+
+- `src/components/`, `src/pages/`, `src/global/`, `src/guards/`, `dist/`
+- `index.html`, `src/main.app.js`, `avenx.config.json`, `.vscode/settings.json`, `.vscode/jsconfig.json`
+
+#### Options & Flags
+
+| Flag / Option | Alias | Description |
+| :--- | :--- | :--- |
+| `-y`, `--yes` | | Bypasses interactive wizard prompts in TTY terminals and uses default choices (`none` preprocessor, `blank` layout). Recommended for CI/CD and automated scaffolding scripts. |
+| `-i`, `--interactive` | | Forces interactive wizard prompts to run, even in non-TTY or piped terminal environments. |
+| `-f`, `--force` | | Overwrites existing files or bypasses uncommitted Git working tree status checks. |
+
+#### Environment Variables
+
+- **`AVENX_FORCE_INTERACTIVE=true`**: When set in the environment, forces the interactive project wizard prompts to execute regardless of TTY status.
+
+#### Usage Examples
+
+```bash
+# Interactive project scaffolding wizard
+npx avenx init
+
+# Non-interactive / CI scaffolding with default options
+npx avenx init -y
+
+# Force interactive wizard in piped or scripted environments
+npx avenx init --interactive --force
+```
+
+---
 
 ### 2. `avenx generate` (alias: `g`)
 
-Generates boilerplate code for components, pages, bridges, and guards.
+Generates boilerplate code for components, pages, global state bridges, and navigation guards. Automatically registers new components and pages in `src/main.app.js`.
 
-- **Component**: `npx avenx g counter` Creates `src/components/counter/counter.component.js` and `.css`, and registers it in `main.app.js`.
+#### Subtypes
 
-- **Page**: `npx avenx g p dashboard` Creates `src/pages/dashboard.page.js` and `.css` for routing.
+- **Component (`component`, `c`)**: Creates `src/components/<name>/<name>.component.js` and `.css`, and registers it in `main.app.js`.
+- **Page (`page`, `p`)**: Creates `src/pages/<name>.page.js` and `.css` for client-side routing.
+- **Bridge (`bridge`)**: Creates a shared reactive domain state class at `src/global/<name>.bridge.js` extending `AvenxBridge`.
+- **Guard (`guard`)**: Creates a navigation guard class at `src/guards/<name>.guard.js` extending `AvenxGuard`.
 
-- **Bridge**: `npx avenx g bridge settings` Creates a global state bridge at `src/global/settings.bridge.js`.
+#### Options
 
-- **Guard**: `npx avenx g guard admin` Creates a routing guard class at `src/guards/admin.guard.js` extending `AvenxGuard` with a scaffolded `canActivate(to, from)` method for inspecting auth state and redirecting unauthorized users.
+- `--dry-run` / `-d`: Previews generated files without writing to disk.
+- `--force` / `-f`: Bypasses Git working tree status checks.
 
-
-#### Command Options
-
-- **`--dry-run`** (alias: **`-d`**)  
-  Preview the files and changes that would be created without writing anything to disk.
-
-**Example:**
+#### Usage Examples
 
 ```bash
-npx avenx g counter --dry-run
+# Generate component
+npx avenx g counter
+
+# Generate page with alias
+npx avenx g p dashboard
+
+# Preview page generation without writing to disk
+npx avenx g p user-profile --dry-run
+
+# Generate shared reactive bridge
+npx avenx g bridge shopping-cart
+
+# Generate route guard
+npx avenx g guard auth
 ```
 
-This command previews the generated files without actually creating them.
+---
 
 ### 3. `avenx destroy` (alias: `d`)
 
-Removes scaffolded files and cleans up their imports and registrations inside `src/main.app.js`.
+Removes scaffolded component, page, bridge, or guard files and automatically cleans up their import statements and registrations inside `src/main.app.js`.
 
-- **Component**: `npx avenx d counter` Deletes `src/components/counter/` and removes its registration and import from `src/main.app.js`.
+#### Subtypes
 
-- **Page**: `npx avenx d p dashboard` Deletes `src/pages/dashboard.page.js` and `.css`, and cleans up its imports.
+- **Component (`component`, `c`)**: Deletes `src/components/<name>/` and cleans up `main.app.js`.
+- **Page (`page`, `p`)**: Deletes `src/pages/<name>.page.js` and `.css`.
+- **Bridge (`bridge`)**: Deletes `src/global/<name>.bridge.js`.
+- **Guard (`guard`)**: Deletes `src/guards/<name>.guard.js`.
 
-- **Bridge**: `npx avenx d bridge settings` Deletes the global state bridge file at `src/global/settings.bridge.js`.
+#### Options
 
-- **Guard**: `npx avenx d guard admin` Deletes the routing guard file at `src/guards/admin.guard.js`.
+- `--dry-run` / `-d`: Previews files that would be removed without deleting anything.
+- `--force` / `-f`: Bypasses Git working tree status checks.
 
-#### Command Options
-
-- **`--dry-run`** (alias: **`-d`**)  
-  Preview the files and changes that would be removed without deleting anything.
-
-**Example:**
+#### Usage Examples
 
 ```bash
-npx avenx d counter --dry-run
+# Delete component and clean up registrations
+npx avenx d counter
+
+# Preview page deletion
+npx avenx d p dashboard --dry-run
 ```
 
-This command previews which files would be removed without actually deleting them.
+---
 
 ### 4. `avenx build` (alias: `b`)
-Compiles all components, styles, pages, and bridges into the configured distribution bundle files. By default, the compiler generates dist/bundle.js and dist/bundle.css. If outputName is specified in avenx.config.json, the generated files use that base name instead. It strips out runtime imports/exports to create a clean, single-file bundle that can be loaded in browsers directly.
 
-Example:
+Compiles all component templates, scoped stylesheets, page components, and global bridges into single distribution bundle files in `distDir`.
+
+#### Features & Distribution Files
+
+- Compiles `.component.js` files and extracts `<state>`, `<action>`, and `<computed>` tags.
+- Bundles and scopes component CSS rules.
+- Performs automatic component tree-shaking when `treeShakeComponents: true`.
+- Evaluates build-time template validation rules.
+- Generates JavaScript (`<outputName>.js`) and CSS (`<outputName>.css`) distribution bundles.
+
+#### Custom Output Bundle Names (`outputName`)
+
+By default, `avenx build` generates `dist/bundle.js` and `dist/bundle.css`. Configure `outputName` in `avenx.config.json` to override filenames:
 
 ```json
 {
@@ -79,89 +165,101 @@ Example:
 }
 ```
 
-Generated files:
+Running `avenx build` with the above configuration produces:
 
 ```text
 dist/
 ├── app.bundle.js
-└── app.bundle.css
+├── app.bundle.css
+└── app.bundle.css.map
 ```
 
-If you customize the bundle name, make sure your `index.html` references the generated filenames:
+Be sure to reference the customized bundle filenames in your `index.html` entry point:
 
 ```html
-<link rel="stylesheet" href="dist/app.bundle.css">
+<link rel="stylesheet" href="dist/app.bundle.css" />
 <script src="dist/app.bundle.js"></script>
 ```
 
+#### Usage Examples
+
+```bash
+npx avenx build
+```
+
+---
+
 ### 5. `avenx watch` (alias: `w`)
 
-Compiles the project once and then continues running in the background, watching the `src/` directory for changes.
+Runs an initial build and continuously watches the `src/` directory for code changes, automatically re-building the project distribution files upon every file edit.
 
-Whenever a file in the `src/` directory changes, Avenx automatically rebuilds the project and updates the generated files in the `dist/` directory. This keeps your compiled output up to date without manually running `avenx build` after every change.
-
-Unlike `avenx serve`, the `watch` command does not start a local development server or provide browser live reloading. It only watches for file changes and continuously rebuilds the project in the background.
-
-**Example:**
+Unlike `avenx serve`, `watch` does not launch a local web server or inject live-reload client scripts.
 
 ```bash
 npx avenx watch
 ```
 
-Press **Ctrl + C** to stop watching.
+Press `Ctrl + C` to terminate watch mode.
 
-### 6. `avenx serve [port]`
+---
 
-Starts a local live-reloading development server (default port: 3000).
+### 6. `avenx serve`
 
-#### Description
+Launches a local live-reloading development server with automatic file watching and an embedded **Inspection Dashboard**.
 
-The development server watches the `src/` directory for code modifications and automatically triggers a project rebuild. It utilizes a Server-Sent Events (SSE) bridge to instantly dispatch a reload event to all connected browser instances upon a successful compilation.
+#### Options & Flags
 
-#### Visual Inspection Dashboard
+- `--port <number>`, `-p <number>` (or positional argument `avenx serve 8080`): Sets the development server TCP port (default: `3000`).
+- `--host <string>`, `-h <string>`: Sets the host bind address (default: `localhost`).
+- `--no-live-reload` / `--live-reload=false`: Disables file watching, live reload SSE client script injection, and automatic browser refreshes.
 
-Avenx includes a visual **Inspection Dashboard** built directly into the development server. It provides real-time visibility into your application's dev configuration, active routes, mounted components, and registered bridges to streamline local debugging.
+#### Visual Inspection Dashboard (`/__avenx-inspect`)
 
-Once the development server is running, navigate to `http://localhost:[port]/__avenx-inspect` (typically `http://localhost:3000/__avenx-inspect`) to access the dashboard.
+Access `http://localhost:3000/__avenx-inspect` while the dev server is running to inspect active routes, registered components, global bridges, and compiler options in real-time.
 
-> **Note on Reloading Behavior:** When a code change is detected, the development server triggers a full page refresh (`window.location.reload()`) in the connected browsers to apply the updates. This is a **Live Reloading** mechanism rather than Hot Module Replacement (HMR); as a result, transient local application state will be reset when the page refreshes.
+```bash
+# Start server on default port 3000
+npx avenx serve
+
+# Custom port and host
+npx avenx serve 8080 --host 0.0.0.0
+
+# Disable live reload script injection
+npx avenx serve --no-live-reload
+```
+
+---
 
 ### 7. `avenx check` (alias: `lint`)
 
-Validates your project's templates without triggering a full production build.
-
-#### Description
-
-The `check` command parses all local templates to catch potential runtime errors early. It analyzes the template structure to detect:
-
-- Undeclared or missing variables
-- Incorrectly referenced computed properties
-- Unregistered or malformed actions
+Parses and validates all project templates without writing build outputs to disk. Ideal for Continuous Integration (CI/CD) pipelines.
 
 #### Exit Codes
 
-- **`0`**: Success. All templates successfully parsed with no validation errors or warnings.
-- **`1`**: Validation Failure. The command will exit with code 1 if any template warnings or errors are detected, making it ideal for CI/CD linting pipelines.
+- `0`: Validation successful (no template warnings or errors detected).
+- `1`: Validation failed (template syntax errors or elevated warnings detected).
+
+```bash
+npx avenx check
+```
+
+---
 
 ### 8. `avenx clean`
 
-Clears out compiled distribution outputs to prepare for a fresh build.
+Deletes the target build distribution directory (typically `dist/` or configured `distDir`) to ensure a fresh build state.
 
-#### Description
+```bash
+npx avenx clean
+```
 
-The `clean` command deletes the compiled distribution directory to ensure no stale files persist in your build environment. This is highly useful for CI/CD build pipelines to guarantee a clean state before executing production builds.
+---
 
-#### Default Behavior
+### 9. `avenx help`
 
-Upon execution, it securely deletes the default distribution directory (typically `dist/`).
+Prints the CLI usage manual and command reference to the console.
 
-#### Configuration
+```bash
+npx avenx help
+```
 
-The target folder deleted by this command is determined by the output directories specified in your `avenx.config.json` file.
-
-## Global Options
-
-The following flags can be used globally with the `avenx` CLI:
-
-- **`--version`** (alias: **`-v`**)  
-  Output the current version of the Avenx-JS CLI package.

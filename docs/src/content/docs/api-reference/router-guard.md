@@ -255,3 +255,87 @@ When a guard returns a redirect path:
 
 The router waits for a promise returned by `canActivate` to resolve before acting on its value. When the resolved value is a string or redirect control object, the router stops the current guard chain and starts a new navigation to that hash. Avoid redirecting to a route protected by the same guard unless that route can pass the guard, or the redirects will loop indefinitely.
 
+---
+
+## Pluggable Navigation Delegates (`NavigationDelegate`)
+
+Avenx-JS decouples `AvenxRouter` from browser DOM APIs (`window.location.hash`, `document.title`) by delegating location state management to pluggable **Navigation Delegates** (`lib/core/runtime/navigation/`).
+
+This architecture enables running `AvenxRouter` in non-browser environments like Node.js, Server-Side Rendering (SSR), and headless unit test runners without requiring DOM global mocks.
+
+### `NavigationDelegate` Abstract Base Contract
+
+The base `NavigationDelegate` class defines the contract for all navigation adapters:
+
+| Method Signature | Return Type | Description |
+| :--- | :--- | :--- |
+| `getHash()` | `string` | Returns the current location hash string (e.g. `'#/home'`). |
+| `setHash(hash: string)` | `void` | Navigates/sets the current location hash string and notifies registered listeners. |
+| `onHashChange(callback: (hash: string) => void)` | `Function` | Subscribes to location hash change events. Returns an unregister function. |
+| `onLinkClick(callback: (route: string) => void)` | `Function` | Subscribes to link click events (e.g. `[data-ax-link]`). Returns an unregister function. |
+| `setTitle(title: string)` | `void` | Updates document or in-memory page title. |
+| `registerRouter(router: object)` | `void` | Registers a router instance for active router tracking. |
+| `unregisterRouter(router: object)` | `void` | Unregisters a router instance. |
+| `getActiveRouters()` | `Set<object>` | Returns the set of currently active router instances. |
+| `destroy()` | `void` | Cleans up event listeners and internal state. |
+
+### Built-in Delegates
+
+Avenx-JS provides two built-in navigation delegates:
+
+1. **`BrowserNavigationDelegate`**: The default delegate in browser environments. Binds directly to `window.location.hash`, `hashchange` events, document link clicks (`[data-ax-link]`), and `document.title`.
+2. **`MemoryNavigationDelegate`**: An in-memory delegate for Node.js, SSR, and headless test environments. Manages route location state, active subscriptions, and page titles purely in memory without DOM or window dependencies.
+
+### Configuring Navigation Delegates
+
+Pass a custom delegate or configuration mode to `AvenxApp.initRouter(routes, options)`:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import { MemoryNavigationDelegate } from 'avenx-core/runtime/navigation';
+
+// Method 1: Explicit MemoryNavigationDelegate instance
+const delegate = new MemoryNavigationDelegate('#/dashboard');
+const router = AvenxApp.initRouter(routes, { navigationDelegate: delegate });
+
+// Method 2: Mode configuration option (automatically instantiates MemoryNavigationDelegate)
+const router = AvenxApp.initRouter(routes, {
+  mode: 'memory',
+  initialHash: '#/dashboard',
+});
+```
+
+### `MemoryNavigationDelegate` API Reference
+
+```typescript
+class MemoryNavigationDelegate extends NavigationDelegate {
+  /** Initial hash defaults to '#/' */
+  constructor(initialHash?: string);
+
+  /** Current hash string held in memory */
+  currentHash: string;
+
+  /** Active in-memory title */
+  title: string;
+
+  /** Returns currentHash */
+  getHash(): string;
+
+  /** Updates currentHash and invokes registered hash listeners */
+  setHash(hash: string): void;
+
+  /** Registers a hash listener; returns unsubscribe function */
+  onHashChange(callback: (hash: string) => void): Function;
+
+  /** Registers a link click listener; returns unsubscribe function */
+  onLinkClick(callback: (route: string) => void): Function;
+
+  /** Sets in-memory title property */
+  setTitle(title: string): void;
+
+  /** Clears all listeners and active router references */
+  destroy(): void;
+}
+```
+
+

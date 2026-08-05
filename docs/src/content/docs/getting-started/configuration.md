@@ -32,6 +32,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 | `server.host`  | `string`   | `"localhost"`         | Non-empty host name or address for the local dev server.              |
 | `server.liveReload` | `boolean` | `true`              | Enables file watching, automatic browser reloads, and inspection script injection. |
 | `enableProfiling` | `boolean` | `false` | Enables performance profiling by wrapping lifecycle hooks, rendering, and DOM patching with browser Performance API marks and measures. |
+| `debug.debugReactivity` | `boolean` | `false` | Enables verbose reactivity dependency tracking and watcher execution logging to the browser console during development. |
 | `treeShakeComponents` | `boolean` | `true` | Removes unused components from the compiled bundle during compilation. Set to `false` to compile all discovered components. |
 | `voidTags`     | `string[]` | `[]`                   | Extra tag names the compiler treats as void (self-closing), in addition to the built-in HTML void tags (`img`, `br`, `input`, etc.). Each entry must be a non-empty string. |
 | `warnings`     | `object`   | `{}`                   | Map of compiler warning codes (`AVX_W01`, `AVX_W03`, etc.) to severity overrides (`"off"`, `"ignore"`, `"warn"`, or `"error"`). |
@@ -76,19 +77,30 @@ When `treeShakeComponents` is:
 
 In most applications, the default value of `true` should be used. Disable tree shaking only when your application depends on components that cannot be detected during compilation.
 
-## CSS Preprocessor Settings
+## CSS Preprocessor & Style Settings (`style`)
 
-Avenx-JS supports configuring a CSS preprocessor through the `style` object in `avenx.config.json`.
+Avenx-JS supports configuring CSS preprocessors and source maps through the `style` object in `avenx.config.json`.
 
 ### Configuration
 
 ```json
 {
   "style": {
-    "preprocessor": "scss"
+    "preprocessor": "scss",
+    "sourceMap": true,
+    "inlineSourceMap": false
   }
 }
 ```
+
+### Style Options Breakdown
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `style.preprocessor` | `string` | `undefined` | Specifies the CSS preprocessor (`"scss"`, `"sass"`, `"postcss"`, `"less"`). |
+| `style.sourceMap` | `boolean \| "inline"` | `false` | Enables CSS source map generation for component styles and global CSS. When set to `true`, writes an external `.map` file (e.g. `bundle.css.map`). When set to `"inline"`, embeds base64 source maps directly into the CSS bundle. |
+| `style.inlineSourceMap` | `boolean` | `false` | When `true`, forces source maps to be embedded inline into the output CSS bundle as a base64 Data URL. |
+| `style.dev` | `boolean` | `false` | Development mode override flag. When `true`, automatically enables inline source maps during CSS compilation. |
 
 ### Supported Preprocessors
 
@@ -198,6 +210,42 @@ const totalPatchTime = measures
 console.log(`Total DOM Patching Time: ${totalPatchTime.toFixed(2)} ms`);
 ```
 
+---
+
+## Reactivity Tracing & Debugging (`debug.debugReactivity`)
+
+Avenx-JS provides a reactivity tracing mode for diagnosing state updates, tracking Proxy dependency registrations, and identifying unnecessary component re-renders.
+
+### Configuration (`avenx.config.json`)
+
+Enable reactivity tracing project-wide by setting `debug.debugReactivity` to `true`:
+
+```json
+{
+  "debug": {
+    "debugReactivity": true
+  }
+}
+```
+
+### Runtime & Programmatic Tracing
+
+In addition to `avenx.config.json`, reactivity debugging can be toggled dynamically:
+
+1. **Browser Console Flag**:
+   ```javascript
+   window.__avenx_debug_reactivity__ = true;
+   ```
+2. **Programmatic API**:
+   ```javascript
+   import { setDebugReactivity } from 'avenx-core/runtime';
+
+   setDebugReactivity(true);
+   ```
+
+When active, the framework outputs detailed logs to the browser console for Proxy property reads, dependency tracking events, and watcher job executions.
+
+
 
 ## Logging Options
 
@@ -238,8 +286,13 @@ Log levels are ordered by severity. Messages below the configured level are igno
 | `off` | Disables all logging. |
 | `silent` | Alias for `off`. |
 
+---
 
-### Custom Output Bundle Names
+## Custom Output Bundle Naming (`outputName`)
+
+By default, the Avenx compiler outputs JavaScript and CSS distribution files named `bundle.js` and `bundle.css` in your configured `distDir`.
+
+You can customize the base name of the generated bundle files using the top-level `outputName` property in `avenx.config.json`:
 
 ```json
 {
@@ -247,19 +300,34 @@ Log levels are ordered by severity. Messages below the configured level are igno
 }
 ```
 
-This generates:
+### Generated Files
+
+When `outputName` is set to `"app.bundle"`, running `avenx build` generates:
 
 ```text
 dist/
 ├── app.bundle.js
-└── app.bundle.css
+├── app.bundle.css
+└── app.bundle.css.map (if source maps are enabled)
 ```
 
-Update your HTML to reference the generated bundle names:
+### HTML Entry Point Update
+
+Be sure to update your `index.html` file to reference the customized bundle filenames:
 
 ```html
-<script src="dist/app.bundle.js"></script>
-<link rel="stylesheet" href="dist/app.bundle.css">
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Avenx App</title>
+    <link rel="stylesheet" href="dist/app.bundle.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="dist/app.bundle.js"></script>
+  </body>
+</html>
 ```
 
 ### Example: Enable Debug Logging

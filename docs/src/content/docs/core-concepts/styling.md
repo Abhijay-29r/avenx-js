@@ -391,4 +391,25 @@ Available preprocessor options are:
 When a preprocessor is enabled:
 1. **Compilation**: The compiler automatically passes all global style inputs inside `<@global>` and scoped styling inside `<@css>` blocks through the corresponding preprocessor module.
 2. **Global Variables & Scope**: Scoped styling blocks are wrapped in a temporary parent class wrapper during preprocessing so that local variables and nesting (e.g. `& span`) resolve correctly relative to any variables or mixins defined inside `<@global>`.
-3. **Graceful Fallback**: If the configured preprocessor package (such as `sass` or `postcss`) is not installed in the workspace, the compiler will gracefully fall back to parsing the raw stylesheet as vanilla CSS and print a warning message (`AVX_W24`).
+3. **Fallback Behavior**
+
+If the configured preprocessor package is not installed, Avenx-JS falls back to raw CSS processing and emits the `AVX_W24` (`COMPILER_PREPROCESSOR_MISSING`) warning.
+
+---
+
+## 8. Debugging Scoped CSS with Source Maps
+
+When component styles are compiled, Avenx-JS transforms named block selectors (`<@css> card </@css>`) into scoped CSS classes (e.g. `.avenx-a1b2c3d4`) and bundles them into the final CSS output.
+
+To trace compiled CSS rules in browser developer tools directly back to your original `.component.css` or Single File Component source lines:
+
+1. Enable source maps in your project's `avenx.config.json`:
+   ```json
+   {
+     "style": {
+       "sourceMap": true
+     }
+   }
+   ```
+2. When inspecting elements in Chrome DevTools, Firefox Developer Tools, or Safari Web Inspector, CSS declarations point directly to the exact file and line number of the source `.component.css` file (e.g. `user-card.component.css:14`) rather than line numbers in `bundle.css`.
+3. In development mode or when `"sourceMap": "inline"` / `"inlineSourceMap": true` is set, source maps are embedded directly as base64 comments (`/*# sourceMappingURL=data:application/json... */`). In production builds (`avenx build`), separate external map files (e.g. `bundle.css.map`) are generated alongside `bundle.css`.

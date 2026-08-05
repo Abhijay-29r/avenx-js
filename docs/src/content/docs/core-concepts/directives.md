@@ -3,7 +3,87 @@ title: 'Custom Directives'
 description: 'Learn how to extend HTML elements with custom reactive behaviors and low-level DOM manipulations using Avenx-JS Custom Directives.'
 ---
 
-Avenx-JS provides built-in directives like `data-ax-show`, `data-ax-class`, and `data-ax-html`. In addition to these built-in directives, Avenx-JS allows you to register **Custom Directives** to perform direct, low-level DOM manipulations when reactive data changes.
+Avenx-JS provides built-in directives like `data-ax-show`, `data-ax-class`, `data-ax-html`, [`data-ax-validate`](/core-concepts/form-validation), and [`data-ax-ref`](#built-in-element-reference-directive-data-ax-ref). In addition to these built-in directives, Avenx-JS allows you to register **Custom Directives** to perform direct, low-level DOM manipulations when reactive data changes.
+
+> [!TIP]
+> For declarative form validation using `data-ax-validate` and the `this.state.$validation` reactive schema, see the [Form Validation & $validation](/core-concepts/form-validation) guide.
+
+---
+
+## Built-in Element Reference Directive (`data-ax-ref`)
+
+While Avenx-JS encourages data-driven declarative UI development, certain tasks require direct access to underlying HTML DOM elements (e.g. focusing input fields, invoking HTML5 Canvas 2D API methods, or measuring element dimensions).
+
+The `data-ax-ref="refName"` directive assigns a named reference to a DOM element within the component template, making it accessible on the component instance via `this.$refs.refName`.
+
+```html
+<input data-ax-ref="searchInput" type="text" placeholder="Search..." />
+```
+
+### Accessing `$refs` in Component Actions & Lifecycle Hooks
+
+After the component mounts (`onMount`), references are accessible on `this.$refs`:
+
+#### 1. Form Input Auto-Focus Example
+
+```javascript
+// src/components/search-bar.component.js
+export default {
+  actions: {
+    onMount() {
+      // Focus the input element on mount
+      if (this.$refs.searchInput) {
+        this.$refs.searchInput.focus();
+      }
+    },
+    clearSearch() {
+      this.state.query = '';
+      this.$refs.searchInput?.focus();
+    },
+  },
+
+  template: `
+    <div class="search-bar">
+      <input
+        data-ax-ref="searchInput"
+        data-ax-bind="query"
+        type="text"
+        placeholder="Type to search..."
+      />
+      <button @click="clearSearch">Clear</button>
+    </div>
+  `,
+};
+```
+
+#### 2. HTML5 Canvas Context Example
+
+```javascript
+// src/components/chart.component.js
+export default {
+  actions: {
+    onMount() {
+      const canvas = this.$refs.chartCanvas;
+      if (canvas && canvas.getContext) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#4f46e5';
+        ctx.fillRect(10, 10, 150, 100);
+      }
+    },
+  },
+
+  template: `
+    <div class="chart-container">
+      <canvas data-ax-ref="chartCanvas" width="300" height="150"></canvas>
+    </div>
+  `,
+};
+```
+
+> [!IMPORTANT]
+> - **Component Boundary Scoping:** References are strictly scoped to the declaring component. Elements with `data-ax-ref` inside nested child component boundaries are ignored by parent `$refs`.
+> - **Availability:** `$refs` entries are populated after DOM attachment during `onMount`. They return `undefined` before DOM mounting (`onBeforeMount`).
+
 
 ---
 

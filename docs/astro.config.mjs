@@ -41,6 +41,8 @@ export default defineConfig({
 						{ label: 'Shared State & Bridges', slug: 'core-concepts/bridges' },
 						{ label: 'Provide & Inject', slug: 'core-concepts/provide-inject' },
 						{ label: 'Custom Directives', slug: 'core-concepts/directives' },
+						{ label: 'Form Validation & $validation', slug: 'core-concepts/form-validation' },
+						{ label: 'Resources & Async Data', slug: 'core-concepts/resources' },
 						{ label: 'Pages & Routing', slug: 'core-concepts/routing' },
 					],
 				},
@@ -50,6 +52,7 @@ export default defineConfig({
 					label: 'CLI Reference',
 					items: [
 						{ label: 'CLI Commands', slug: 'cli-reference/commands' },
+						{ label: 'Vite Plugin (vite-plugin-avenx)', slug: 'cli-reference/vite-plugin' },
 					],
 				},
 				{

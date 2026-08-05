@@ -9,8 +9,30 @@ The base class from which all standard UI components inherit. It manages reactiv
 
 - `this.state` (Proxy): The reactive state instance for local properties. Changing state triggers updates automatically.
 - `this.props` (Proxy): The reactive attributes passed by parent tags. Modifications from parents trigger updates.
+- `this.$refs` (`Record<string, Element>`): Map of direct DOM element references marked with the [`data-ax-ref="refName"`](/core-concepts/directives#built-in-element-reference-directive-data-ax-ref) directive within the component template.
 - `this.provide` / `provide()`: Defines state, properties, or methods to provide to descendant components.
 - `static inject` / `this.inject`: Defines ancestor properties to inject and make available locally on `this`.
+
+### `this.$refs` Reference Map
+
+The `this.$refs` property provides direct access to HTML DOM elements declared in the component template via `data-ax-ref`:
+
+```typescript
+interface AvenxComponent {
+  /**
+   * Object mapping refName strings to target HTML DOM Elements.
+   */
+  readonly $refs: Record<string, Element>;
+}
+```
+
+#### Key Behaviors & Architecture
+
+- **Lazy Resolution & Batched Caching:** `this.$refs` resolves DOM references lazily upon first property access. Multiple reactive state updates queue dirty reference flags (`#refsDirty`) without performing eager, repetitive `querySelectorAll` DOM searches across intermediate re-renders.
+- **Component Boundary Scoping:** References are strictly scoped to the declaring component. Elements with `data-ax-ref` located inside nested child component boundaries (`data-avenx-comp`) are excluded from parent `$refs`.
+- **Lifecycle Availability:** `$refs` entries are populated once the component is mounted into the DOM (`onMount`, `onUpdate`). Accessing `$refs` prior to DOM mounting (`onBeforeMount`) returns an empty object (`{}`).
+- **Automatic Teardown Cleanup:** When a component is unmounted (`unmount()`), `this.$refs` is automatically cleared and reset to `{}` to prevent memory leaks and dangling DOM references.
+
 
 
 ## Lifecycle Hooks
@@ -248,6 +270,31 @@ btn.setProps({
 ### `unmount()`
 
 Cleans up event listeners and empties the mounted container.
+
+### `nextTick(callback)`
+
+Executes a callback or resolves a Promise after the current reactive update cycle finishes flushing pending DOM patches to the browser.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `callback` | `Function` (optional) | Callback function to execute after the microtask scheduler finishes flushing DOM updates. If omitted, returns a `Promise<void>`. |
+
+```javascript
+// 1. Callback pattern
+this.state.items.push(newItem);
+this.nextTick(() => {
+  const lastItem = this.$element.querySelector('li:last-child');
+  console.log('Last item height:', lastItem.offsetHeight);
+});
+
+// 2. Async/await Promise pattern
+async function handleExpand() {
+  this.state.isExpanded = true;
+  await this.nextTick();
+  this.$element.querySelector('.content').focus();
+}
+```
+
 
 ### `$watch(source, callback, options)`
 
