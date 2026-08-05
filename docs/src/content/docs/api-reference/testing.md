@@ -232,3 +232,63 @@ console.log(wrapper.html);
 console.log(mockUserBridge.$stateChanges);
 // [{ prop: 'name', value: 'Grace' }]
 ```
+
+---
+
+## Headless Router Testing & SSR (`MemoryNavigationDelegate`)
+
+To test router transitions, guards, resolvers, and page title updates in Jest, Vitest, or Node.js without a browser DOM environment, use `MemoryNavigationDelegate` (`lib/core/runtime/navigation/MemoryNavigationDelegate.js`).
+
+### Unit Testing Router Transitions and Guards
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import { MemoryNavigationDelegate } from 'avenx-core/runtime/navigation';
+import AuthGuard from '../src/guards/auth.guard.js';
+
+describe('Router Headless Tests', () => {
+  let delegate;
+  let router;
+
+  beforeEach(() => {
+    // 1. Create an in-memory navigation delegate starting at '#/'
+    delegate = new MemoryNavigationDelegate('#/');
+
+    // 2. Initialize router with memory delegate
+    router = AvenxApp.initRouter(
+      {
+        '#/': { page: 'Home', title: 'Home Page' },
+        '#/dashboard': { page: 'Dashboard', title: 'Dashboard', guards: [AuthGuard] },
+        '#/login': { page: 'Login', title: 'Login Page' },
+      },
+      {
+        navigationDelegate: delegate,
+        titlePrefix: 'App | ',
+      }
+    );
+  });
+
+  afterEach(() => {
+    // 3. Clean up router and delegate listeners
+    if (router && typeof router.destroy === 'function') {
+      router.destroy();
+    }
+    if (delegate) {
+      delegate.destroy();
+    }
+  });
+
+  test('navigates in memory and updates title', async () => {
+    expect(delegate.getHash()).toBe('#/');
+    expect(delegate.title).toBe('App | Home Page');
+
+    // Programmatically navigate
+    await router.navigate('#/dashboard');
+
+    // Unauthenticated user redirected to #/login by AuthGuard
+    expect(delegate.getHash()).toBe('#/login');
+    expect(delegate.title).toBe('App | Login Page');
+  });
+});
+```
+
