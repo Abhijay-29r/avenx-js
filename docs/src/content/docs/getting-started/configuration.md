@@ -76,19 +76,30 @@ When `treeShakeComponents` is:
 
 In most applications, the default value of `true` should be used. Disable tree shaking only when your application depends on components that cannot be detected during compilation.
 
-## CSS Preprocessor Settings
+## CSS Preprocessor & Style Settings (`style`)
 
-Avenx-JS supports configuring a CSS preprocessor through the `style` object in `avenx.config.json`.
+Avenx-JS supports configuring CSS preprocessors and source maps through the `style` object in `avenx.config.json`.
 
 ### Configuration
 
 ```json
 {
   "style": {
-    "preprocessor": "scss"
+    "preprocessor": "scss",
+    "sourceMap": true,
+    "inlineSourceMap": false
   }
 }
 ```
+
+### Style Options Breakdown
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `style.preprocessor` | `string` | `undefined` | Specifies the CSS preprocessor (`"scss"`, `"sass"`, `"postcss"`, `"less"`). |
+| `style.sourceMap` | `boolean \| "inline"` | `false` | Enables CSS source map generation for component styles and global CSS. When set to `true`, writes an external `.map` file (e.g. `bundle.css.map`). When set to `"inline"`, embeds base64 source maps directly into the CSS bundle. |
+| `style.inlineSourceMap` | `boolean` | `false` | When `true`, forces source maps to be embedded inline into the output CSS bundle as a base64 Data URL. |
+| `style.dev` | `boolean` | `false` | Development mode override flag. When `true`, automatically enables inline source maps during CSS compilation. |
 
 ### Supported Preprocessors
 
