@@ -286,8 +286,13 @@ Log levels are ordered by severity. Messages below the configured level are igno
 | `off` | Disables all logging. |
 | `silent` | Alias for `off`. |
 
+---
 
-### Custom Output Bundle Names
+## Custom Output Bundle Naming (`outputName`)
+
+By default, the Avenx compiler outputs JavaScript and CSS distribution files named `bundle.js` and `bundle.css` in your configured `distDir`.
+
+You can customize the base name of the generated bundle files using the top-level `outputName` property in `avenx.config.json`:
 
 ```json
 {
@@ -295,19 +300,34 @@ Log levels are ordered by severity. Messages below the configured level are igno
 }
 ```
 
-This generates:
+### Generated Files
+
+When `outputName` is set to `"app.bundle"`, running `avenx build` generates:
 
 ```text
 dist/
 ├── app.bundle.js
-└── app.bundle.css
+├── app.bundle.css
+└── app.bundle.css.map (if source maps are enabled)
 ```
 
-Update your HTML to reference the generated bundle names:
+### HTML Entry Point Update
+
+Be sure to update your `index.html` file to reference the customized bundle filenames:
 
 ```html
-<script src="dist/app.bundle.js"></script>
-<link rel="stylesheet" href="dist/app.bundle.css">
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Avenx App</title>
+    <link rel="stylesheet" href="dist/app.bundle.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="dist/app.bundle.js"></script>
+  </body>
+</html>
 ```
 
 ### Example: Enable Debug Logging

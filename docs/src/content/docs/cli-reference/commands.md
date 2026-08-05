@@ -145,14 +145,43 @@ npx avenx d p dashboard --dry-run
 
 ### 4. `avenx build` (alias: `b`)
 
-Compiles all component templates, scoped stylesheets, page components, and global bridges into single distribution bundle files (`dist/bundle.js` and `dist/bundle.css` or customized via `outputName` in `avenx.config.json`).
+Compiles all component templates, scoped stylesheets, page components, and global bridges into single distribution bundle files in `distDir`.
 
-#### Features
+#### Features & Distribution Files
 
 - Compiles `.component.js` files and extracts `<state>`, `<action>`, and `<computed>` tags.
 - Bundles and scopes component CSS rules.
 - Performs automatic component tree-shaking when `treeShakeComponents: true`.
 - Evaluates build-time template validation rules.
+- Generates JavaScript (`<outputName>.js`) and CSS (`<outputName>.css`) distribution bundles.
+
+#### Custom Output Bundle Names (`outputName`)
+
+By default, `avenx build` generates `dist/bundle.js` and `dist/bundle.css`. Configure `outputName` in `avenx.config.json` to override filenames:
+
+```json
+{
+  "outputName": "app.bundle"
+}
+```
+
+Running `avenx build` with the above configuration produces:
+
+```text
+dist/
+├── app.bundle.js
+├── app.bundle.css
+└── app.bundle.css.map
+```
+
+Be sure to reference the customized bundle filenames in your `index.html` entry point:
+
+```html
+<link rel="stylesheet" href="dist/app.bundle.css" />
+<script src="dist/app.bundle.js"></script>
+```
+
+#### Usage Examples
 
 ```bash
 npx avenx build
