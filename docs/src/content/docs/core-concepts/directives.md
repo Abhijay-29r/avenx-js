@@ -220,6 +220,53 @@ app.directive('click-outside', {
 
 ---
 
+
+## Resource cleanup in the `unmounted` hook
+
+When a bound element leaves the DOM (component unmount, `v-if`/conditional
+removal, or route change), Avenx calls `unmounted(el, binding)`. Use it to
+tear down anything the directive attached that would otherwise leak:
+
+| Cleanup | Typical pattern |
+|---------|-----------------|
+| Global listeners | `window` / `document` handlers added in `mounted` |
+| Timers | `clearTimeout` / `clearInterval` / cancel `requestAnimationFrame` |
+| Element-owned state | `delete el.__myDirectiveState` (or similar) |
+| Observers | `ResizeObserver` / `IntersectionObserver` / `MutationObserver` `.disconnect()` |
+
+Store handles on the element in `mounted` so `unmounted` can find them without
+module-level globals.
+
+### Example: scroll position tracker
+
+```javascript
+app.directive('scroll-track', {
+  mounted(el, binding) {
+    const onScroll = () => {
+      if (typeof binding.value === 'function') {
+        binding.value({ x: window.scrollX, y: window.scrollY });
+      }
+    };
+    el.__scrollTrackHandler__ = onScroll;
+    el.__scrollTrackRaf__ = 0;
+    window.addEventListener('scroll', onScroll, { passive: true });
+  },
+  unmounted(el) {
+    if (el.__scrollTrackHandler__) {
+      window.removeEventListener('scroll', el.__scrollTrackHandler__);
+      delete el.__scrollTrackHandler__;
+    }
+    if (el.__scrollTrackRaf__) {
+      cancelAnimationFrame(el.__scrollTrackRaf__);
+      delete el.__scrollTrackRaf__;
+    }
+  },
+});
+```
+
+The built-in click-outside example above follows the same pattern: attach in
+`mounted`, remove and `delete` the property in `unmounted`.
+
 ## Compiler Validation
 
 During compilation, the Avenx-JS compiler validates expressions inside custom directives. If a directive attribute references an undeclared variable or state property, the compiler emits a diagnostic warning (`AVX_W11` / `COMPILER_UNDECLARED_VARIABLE`), helping catch typos before runtime.
