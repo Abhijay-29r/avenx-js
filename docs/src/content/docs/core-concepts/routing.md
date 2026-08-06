@@ -44,6 +44,25 @@ When a cached page is restored, the `onActivate(params)` lifecycle hook is calle
 
 This behavior is useful for pages that should preserve their state between navigations, such as dashboards, forms, or long lists.
 
+### `keepAliveLimit`
+
+The maximum number of inactive keep-alive page instances is controlled by the `keepAliveLimit` option passed to the `AvenxApp` constructor.
+
+When navigating away from a page configured with `keepAlive: true`:
+
+1. `onDeactivate()` runs and the page instance is moved into the internal LRU cache.
+2. If caching another inactive page would exceed `keepAliveLimit`, the least recently used cached page is evicted.
+3. The evicted page's `onUnmount()` lifecycle hook runs.
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  keepAliveLimit: 3,
+});
+```
+
+With this configuration, navigating among four or more keep-alive pages retains only the three most recently used inactive page instances in memory. Older cached pages are automatically removed as needed.
+
 
 
 ## 3. Dynamic Route Parameters

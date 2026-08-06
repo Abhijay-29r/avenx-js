@@ -34,18 +34,25 @@ const app = new AvenxApp({
 If omitted, the shared logger keeps its default configuration (`level: 'info'`, `silent: false`).
 
 ### `keepAliveLimit`
-The `keepAliveLimit` option controls how many inactive pages configured with `keepAlive: true` can remain cached in memory.
+
+The `keepAliveLimit` option controls the maximum number of inactive pages configured with `keepAlive: true` that can remain cached in memory.
+
+AvenxApp maintains an internal Least Recently Used (LRU) cache for keep-alive page instances. When a user navigates away from a keep-alive page, its `onDeactivate()` lifecycle hook runs and the page instance is moved into the cache instead of being destroyed immediately.
+
+If adding another inactive page would exceed `keepAliveLimit`, the least recently used cached page is evicted from memory and its `onUnmount()` lifecycle hook is called.
+
+The default value is `5`.
 
 ```javascript
 const app = new AvenxApp({
   target: '#app',
-  keepAliveLimit: 5,
+  keepAliveLimit: 3,
 });
 ```
 
-When the cache reaches this limit, the least recently used (LRU) cached page is evicted and its `onUnmount()` lifecycle hook is called.
+For example, if four routes are configured with `keepAlive: true` and `keepAliveLimit` is set to `3`, only three inactive page instances are retained in memory. When the fourth page is cached, the least recently used cached page is evicted and its `onUnmount()` hook executes.
 
-The default value is `5`.
+Applications with limited memory budgets may prefer a smaller value, while applications that benefit from preserving more inactive pages can increase the limit.
 
 ## Public Properties
 
