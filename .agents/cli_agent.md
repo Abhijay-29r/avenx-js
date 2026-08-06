@@ -16,6 +16,22 @@ Build and maintain CLI helpers, build configurations, and bundling plugins (like
 * Raw CSS parsing and component JS compiling logic (delegated to the Compiler & Parser Agent).
 * Authoring API reference guides or main documentation structure (managed by the Documentation & DevRel Agent).
 
+## Subcommand Architecture & Development Guidelines
+
+When introducing new CLI subcommands (e.g., code scaffolding, type generators, or utility actions), adhere to the following modular structure rules:
+
+1. **Modular Directory Structure**: 
+   * Avoid monolith files. Place every distinct subcommand or generator module in its own dedicated file under `src/commands/` or `src/generators/`.
+   * Keep command definitions decoupled from execution logic to ensure fast unit testing and modularity.
+
+2. **Standardized Help Mapping**:
+   * Every subcommand must implement automated or explicit help flags (`-h`, `--help`).
+   * Ensure standard help outputs print usage syntax, descriptions, and all configurable flags clearly.
+   * Map subcommands cleanly in the primary CLI routing table (`bin/avenx.js`) with appropriate aliases where relevant.
+
+3. **Isolated Logic & Clean Exports**:
+   * CLI command handlers should only act as controller shells—delegate core filesystem and generation logic to pure utility modules.
+
 ## Rules
 
 * **Cross-Platform Compatibility**: CLI commands must execute reliably on Windows, macOS, and Linux shells.
@@ -29,6 +45,7 @@ Build and maintain CLI helpers, build configurations, and bundling plugins (like
 * [ ] Check that newly generated components from templates contain standard valid placeholders and correct file paths.
 * [ ] Confirm dev server handles routing fallback gracefully when reloading SPA pages.
 * [ ] Check that build pipeline plugins output minified, ready-to-deploy assets in production mode.
+* [ ] Verify that new subcommands are cleanly modularized and mapped to help listings without cluttering core files.
 
 ## Best Practices
 
@@ -41,3 +58,4 @@ Build and maintain CLI helpers, build configurations, and bundling plugins (like
 * Running CLI generation commands creates well-scaffolded, immediately runnable component files.
 * HMR and dev server build passes under typical local development workflows.
 * Vite plugin correctly processes compiler integrations without breaking standard build lifecycle hooks.
+* New subcommands can be registered and extended cleanly without duplicating orchestration logic or breaking command line help prints.
