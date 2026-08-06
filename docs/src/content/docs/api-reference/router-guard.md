@@ -152,7 +152,114 @@ const unregister = router.beforeEach((to, from) => {
 unregister();
 ```
 
+### `beforeEach(callback)`
+
+Registers a global navigation hook that runs before every navigation.
+
+- **Arguments:**
+  - `callback: (to, from) => boolean | string | Promise<boolean | string>`
+- **Returns:** `() => void`
+
+The returned function unregisters the hook. Call it when the hook is no longer needed (for example, during component teardown) to prevent listener leaks.
+
+```javascript
+const unregister = router.beforeEach((to, from) => {
+  console.log(`Navigating from ${from.hash} to ${to.hash}`);
+  return true;
+});
+
+// Later
+unregister();
+```
+
+### `afterEach(callback)`
+
+Registers a global navigation hook that runs after every successful navigation.
+
+- **Arguments:**
+  - `callback: (to, from) => void`
+- **Returns:** `() => void`
+
+The returned function removes the registered hook.
+
+```javascript
+const unregister = router.afterEach((to, from) => {
+  console.log(`Navigation completed: ${to.hash}`);
+});
+
+// Later
+unregister();
+```
+
 ---
+
+## Unregistering Global Navigation Hooks
+
+Both `beforeEach()` and `afterEach()` return an unregister function (`() => void`).
+
+When registering global hooks dynamically inside components or services, always call the returned unregister function during lifecycle teardown (e.g., inside `onUnmount()` or a class `destroy()` method) to prevent memory leaks and dangling callback references across page transitions.
+
+### Execution Order
+
+Multiple registered `beforeEach` and `afterEach` hooks execute **sequentially in registration order**. If a `beforeEach` hook returns `false` or a redirect path string, execution halts immediately and subsequent hooks in the sequence are skipped.
+
+```javascript
+router.beforeEach(() => console.log('First'));
+router.beforeEach(() => console.log('Second'));
+
+// Output:
+// First
+// Second
+```
+
+### Lifecycle Teardown Examples
+
+#### Component Lifecycle (`onUnmount`)
+
+```javascript
+import { onMount, onUnmount } from 'avenx';
+
+export class FeatureComponent {
+  private unregisterBefore: () => void;
+  private unregisterAfter: () => void;
+
+  onMount() {
+    // Register hooks and store their unregister callbacks
+    this.unregisterBefore = router.beforeEach((to, from) => {
+      // Guard logic
+      return true;
+    });
+
+    this.unregisterAfter = router.afterEach((to, from) => {
+      // Post-navigation tracking logic
+    });
+  }
+
+  onUnmount() {
+    // Clean up callbacks on unmount
+    if (this.unregisterBefore) this.unregisterBefore();
+    if (this.unregisterAfter) this.unregisterAfter();
+  }
+}
+```
+
+#### Service / Class Lifecycle (`constructor` / `destroy`)
+
+```javascript
+export class NavigationLogger {
+  private unregister: () => void;
+
+  constructor(router) {
+    this.unregister = router.afterEach((to) => {
+      console.log(`Navigated to: ${to.hash}`);
+    });
+  }
+
+  destroy() {
+    if (this.unregister) this.unregister();
+  }
+}
+```
 
 ## The `AvenxGuard` Class
 
