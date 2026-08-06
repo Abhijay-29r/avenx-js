@@ -125,6 +125,9 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nitil25"><img src="https://avatars.githubusercontent.com/u/311748596?v=4?s=100" width="100px;" alt="Nitil Kumar"/><br /><sub><b>Nitil Kumar</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=nitil25" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mukeshsoni5937"><img src="https://avatars.githubusercontent.com/u/169833573?v=4?s=100" width="100px;" alt="Mukesh Soni"/><br /><sub><b>Mukesh Soni</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=mukeshsoni5937" title="Documentation">📖</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/AshSgDe29071999"><img src="https://avatars.githubusercontent.com/u/192003854?v=4?s=100" width="100px;" alt="AshSgDe29071999"/><br /><sub><b>AshSgDe29071999</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=AshSgDe29071999" title="Documentation">📖</a></td>
+    </tr>
   </tbody>
 </table>
 
