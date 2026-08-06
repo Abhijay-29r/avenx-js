@@ -70,9 +70,37 @@ const brandingRouter = AvenxApp.initRouter(
   Tears down the active router instance. It cleans up all global event listeners (like `hashchange` or `popstate`), unmounts the active route component, and releases internal memory references to prevent leaks.
 
 - ### `matches(hash)`
-  - **Arguments:** `hash: string`
-  - **Returns:** `boolean`
-  - Evaluates whether a given URL hash matches any registered route pattern in the router configuration. Returns `true` if a match is found, otherwise `false`.
+
+  **Signature:** `router.matches(hash: string): boolean`
+
+  Evaluates `hash` against registered route definitions **without navigating**.
+  Useful for validating external links, breadcrumbs, or nav UI state before
+  calling `navigate` / `setHash`.
+
+  **Matching rules**
+  - Compares against explicitly registered route patterns in the router table.
+  - Applies URI decoding (`decodeURIComponent`) so percent-encoded path
+    segments still match the registered pattern.
+  - Excludes wildcard / fallback routes (e.g. `'*'`), so a hash that only
+    matches the catch-all returns `false`.
+
+  **Returns:** `true` when an explicit route pattern matches; otherwise `false`.
+
+  **Example**
+
+  ```javascript
+  const router = AvenxApp.initRouter([
+    { path: '/home', component: Home },
+    { path: '/users/:id', component: User },
+    { path: '*', component: NotFound },
+  ]);
+
+  router.matches('#/home');          // true
+  router.matches('#/users/42');      // true
+  router.matches('#/unknown');       // false (wildcard-only does not count)
+  router.matches('#/users/%2E%2E');  // decoded before match
+  ```
+
 
 ---
 
