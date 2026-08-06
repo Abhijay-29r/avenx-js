@@ -55,6 +55,31 @@ async function runTest() {
   try {
     setup();
 
+    console.log('🧪 Testing avenx --version / -v...');
+
+    const packageJsonForVersion = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8'),
+    );
+    const expectedVersionOutput = `Avenx-JS v${packageJsonForVersion.version}`;
+
+    const longFlagResult = runCli(['--version']);
+    assert.strictEqual(longFlagResult.status, 0, '--version should exit with code 0');
+    assert.strictEqual(
+      longFlagResult.stdout.trim(),
+      expectedVersionOutput,
+      '--version should print the installed package version',
+    );
+
+    const shortFlagResult = runCli(['-v']);
+    assert.strictEqual(shortFlagResult.status, 0, '-v should exit with code 0');
+    assert.strictEqual(
+      shortFlagResult.stdout.trim(),
+      expectedVersionOutput,
+      '-v should print the installed package version',
+    );
+
+    console.log('✅ --version / -v tests passed!');
+
     // Run the init command in the test directory and capture output
     const init1Output = execSync(`node ${BIN_PATH} init`, { cwd: TEST_DIR, encoding: 'utf8' });
 
