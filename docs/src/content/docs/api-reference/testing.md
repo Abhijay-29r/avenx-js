@@ -21,13 +21,12 @@ Creates a deep proxy around a bridge class or object, tracking method calls and 
 **Returns**
 
 - `object`: A proxied mock bridge with special introspection properties:
-  - `$calls` — array of `{ method, args }` for every method call made on the mock.
-  - `$stateChanges` — array of `{ prop, value }` for every property set on the mock.
-  - `$onStateChange(callback)` — subscribes to state changes; returns an unsubscribe function.
-  - `$onCall(callback)` — subscribes to method calls; returns an unsubscribe function.
-  - `$reset()` — clears the recorded `$calls` and `$stateChanges` history.
-  - `$isMock` — always `true`, useful for identifying mocked instances.
-
+  - `$calls` (`MockBridgeCall[]`) — Array containing every intercepted method call as `{ method, args }`.
+- `$stateChanges` (`MockBridgeStateChange[]`) — Array containing every intercepted property mutation as `{ prop, value }`.
+- `$onStateChange(callback: (prop: string, value: any) => void): () => void` — Subscribes to state changes and returns an unsubscribe function.
+- `$onCall(callback: (method: string, args: any[]) => void): () => void` — Subscribes to intercepted method calls and returns an unsubscribe function.
+- `$reset(): void` — Clears the recorded `$calls` and `$stateChanges` history.
+- `$isMock` (`true`) — Read-only flag indicating the object is a mock bridge.
 **Example**
 
 ```javascript
@@ -291,4 +290,5 @@ describe('Router Headless Tests', () => {
   });
 });
 ```
+
 
