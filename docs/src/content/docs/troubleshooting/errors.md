@@ -93,6 +93,9 @@ console.warn(formatMessage(AvenxErrorCodes.SANDBOX_VIOLATION, 'disallowed eval()
 
 Unlike the error codes above, which halt compilation, Avenx-JS also emits **warnings** during the build step. Warnings do not stop the build, but they flag potential mistakes in your templates that are worth fixing.
 
+### COMPILER_PREPROCESSOR_MISSING Warning
+The `[AVX_W24]` warning occurs when a CSS preprocessor is configured but the required preprocessor package is not installed.
+
 ### Undeclared Variable or Method Warning
 
 ```text
