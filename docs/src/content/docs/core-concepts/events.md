@@ -58,9 +58,11 @@ Compiled action handlers expose an implicit `args` array containing the argument
 Event bindings support dot-suffixed **modifiers** that adjust how the underlying DOM event is handled before your expression runs. Modifiers are appended directly to the event name, e.g. `@submit.prevent="save"` or `@keydown.enter="submit"`.
 | Modifier | Applies to | Behavior |
 |---|---|---|
-| `.prevent` | Any event | Calls `event.preventDefault()` before invoking the handler. |
+| `.prevent` | Any event | Calls `event.preventDefault()` before invoking the handler. Ignored when combined with `.passive` (browsers disallow `preventDefault` on passive listeners). |
 | `.stop` | Any event | Calls `event.stopPropagation()` before invoking the handler. |
 | `.once` | Any event | Automatically removes the listener after it fires a single time. |
+| `.passive` | Any event | Registers the listener with `{ passive: true }`, improving scroll/touch performance. |
+| `.capture` | Any event | Registers the listener with `{ capture: true }` so it runs in the capture phase. |
 | `.ctrl` | Mouse & Keyboard events | Only invokes handler if the `Control` key (`event.ctrlKey`) is held down. |
 | `.alt` | Mouse & Keyboard events | Only invokes handler if the `Alt` / `Option` key (`event.altKey`) is held down. |
 | `.shift` | Mouse & Keyboard events | Only invokes handler if the `Shift` key (`event.shiftKey`) is held down. |
@@ -72,7 +74,7 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 | `.tab` | Keyboard events | Only invokes the handler if the pressed key is `Tab`. |
 | `.delete` | Keyboard events | Only invokes the handler if the pressed key is `Delete`. |
 
-### DOM Modifiers (`.prevent`, `.stop`, `.once`)
+### DOM Modifiers (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`)
 
 `.prevent` and `.stop` wrap the handler with the corresponding DOM method call:
 
@@ -89,6 +91,14 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 
 ```html
 <button @click.once="dismissBanner()">Got it</button>
+```
+
+`.passive` and `.capture` map to `addEventListener` options. Chain them with other modifiers (for example `@scroll.passive.once`):
+
+```html
+<div @scroll.passive="onScroll()">Scroll container</div>
+<div @click.capture="onClickCapture()">Capture-phase click</div>
+<div @touchstart.passive.capture="onTouch()">Passive capture touch</div>
 ```
 
 ### System Key Modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)

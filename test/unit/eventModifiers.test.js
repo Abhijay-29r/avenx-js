@@ -25,13 +25,16 @@ try {
       getAttribute(name) {
         return attributes[name] !== undefined ? attributes[name] : null;
       },
-      addEventListener(event, callback) {
-        listeners[event] = callback;
+      addEventListener(event, callback, options) {
+        listeners[event] = { callback, options };
       },
-      removeEventListener(event, callback) {
-        if (listeners[event] === callback) {
+      removeEventListener(event, callback, options) {
+        const entry = listeners[event];
+        if (entry && entry.callback === callback) {
           delete listeners[event];
         }
+        if (!this._removes) this._removes = [];
+        this._removes.push({ event, callback, options });
       },
       querySelectorAll(selector) {
         if (selector === '*') {
@@ -60,7 +63,9 @@ try {
         let current = this;
         while (current) {
           if (current.listeners && current.listeners[event]) {
-            current.listeners[event](data);
+            const entry = current.listeners[event];
+            const callback = typeof entry === 'function' ? entry : entry.callback;
+            callback(data);
           }
           if (data.cancelBubble) {
             break;
@@ -277,6 +282,94 @@ try {
   const template = cp.extractTemplate(content, {}, 'TestComp');
   assert.ok(template.includes('data-ax-event="{&quot;click.prevent.once&quot;:&quot;handleClick&quot;}"'), 'Template should compile click.prevent.once to data-ax-event');
   assert.ok(template.includes('@keyup.enter="handleEnter"'), 'Template should compile keyup.enter');
+
+  // 14. Test .passive modifier passes { passive: true } to addEventListener
+  const passiveEl = createMockElement('DIV', { '@scroll.passive': 'handleScroll' });
+  binder.bind(passiveEl, dispatcher);
+  assert.ok(passiveEl.listeners.scroll, '.passive should register a scroll listener');
+  assert.deepStrictEqual(
+    passiveEl.listeners.scroll.options,
+    { passive: true },
+    '.passive should pass { passive: true } to addEventListener'
+  );
+  resetDispatcher();
+  passiveEl.trigger('scroll', { type: 'scroll' });
+  assert.strictEqual(executedSource, 'handleScroll', '.passive handler should still execute');
+
+  // 15. Test .capture modifier passes { capture: true } to addEventListener
+  const captureEl = createMockElement('DIV', { '@click.capture': 'handleCapture' });
+  binder.bind(captureEl, dispatcher);
+  assert.ok(captureEl.listeners.click, '.capture should register a click listener');
+  assert.deepStrictEqual(
+    captureEl.listeners.click.options,
+    { capture: true },
+    '.capture should pass { capture: true } to addEventListener'
+  );
+  resetDispatcher();
+  captureEl.trigger('click', { type: 'click' });
+  assert.strictEqual(executedSource, 'handleCapture', '.capture handler should still execute');
+
+  // 16. Test chaining .passive.once
+  const passiveOnceEl = createMockElement('DIV', { '@scroll.passive.once': 'handleScrollOnce' });
+  binder.bind(passiveOnceEl, dispatcher);
+  assert.deepStrictEqual(
+    passiveOnceEl.listeners.scroll.options,
+    { passive: true },
+    '@scroll.passive.once should pass { passive: true }'
+  );
+  resetDispatcher();
+  passiveOnceEl.trigger('scroll', { type: 'scroll' });
+  assert.strictEqual(executionCount, 1, 'First passive.once trigger should run');
+  passiveOnceEl.trigger('scroll', { type: 'scroll' });
+  assert.strictEqual(executionCount, 1, 'Second passive.once trigger should NOT run');
+
+  // 17. Test .passive + .capture together
+  const bothEl = createMockElement('DIV', { '@touchstart.passive.capture': 'handleTouch' });
+  binder.bind(bothEl, dispatcher);
+  assert.deepStrictEqual(
+    bothEl.listeners.touchstart.options,
+    { passive: true, capture: true },
+    '.passive.capture should OR both options'
+  );
+
+  // 18. Test .passive.prevent skips preventDefault
+  const passivePreventEl = createMockElement('DIV', { '@wheel.passive.prevent': 'handleWheel' });
+  binder.bind(passivePreventEl, dispatcher);
+  resetDispatcher();
+  let passivePreventCalled = false;
+  passivePreventEl.trigger('wheel', {
+    type: 'wheel',
+    preventDefault() {
+      passivePreventCalled = true;
+    },
+  });
+  assert.strictEqual(executedSource, 'handleWheel');
+  assert.strictEqual(passivePreventCalled, false, '.passive.prevent should skip preventDefault()');
+
+  // 19. Test removeEventListener receives matching capture option
+  const captureUnbindEl = createMockElement('DIV', { '@click.capture': 'handleCaptureUnbind' });
+  binder.bind(captureUnbindEl, dispatcher);
+  const captureCallback = captureUnbindEl.listeners.click.callback;
+  binder.unbind(captureUnbindEl);
+  assert.strictEqual(captureUnbindEl.listeners.click, undefined, 'unbind should remove capture listener');
+  const clickRemove = (captureUnbindEl._removes || []).find((r) => r.event === 'click' && r.callback === captureCallback);
+  assert.ok(clickRemove, 'unbind should call removeEventListener for click');
+  assert.deepStrictEqual(
+    clickRemove.options,
+    { capture: true },
+    'removeEventListener must receive matching { capture: true }'
+  );
+
+  // 20. Test data-ax-event JSON keys with .passive / .capture
+  const dataAxEl = createMockElement('DIV', {
+    'data-ax-event': JSON.stringify({
+      'scroll.passive': 'onScroll',
+      'click.capture': 'onClick',
+    }),
+  });
+  binder.bind(dataAxEl, dispatcher);
+  assert.deepStrictEqual(dataAxEl.listeners.scroll.options, { passive: true });
+  assert.deepStrictEqual(dataAxEl.listeners.click.options, { capture: true });
 
   console.log('  ✅ Event Modifiers tests passed!');
 } catch (error) {

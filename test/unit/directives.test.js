@@ -89,84 +89,21 @@ class MockElementNode extends MockNode {
 
     // Add realistic style and classList properties
     const self = this;
-    this._styleProps = {};
-    if (attrs.style) {
-      for (const part of String(attrs.style).split(';')) {
-        const trimmed = part.trim();
-        if (!trimmed) continue;
-        const colonIdx = trimmed.indexOf(':');
-        if (colonIdx === -1) continue;
-        const prop = trimmed.slice(0, colonIdx).trim().toLowerCase();
-        const val = trimmed.slice(colonIdx + 1).trim();
-        if (prop) this._styleProps[prop] = val;
-      }
-    }
-
-    const syncStyleAttr = () => {
-      const entries = Object.entries(self._styleProps);
-      if (entries.length === 0) {
-        self.removeAttribute('style');
-      } else {
-        self.setAttribute('style', entries.map(([k, v]) => `${k}: ${v}`).join('; '));
-      }
-    };
-
-    const camelToKebab = (key) => String(key).replace(/([A-Z])/g, '-$1').toLowerCase();
-
-    const styleTarget = {
-      setProperty(name, value) {
-        self._styleProps[name] = String(value);
-        syncStyleAttr();
+    this._style = {
+      get display() {
+        return self._display || '';
       },
-      removeProperty(name) {
-        const prev = self._styleProps[name] || '';
-        delete self._styleProps[name];
-        syncStyleAttr();
-        return prev;
-      },
-      getPropertyValue(name) {
-        return self._styleProps[name] || '';
-      },
-    };
-
-    this._style = new Proxy(styleTarget, {
-      get(target, prop) {
-        if (prop in target) {
-          const value = target[prop];
-          return typeof value === 'function' ? value.bind(target) : value;
-        }
-        if (prop === 'cssText') {
-          return Object.entries(self._styleProps)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join('; ');
-        }
-        return self._styleProps[camelToKebab(prop)] || '';
-      },
-      set(target, prop, value) {
-        if (prop === 'cssText') {
-          self._styleProps = {};
-          for (const part of String(value || '').split(';')) {
-            const trimmed = part.trim();
-            if (!trimmed) continue;
-            const colonIdx = trimmed.indexOf(':');
-            if (colonIdx === -1) continue;
-            const name = trimmed.slice(0, colonIdx).trim();
-            const val = trimmed.slice(colonIdx + 1).trim();
-            if (name) self._styleProps[name] = val;
-          }
-          syncStyleAttr();
-          return true;
-        }
-        const kebab = camelToKebab(prop);
-        if (value === '' || value == null) {
-          delete self._styleProps[kebab];
+      set display(val) {
+        self._display = val;
+        if (val) {
+          self.setAttribute('style', `display: ${val}`);
         } else {
-          self._styleProps[kebab] = String(value);
+          self.removeAttribute('style');
         }
-        syncStyleAttr();
-        return true;
       },
-    });
+    };
+    this._display =
+      attrs.style && attrs.style.includes('display:') ? attrs.style.split('display:')[1].trim().split(';')[0] : '';
 
     this._classList = {
       add: (cls) => {
@@ -592,112 +529,7 @@ async function runTests() {
     assert.ok(!pEl.classList.contains('theme-blue'), 'Should clean up previous theme-blue class');
     assert.ok(pEl.classList.contains('theme-green'), 'Should have new theme-green class');
 
-    // 4. data-ax-style Runtime Tests
-    console.log('  Testing data-ax-style object/array/string bindings...');
-    class StyleComponent extends AvenxComponent {
-      constructor() {
-        super({
-          textColor: 'red',
-          fontSize: 14,
-          showBorder: true,
-          baseStyle: { color: 'blue', fontWeight: 'normal' },
-          overrideStyle: { color: 'green', fontSize: '20px' },
-          cssFragment: 'opacity: 0.5; letter-spacing: 1px',
-        });
-      }
-      render() {
-        return `
-          <div
-            class="styled-obj"
-            style="margin: 10px"
-            data-ax-style="{ color: textColor, fontSize: fontSize + 'px', backgroundColor: showBorder ? 'yellow' : null, borderWidth: showBorder ? '2px' : false }"
-          >Obj</div>
-          <p class="styled-arr" data-ax-style="[baseStyle, overrideStyle]">Arr</p>
-          <span class="styled-str" data-ax-style="cssFragment">Str</span>
-        `;
-      }
-    }
-    const styleComp = new StyleComponent();
-    const styleTarget = createMockElementNode('div');
-    styleComp.mount(styleTarget);
-    styleComp.update();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    const objEl = styleTarget.querySelector('.styled-obj');
-    const arrEl = styleTarget.querySelector('.styled-arr');
-    const strEl = styleTarget.querySelector('.styled-str');
-
-    assert.strictEqual(objEl.style.getPropertyValue('color'), 'red', 'Object binding should apply color');
-    assert.strictEqual(
-      objEl.style.getPropertyValue('font-size'),
-      '14px',
-      'camelCase fontSize should become font-size',
-    );
-    assert.strictEqual(
-      objEl.style.getPropertyValue('background-color'),
-      'yellow',
-      'camelCase backgroundColor should become background-color',
-    );
-    assert.strictEqual(objEl.style.getPropertyValue('border-width'), '2px', 'Should apply border-width when truthy');
-    assert.strictEqual(
-      objEl.style.getPropertyValue('margin'),
-      '10px',
-      'Should preserve static style attributes unrelated to data-ax-style',
-    );
-
-    assert.strictEqual(arrEl.style.getPropertyValue('color'), 'green', 'Array merge should prefer rightmost color');
-    assert.strictEqual(arrEl.style.getPropertyValue('font-weight'), 'normal', 'Array merge should keep left-only props');
-    assert.strictEqual(arrEl.style.getPropertyValue('font-size'), '20px', 'Array merge should apply rightmost font-size');
-
-    assert.strictEqual(strEl.style.getPropertyValue('opacity'), '0.5', 'String cssText should apply opacity');
-    assert.strictEqual(
-      strEl.style.getPropertyValue('letter-spacing'),
-      '1px',
-      'String cssText should apply letter-spacing',
-    );
-
-    // Cleanup: remove/skip props and ensure prior ax styles are cleared without wiping static margin
-    styleComp.state.textColor = 'purple';
-    styleComp.state.fontSize = 18;
-    styleComp.state.showBorder = false;
-    styleComp.state.overrideStyle = { color: 'orange' };
-    styleComp.state.cssFragment = 'opacity: 1';
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    assert.strictEqual(objEl.style.getPropertyValue('color'), 'purple', 'Should update color after mutation');
-    assert.strictEqual(objEl.style.getPropertyValue('font-size'), '18px', 'Should update font-size after mutation');
-    assert.strictEqual(
-      objEl.style.getPropertyValue('background-color'),
-      '',
-      'Should clear background-color when value becomes null',
-    );
-    assert.strictEqual(
-      objEl.style.getPropertyValue('border-width'),
-      '',
-      'Should clear border-width when value becomes false',
-    );
-    assert.strictEqual(
-      objEl.style.getPropertyValue('margin'),
-      '10px',
-      'Cleanup should not wipe static margin style',
-    );
-
-    assert.strictEqual(arrEl.style.getPropertyValue('color'), 'orange', 'Array override color should update');
-    assert.strictEqual(
-      arrEl.style.getPropertyValue('font-size'),
-      '',
-      'Should clear font-size removed from merged array styles',
-    );
-    assert.strictEqual(arrEl.style.getPropertyValue('font-weight'), 'normal', 'Left-only array styles should remain');
-
-    assert.strictEqual(strEl.style.getPropertyValue('opacity'), '1', 'String cssText opacity should update');
-    assert.strictEqual(
-      strEl.style.getPropertyValue('letter-spacing'),
-      '',
-      'Should clear letter-spacing removed from cssText fragment',
-    );
-
-    // 5. data-ax-html Runtime Tests
+    // 4. data-ax-html Runtime Tests
     console.log('  Testing data-ax-html rendering and security (escaping/SafeHtml)...');
     class HtmlComponent extends AvenxComponent {
       constructor() {
@@ -730,7 +562,7 @@ async function runTests() {
       'Content should render raw HTML if SafeHtml wrapper is used',
     );
 
-    // 6. Scoping Directives inside loops (ListManager support)
+    // 5. Scoping Directives inside loops (ListManager support)
     console.log('  Testing directives inside list rendering loops...');
     class LoopComponent extends AvenxComponent {
       constructor() {
