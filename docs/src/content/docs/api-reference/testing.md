@@ -291,4 +291,180 @@ describe('Router Headless Tests', () => {
 });
 ```
 
+---
+
+## Advanced Component Testing Patterns
+
+The recipes below build on `AvenxMock.createSandbox()` for common real-world scenarios: slots, `$emit`, async updates, and lifecycle ordering.
+
+### Testing Slot Transclusion
+
+Mount a host that projects markup into a child `<slot>`, then assert the projected content appears in the rendered HTML.
+
+```javascript
+import { AvenxComponent, AvenxMock } from 'avenx-core/runtime';
+
+class Card extends AvenxComponent {
+  static template = `
+    <div class="card">
+      <header class="card-header"><slot name="header"></slot></header>
+      <div class="card-body"><slot></slot></div>
+    </div>
+  `;
+}
+
+class CardHost extends AvenxComponent {
+  static template = `
+    <ax-card>
+      <template name="header"><h2>Profile</h2></template>
+      <p class="bio">Ada Lovelace</p>
+    </ax-card>
+  `;
+}
+
+const sandbox = AvenxMock.createSandbox();
+sandbox.register('ax-card', Card);
+
+const wrapper = sandbox.mount(CardHost);
+
+expect(wrapper.html).toContain('Profile');
+expect(wrapper.html).toContain('Ada Lovelace');
+expect(wrapper.html).toContain('class="card-body"');
+```
+
+:::tip
+If your component uses default slot fallback markup, mount it **without** projected children and assert that the fallback text is present in `wrapper.html`.
+:::
+
+### Asserting `$emit` Custom Events
+
+`$emit(eventName, detail)` dispatches a `CustomEvent` on the component root. Listen on `wrapper.container` (or the instance root) before triggering the action that emits.
+
+```javascript
+import { AvenxComponent, AvenxMock } from 'avenx-core/runtime';
+
+class CounterButton extends AvenxComponent {
+  constructor() {
+    super();
+    this.state = { count: 0 };
+  }
+
+  static template = `
+    <button class="inc" @click="increment()">+</button>
+  `;
+
+  increment() {
+    this.state.count += 1;
+    this.$emit('change', { count: this.state.count });
+  }
+}
+
+const sandbox = AvenxMock.createSandbox();
+const wrapper = sandbox.mount(CounterButton);
+
+const emissions = [];
+wrapper.container.addEventListener('change', (event) => {
+  emissions.push(event.detail);
+});
+
+wrapper.trigger('.inc', 'click');
+await sandbox.waitForUpdate();
+
+expect(emissions).toEqual([{ count: 1 }]);
+expect(wrapper.instance.state.count).toBe(1);
+```
+
+### Asynchronous State Updates & Microtask Batching
+
+Reactive mutations are scheduled asynchronously. Always `await sandbox.waitForUpdate()` (or chain mutations then wait once) before asserting DOM output so the microtask flush completes.
+
+```javascript
+import { AvenxComponent, AvenxMock } from 'avenx-core/runtime';
+
+class StatusBadge extends AvenxComponent {
+  constructor() {
+    super();
+    this.state = { label: 'idle' };
+  }
+
+  static template = `<span class="badge">{{ state.label }}</span>`;
+}
+
+const sandbox = AvenxMock.createSandbox();
+const wrapper = sandbox.mount(StatusBadge);
+
+// Multiple mutations in the same turn batch into one render pass
+wrapper.instance.state.label = 'loading';
+wrapper.instance.state.label = 'ready';
+
+await sandbox.waitForUpdate();
+
+expect(wrapper.html).toContain('ready');
+expect(wrapper.html).not.toContain('loading');
+```
+
+When driving updates from a mocked bridge, mutate the bridge then wait once:
+
+```javascript
+mockAuth.isLoggedIn = true;
+mockAuth.user.name = 'Ada';
+await sandbox.waitForUpdate();
+```
+
+### Lifecycle Hook Execution Order
+
+Record hook invocations on the instance to verify mount → update → unmount ordering during a test.
+
+```javascript
+import { AvenxComponent, AvenxMock } from 'avenx-core/runtime';
+
+class LifecycleProbe extends AvenxComponent {
+  constructor() {
+    super();
+    this.state = { ticks: 0 };
+    this.hookLog = [];
+  }
+
+  onMount() {
+    this.hookLog.push('onMount');
+  }
+
+  onBeforeUpdate() {
+    this.hookLog.push('onBeforeUpdate');
+  }
+
+  onUpdate() {
+    this.hookLog.push('onUpdate');
+  }
+
+  onUnmount() {
+    this.hookLog.push('onUnmount');
+  }
+
+  static template = `<div>{{ state.ticks }}</div>`;
+}
+
+const sandbox = AvenxMock.createSandbox();
+const wrapper = sandbox.mount(LifecycleProbe);
+
+expect(wrapper.instance.hookLog).toEqual(['onMount']);
+
+wrapper.instance.state.ticks = 1;
+await sandbox.waitForUpdate();
+
+expect(wrapper.instance.hookLog).toEqual(['onMount', 'onBeforeUpdate', 'onUpdate']);
+
+wrapper.instance.unmount();
+expect(wrapper.instance.hookLog).toEqual([
+  'onMount',
+  'onBeforeUpdate',
+  'onUpdate',
+  'onUnmount',
+]);
+```
+
+:::note
+Exact hook names follow the component lifecycle documented in the [AvenxComponent API reference](/api-reference/component/). Prefer asserting relative order (mount before update, update before unmount) rather than absolute call counts when other framework hooks also run.
+:::
+
 
