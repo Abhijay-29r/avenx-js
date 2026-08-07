@@ -40,6 +40,12 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     readonly $parent: AvenxComponent<any> | null;
 
     /**
+     * Template refs collected from `data-ax-ref` markers.
+     * Resolves to a component instance when the host element has `__avenx_comp_instance`, otherwise the DOM element.
+     */
+    readonly $refs: Record<string, Element | AvenxComponent<any> | undefined>;
+
+    /**
      * Helpers for inspecting whether the parent provided slot content.
      */
     readonly $slots: {

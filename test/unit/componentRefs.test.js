@@ -55,6 +55,33 @@ function testComponentRefScoping() {
 }
 
 /**
+ * Tests that a ref on an element with __avenx_comp_instance resolves to the instance.
+ */
+function testComponentRefResolvesToInstance() {
+  console.log('🧪 Testing data-ax-ref resolving to component instance...');
+
+  const component = new AvenxComponent({}, {}, {}, '<div data-ax-ref="childHost"></div>');
+  const root = document.createElement('div');
+
+  component.__setMountTarget(root);
+  component.runUpdate();
+
+  const host = root.childNodes[0];
+  assert.ok(host, 'Host element should be created');
+
+  const fakeInstance = { __isFakeChild: true };
+  host.__avenx_comp_instance = fakeInstance;
+
+  assert.strictEqual(
+    component.$refs.childHost,
+    fakeInstance,
+    '$refs.childHost should resolve to __avenx_comp_instance.',
+  );
+
+  console.log('  ✅ data-ax-ref on component host resolves to the instance.');
+}
+
+/**
  * Tests that refs are cleared when the component is unmounted.
  */
 function testComponentRefCleanup() {
@@ -131,6 +158,7 @@ function runTests() {
   try {
     testComponentRefCollection();
     testComponentRefScoping();
+    testComponentRefResolvesToInstance();
     testComponentRefCleanup();
     testBatchedRefResolution();
 
