@@ -1,6 +1,6 @@
-import assert from 'assert';
-import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
+import assert from 'node:assert';
 import ComponentParser from '../../lib/compiler/ComponentParser.js';
+import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
 
 try {
   console.log('🧪 Testing ComponentParser...');
@@ -204,6 +204,21 @@ try {
   assert.strictEqual(nodesAdjacent[0].children.length, 3, 'div should have 3 children after merging adjacent static text segments');
   assert.strictEqual(nodesAdjacent[0].children[2].content, ' Static2 Static3');
   console.log('  ✅ Text node splitting and merging tests passed!');
+
+  console.log('🧪 Testing ComponentParser line and column tracking (#810)...');
+  const htmlTracking = `<div>\n  <span>Hello</span>\n</div>`;
+  const nodesTracking = ComponentParser.parseHTML(htmlTracking);
+
+  assert.strictEqual(nodesTracking[0].tagName, 'div', 'Root tag should be div');
+  assert.strictEqual(nodesTracking[0].line, 1, 'Root <div> should be on line 1');
+  assert.strictEqual(nodesTracking[0].column, 1, 'Root <div> should be at column 1');
+
+  const spanNode = nodesTracking[0].children.find((c) => c.tagName === 'span');
+  assert.ok(spanNode, 'span child node should exist');
+  assert.strictEqual(spanNode.line, 2, 'Nested <span> should be on line 2');
+  assert.strictEqual(spanNode.column, 3, 'Nested <span> should be at column 3');
+
+  console.log('  ✅ Line and column tracking unit tests passed!');
 } catch (error) {
   console.error('❌ ComponentParser tests failed!');
   console.error(error);
