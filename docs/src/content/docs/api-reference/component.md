@@ -35,6 +35,51 @@ interface AvenxComponent {
 
 
 
+### Provide / Inject API
+
+Provide/inject shares dependencies down the component tree without prop drilling. Prefer the option forms below (not instance methods named `provide(key, value)`).
+
+See also the conceptual guide: [Provide & Inject](/core-concepts/provide-inject).
+
+#### Providing (`this.provide` / `provide()`)
+
+| Form | Description |
+| :--- | :--- |
+| Object | `this.provide = { theme: 'dark', notify }` — keys become injectable values. |
+| Function | `provide() { return { theme: this.state.theme } }` — evaluated when the provider mounts; can read reactive state. |
+| String array | `this.provide = ['theme', 'user']` — exposes matching keys from `this.state`. |
+
+Provided values are stored on the provider and looked up by ancestors-first search from the injecting component.
+
+#### Injecting (`static inject` / `this.inject`)
+
+| Form | Description |
+| :--- | :--- |
+| String array | `inject: ['theme', 'user']` — binds each key onto `this` under the same name. |
+| Object map | `inject: { localTheme: 'theme' }` — binds provider key `theme` as `this.localTheme`. |
+
+Missing keys log warning **`AVX_W15`** (`COMPONENT_INJECT_KEY_NOT_FOUND`) and resolve to `undefined`. There is no built-in `defaultValue` argument on inject.
+
+#### Reactivity
+
+When a provided reactive state key changes, Avenx notifies **injecting descendants only** and schedules their updates — intermediate components that did not inject the key are not forced to re-render.
+
+```javascript
+// Provider
+export default class AppShell extends AvenxComponent {
+  provide() {
+    return { theme: this.state.theme };
+  }
+}
+
+// Descendant
+export default class ThemedCard extends AvenxComponent {
+  static inject = ['theme'];
+  // this.theme is available after mount
+}
+```
+
+
 ## Lifecycle Hooks
 Implement these functions in your component logic to execute code at specific points in the component's lifespan:
 * `onActivate`: Called when a keep-alive page is activated.
