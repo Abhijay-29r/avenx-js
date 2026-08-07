@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import path from 'path';
-import loadConfig, { resolvePathAlias } from '../../lib/config.js';
+import { resolvePathAlias } from '../../lib/config.js';
 
 console.log('🧪 Testing Path Alias Resolution (#821)...');
 
