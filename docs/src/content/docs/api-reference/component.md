@@ -36,8 +36,9 @@ interface AvenxComponent {
 
 
 ## Lifecycle Hooks
-
 Implement these functions in your component logic to execute code at specific points in the component's lifespan:
+* `onActivate`: Called when a keep-alive page is activated.
+* `onDeactivate`: Called when a keep-alive page is deactivated.
 
 ## Component Lifecycle Hooks
 

@@ -55,16 +55,14 @@ For example, if four routes are configured with `keepAlive: true` and `keepAlive
 Applications with limited memory budgets may prefer a smaller value, while applications that benefit from preserving more inactive pages can increase the limit.
 
 ## Public Properties
-
 ### `activePage`
-
 Returns the currently active mounted page component instance.
 
 **Returns**
 
 `AvenxComponent | null`
 
-Returns the currently active mounted page component instance, or `null` if no page is currently mounted.
+Returns the currently active mounted page component instance, or `null` if no page is currently mounted. Note that when using keep-alive caching, the `activePage` property will return the cached page instance when it is activated.
 
 This read-only property is useful for debugging, diagnostics, and telemetry.
 
