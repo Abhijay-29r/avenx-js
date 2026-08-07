@@ -128,6 +128,7 @@ If you have questions or want to contribute, feel free to reach out.
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/AshSgDe29071999"><img src="https://avatars.githubusercontent.com/u/192003854?v=4?s=100" width="100px;" alt="AshSgDe29071999"/><br /><sub><b>AshSgDe29071999</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=AshSgDe29071999" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Yugg09"><img src="https://avatars.githubusercontent.com/u/224147707?v=4?s=100" width="100px;" alt="Yug"/><br /><sub><b>Yug</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Yugg09" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/slegarraga"><img src="https://avatars.githubusercontent.com/u/64795732?v=4?s=100" width="100px;" alt="Sebastian Legarraga"/><br /><sub><b>Sebastian Legarraga</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=slegarraga" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>

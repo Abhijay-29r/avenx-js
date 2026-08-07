@@ -733,6 +733,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "slegarraga",
+      "name": "Sebastian Legarraga",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64795732?v=4",
+      "profile": "https://github.com/slegarraga",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
