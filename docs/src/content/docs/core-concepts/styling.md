@@ -413,3 +413,23 @@ To trace compiled CSS rules in browser developer tools directly back to your ori
    ```
 2. When inspecting elements in Chrome DevTools, Firefox Developer Tools, or Safari Web Inspector, CSS declarations point directly to the exact file and line number of the source `.component.css` file (e.g. `user-card.component.css:14`) rather than line numbers in `bundle.css`.
 3. In development mode or when `"sourceMap": "inline"` / `"inlineSourceMap": true` is set, source maps are embedded directly as base64 comments (`/*# sourceMappingURL=data:application/json... */`). In production builds (`avenx build`), separate external map files (e.g. `bundle.css.map`) are generated alongside `bundle.css`.
+
+## 8. Advanced Scoping Notes
+
+### `<@global>` escape hatch
+
+Rules inside `<@global>` are **not** rewritten with the component scope hash. They apply application-wide (design tokens, resets, utility classes). Prefer keeping component-private rules in `<@css>` so they do not leak.
+
+### Reactive inline styles (`data-ax-style`)
+
+For per-instance dynamic CSS values, use the [`data-ax-style`](/core-concepts/templates#5-reactive-style-bindings-data-ax-style) template directive with a JavaScript object. Prefer scoped classes for static layout; use `data-ax-style` for values that change with reactive state (colors, transforms, dimensions).
+
+### Preprocessor troubleshooting
+
+| Warning | Identifier | When it appears | What to do |
+| :--- | :--- | :--- | :--- |
+| `AVX_W24` | `COMPILER_PREPROCESSOR_MISSING` | Configured preprocessor package is not installed | Install the package (e.g. `sass`) or remove the `style.preprocessor` setting |
+| `AVX_W26` | `COMPILER_PREPROCESSOR_FAILED` | Preprocessor throws (syntax error, bad hook return) | Fix the stylesheet/source; compiler falls back to raw CSS |
+
+Full details: [Compiler Warnings](/troubleshooting/errors#avx_w24--compiler_preprocessor_missing).
+
