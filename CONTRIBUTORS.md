@@ -130,6 +130,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Yugg09"><img src="https://avatars.githubusercontent.com/u/224147707?v=4?s=100" width="100px;" alt="Yug"/><br /><sub><b>Yug</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Yugg09" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/slegarraga"><img src="https://avatars.githubusercontent.com/u/64795732?v=4?s=100" width="100px;" alt="Sebastian Legarraga"/><br /><sub><b>Sebastian Legarraga</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=slegarraga" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/richardmilles"><img src="https://avatars.githubusercontent.com/u/76790700?v=4?s=100" width="100px;" alt="richardmilles"/><br /><sub><b>richardmilles</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=richardmilles" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ayushi-wq"><img src="https://avatars.githubusercontent.com/u/179132370?v=4?s=100" width="100px;" alt="Ayushi Kuhite"/><br /><sub><b>Ayushi Kuhite</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=ayushi-wq" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
