@@ -2,6 +2,7 @@ import { createCompiler } from './compiler.js';
 import { wrapComponent, wrapPage } from './wrapper.js';
 import { handleAvenxHotUpdate } from './hmr.js';
 import { loadStyle } from './css.js';
+import pkg from '../package.json' with { type: 'json' };
 
 import {
   isComponentFile,
@@ -9,6 +10,8 @@ import {
   isComponentStyle,
   isPageStyle,
 } from './utils.js';
+
+const version = pkg.version;
 
 /**
  * Creates the Avenx Vite plugin.
@@ -35,6 +38,14 @@ export default function avenxPlugin(options = {}) {
     name: 'vite-plugin-avenx',
 
     enforce: 'pre',
+
+    /**
+     * Logs the plugin version when the Vite configuration has been resolved.
+     * @returns {void}
+     */
+    configResolved() {
+      console.log(`[vite-plugin-avenx] v${version} initialized`);
+    },
 
     /**
      * Resolves Avenx source files.
