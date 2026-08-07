@@ -157,3 +157,212 @@ When writing `.bridge.js` files:
 - Reference intentionally global utilities through properties on `window`.
 
 Understanding these compilation limits helps prevent missing declarations and runtime `ReferenceError` exceptions caused by helper code being removed from the compiled output.
+
+## End-to-End Global Store Patterns
+
+The examples below show complete create → register → bind flows for common shared-state use cases. Each bridge is a single reactive source of truth; components that read its properties re-render when those properties change.
+
+### Theme Switching Store
+
+```javascript
+// src/global/theme.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class ThemeBridge extends AvenxBridge {
+  constructor() {
+    super();
+    this.mode = 'light'; // 'light' | 'dark'
+  }
+
+  toggle() {
+    this.mode = this.mode === 'light' ? 'dark' : 'light';
+  }
+
+  setMode(mode) {
+    this.mode = mode === 'dark' ? 'dark' : 'light';
+  }
+}
+```
+
+```html
+<!-- Any component template -->
+<div class="shell" data-theme="{{ ThemeBridge.mode }}">
+  <button @click="ThemeBridge.toggle()">
+    Switch to {{ ThemeBridge.mode === 'light' ? 'dark' : 'light' }} mode
+  </button>
+</div>
+```
+
+Updating `ThemeBridge.mode` (via `toggle()`, `setMode()`, or direct assignment) notifies every component that interpolated `ThemeBridge.mode`, so headers, pages, and widgets stay in sync without prop drilling.
+
+### Authentication Store
+
+```javascript
+// src/global/auth.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class AuthBridge extends AvenxBridge {
+  constructor() {
+    super();
+    this.isLoggedIn = false;
+    this.token = null;
+    this.user = { name: 'Guest', role: 'visitor' };
+  }
+
+  login(user, token) {
+    this.isLoggedIn = true;
+    this.token = token;
+    this.user = user;
+  }
+
+  logout() {
+    this.isLoggedIn = false;
+    this.token = null;
+    this.user = { name: 'Guest', role: 'visitor' };
+  }
+}
+```
+
+```html
+<!-- Navbar -->
+<span data-ax-show="AuthBridge.isLoggedIn">Hello, {{ AuthBridge.user.name }}</span>
+<button data-ax-show="AuthBridge.isLoggedIn" @click="AuthBridge.logout()">Log out</button>
+
+<!-- Protected page action -->
+<action name="save">
+  if (!AuthBridge.isLoggedIn) {
+    return;
+  }
+  // proceed with authenticated request using AuthBridge.token
+</action>
+```
+
+### Shopping Cart Store
+
+```javascript
+// src/global/cart.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class CartBridge extends AvenxBridge {
+  constructor() {
+    super();
+    this.items = [];
+  }
+
+  get itemCount() {
+    return this.items.reduce((sum, item) => sum + item.qty, 0);
+  }
+
+  get subtotal() {
+    return this.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  }
+
+  addItem(product) {
+    const existing = this.items.find((item) => item.id === product.id);
+    if (existing) {
+      existing.qty += 1;
+      // Reassign the array so dependents observing `items` re-render reliably
+      this.items = [...this.items];
+      return;
+    }
+    this.items = [...this.items, { ...product, qty: 1 }];
+  }
+
+  clear() {
+    this.items = [];
+  }
+}
+```
+
+```html
+<!-- Header badge -->
+<span class="cart-badge">{{ CartBridge.itemCount }}</span>
+
+<!-- Cart page -->
+<ul>
+  <li data-ax-for="item in CartBridge.items">
+    {{ item.name }} × {{ item.qty }}
+  </li>
+</ul>
+<p>Subtotal: {{ CartBridge.subtotal }}</p>
+```
+
+## Multi-Component Reactivity Flow
+
+1. The compiler discovers `*.bridge.js` files and registers each bridge on the app (typically as `NameBridge`).
+2. A component template or action reads `SomeBridge.property` — the runtime tracks that dependency.
+3. Another component (or the bridge itself) mutates `SomeBridge.property`.
+4. Only components that depend on the changed paths schedule updates; unrelated trees are left alone.
+
+You can also register bridges manually in tests or custom bootstraps:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import AuthBridge from './global/auth.bridge.js';
+
+const app = new AvenxApp({ target: '#app' });
+app.registerBridge('AuthBridge', new AuthBridge());
+```
+
+## Best Practices
+
+### Initialize state in the constructor
+
+Set every shared field to a defined default in `constructor()` after `super()`. Avoid lazy `undefined` fields that first appear mid-session — they make template guards harder and can skip early dependency tracking.
+
+### Prefer narrow mutations over wholesale replacement
+
+Mutate the specific property that changed (`AuthBridge.user.name = 'Ada'`) when possible. Replacing large nested objects forces more dependents to re-evaluate. When you must replace arrays (for example after `push`-style edits that proxies may not always surface cleanly), assign a new array reference intentionally: `this.items = [...this.items, next]`.
+
+### Avoid full-app re-render bottlenecks
+
+- Keep hot paths (animation frames, pointer moves) out of bridge state; use local component state instead.
+- Do not store derived UI flags that every layout shell reads if only one widget needs them.
+- Split large domains into multiple bridges (`AuthBridge`, `CartBridge`, `ThemeBridge`) rather than one mega-store.
+- In tests, use `AvenxMock.createMockBridge()` and `sandbox.waitForUpdate()` so you assert after a single batched flush.
+
+### Teardown and long-lived SPAs
+
+Bridges registered for the app lifetime normally stay alive until the page unloads. If you create temporary bridges in a sandbox or a feature that unmounts:
+
+- Drop references from your own registries so the instance can be garbage-collected.
+- Clear timers, websocket listeners, or `document` listeners that bridge methods attached.
+- Prefer resetting state (`logout()`, `clear()`) over leaving stale tokens or cart lines in memory between user sessions.
+
+## TypeScript Guidelines
+
+```typescript
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export interface AuthUser {
+  name: string;
+  role: 'visitor' | 'member' | 'admin';
+}
+
+export default class AuthBridge extends AvenxBridge {
+  isLoggedIn: boolean;
+  token: string | null;
+  user: AuthUser;
+
+  constructor() {
+    super();
+    this.isLoggedIn = false;
+    this.token = null;
+    this.user = { name: 'Guest', role: 'visitor' };
+  }
+
+  login(user: AuthUser, token: string): void {
+    this.isLoggedIn = true;
+    this.token = token;
+    this.user = user;
+  }
+
+  logout(): void {
+    this.isLoggedIn = false;
+    this.token = null;
+    this.user = { name: 'Guest', role: 'visitor' };
+  }
+}
+```
+
+Declare field types on the class body, initialize them in the constructor, and type method parameters/returns. Templates still access the bridge as `AuthBridge`; TypeScript mainly improves bridge modules, IDE completion, and unit tests that import the class directly.
