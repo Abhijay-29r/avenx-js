@@ -117,10 +117,12 @@ export function runDoctor(cli) {
   // --- package.json ---
   console.log('\n\x1b[1mProject files\x1b[0m');
   const pkgPath = path.join(root, 'package.json');
+  let isFrameworkRepo = false;
   if (fs.existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
       if (pkg.name === 'avenx-core') {
+        isFrameworkRepo = true;
         record(
           'warn',
           'Running inside the avenx-core framework repository',
@@ -190,6 +192,12 @@ export function runDoctor(cli) {
   const distDir = path.join(root, distRel);
   if (fs.existsSync(srcDir) && fs.statSync(srcDir).isDirectory()) {
     record('pass', `Source directory present (${srcRel})`);
+  } else if (isFrameworkRepo) {
+    record(
+      'warn',
+      `App source directory "${srcRel}" not found (expected for framework checkout)`,
+      'Application projects use src/; the framework sources live under lib/.',
+    );
   } else {
     record('fail', `Missing source directory "${srcRel}"`, 'Create it or set srcDir in avenx.config.json.');
   }
