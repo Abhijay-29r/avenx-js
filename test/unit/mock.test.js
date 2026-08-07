@@ -146,6 +146,40 @@ class CounterComponent extends AvenxComponent {
     sandbox.setRoute({ hash: '#/users', page: 'users', params: { id: '99' } });
     assert.deepStrictEqual(mounted.instance.$route, { hash: '#/users', page: 'users', params: { id: '99' } });
 
+    // ==========================================
+    // 3. createMockRouter
+    // ==========================================
+    console.log('  Testing createMockRouter...');
+
+    const mockRouter = AvenxMock.createMockRouter({
+      hash: '#/dashboard',
+      page: 'Dashboard',
+      params: { id: '1' },
+      queryParams: { tab: 'overview' },
+    });
+
+    assert.strictEqual(mockRouter.$isMock, true);
+    assert.strictEqual(mockRouter.currentRoute.hash, '#/dashboard');
+    assert.strictEqual(mockRouter.getParams().id, '1');
+    assert.strictEqual(mockRouter.getParams().query.tab, 'overview');
+    assert.deepStrictEqual(mounted.instance.$route.hash, '#/dashboard');
+
+    mockRouter.push('#/settings');
+    assert.strictEqual(mockRouter.currentRoute.hash, '#/settings');
+    assert.strictEqual(mounted.instance.$route.hash, '#/settings');
+    assert.ok(mockRouter.$calls.some((c) => c.method === 'push' && c.args[0] === '#/settings'));
+
+    mockRouter.replace('/profile');
+    assert.strictEqual(mockRouter.currentRoute.hash, '#/profile');
+
+    const guarded = AvenxMock.createMockRouter({
+      hash: '#/private',
+      guards: [() => false],
+    });
+    const blocked = guarded.push('#/elsewhere');
+    assert.strictEqual(blocked, false);
+    assert.strictEqual(guarded.currentRoute.hash, '#/private');
+
     // Clean up global DOM mock
     teardownDOMMock();
 

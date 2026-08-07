@@ -675,6 +675,26 @@ export class AvenxMock {
 
     static createSandbox(): AvenxSandbox;
 
+    static createMockRouter(options?: {
+        currentRoute?: { hash?: string; page?: string; params?: Record<string, any> };
+        hash?: string;
+        page?: string;
+        params?: Record<string, any>;
+        queryParams?: Record<string, any>;
+        guards?: Array<
+            | ((to: any, from: any) => boolean | string | void)
+            | { canActivate: (to: any, from: any) => boolean | string | void }
+        >;
+    }): {
+        currentRoute: { hash: string; page: string; params: Record<string, any> };
+        push(path: string): boolean;
+        replace(path: string): boolean;
+        getParams(): Record<string, any>;
+        $calls: Array<{ method: string; args: any[]; blocked?: boolean }>;
+        $reset(): void;
+        readonly $isMock: true;
+    };
+
     static trigger(element: any, eventName: string, eventData?: Record<string, any>): void;
 }
 
