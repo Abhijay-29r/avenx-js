@@ -285,6 +285,14 @@ export interface AvenxRouterOptions {
      * A string appended to every resolved route title (e.g. ' — MyApp').
      */
     titleSuffix?: string;
+
+    /**
+     * Controls scroll position after successful navigation.
+     * - `'top'` (default): scroll to (0, 0)
+     * - `'auto'`: restore the last saved position for the target hash, otherwise scroll to top
+     * - `'manual'`: do not change scroll position
+     */
+    scrollRestoration?: 'top' | 'auto' | 'manual';
 }
 
 /**
