@@ -19,6 +19,7 @@ export function printHelp() {
   \x1b[32mbuild (b)\x1b[0m                 \x1b[90mBuild the project using configured output directory\x1b[0m
   \x1b[32mclean\x1b[0m                     \x1b[90mClear build output directory\x1b[0m
   \x1b[32mcheck (lint)\x1b[0m              \x1b[90mValidate templates without building\x1b[0m
+  \x1b[32mdoctor\x1b[0m                    \x1b[90mDiagnose environment, config, and project health\x1b[0m
   \x1b[32mserve [port]\x1b[0m              \x1b[90mStart dev server with hot-reload (default: 3000)\x1b[0m
   \x1b[32mwatch (w)\x1b[0m                 \x1b[90mWatch for file changes and rebuild automatically\x1b[0m
   \x1b[32mhelp\x1b[0m                      \x1b[90mShow this help message\x1b[0m

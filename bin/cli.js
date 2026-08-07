@@ -9,6 +9,7 @@ import { destroyComponent, destroyPage, destroyBridge, destroyGuard } from './co
 import { buildProject, cleanProject, checkProject } from './commands/build.js';
 import { serveProject, watchProject } from './commands/serve.js';
 import { printHelp } from './commands/help.js';
+import { runDoctor } from './commands/doctor.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -111,6 +112,9 @@ export class AvenxCLI {
       case 'check':
       case 'lint':
         checkProject(this);
+        break;
+      case 'doctor':
+        runDoctor(this);
         break;
       case 'serve': {
         const portIdx = args.findIndex((a) => a === '--port' || a === '-p');
