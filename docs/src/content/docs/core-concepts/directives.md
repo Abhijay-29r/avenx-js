@@ -270,3 +270,29 @@ The built-in click-outside example above follows the same pattern: attach in
 ## Compiler Validation
 
 During compilation, the Avenx-JS compiler validates expressions inside custom directives. If a directive attribute references an undeclared variable or state property, the compiler emits a diagnostic warning (`AVX_W11` / `COMPILER_UNDECLARED_VARIABLE`), helping catch typos before runtime.
+
+---
+
+## Directive Evaluation Lifecycle & Security
+
+### Evaluation flow
+
+1. **Compile time** — The compiler discovers built-in and custom `data-ax-*` attributes and binds them to expression strings or handlers.
+2. **Mount** — On first mount, directive expressions are evaluated against the component instance (`this` / `state` / injected values) and applied to the live DOM node.
+3. **Update** — When reactive state used by a directive changes, Avenx re-evaluates that directive during the component patch cycle. Directives that do not depend on dirty state are skipped.
+4. **Unmount** — Custom directive `unmounted` hooks (when provided) run so listeners and DOM side effects can be cleaned up.
+
+### HTML sanitization (`data-ax-html`)
+
+Binding untrusted HTML with `data-ax-html` is dangerous. Avenx sanitizes injected markup and emits security warnings when risky content is stripped or blocked:
+
+| Warning | Meaning |
+| :--- | :--- |
+| `AVX_W16` | A disallowed / sanitized tag was removed from HTML content |
+| `AVX_W17` | Related sanitizer warning for unsafe markup patterns |
+| `AVX_W21` | Additional HTML security warning during sanitize |
+
+Prefer text interpolation or structured child components over raw HTML. If you must use `data-ax-html`, only pass trusted, server-sanitized content.
+
+See [Error Reference](/troubleshooting/errors) for full warning text and examples.
+
