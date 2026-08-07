@@ -56,6 +56,19 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     readonly $route: { hash: string; page: string; params: Record<string, any> };
 
     /**
+     * Runs after the current reactive DOM update flush completes.
+     * With a callback, invokes it after the flush. Without a callback, returns a Promise.
+     */
+    $nextTick(callback: () => void): void;
+    $nextTick(): Promise<void>;
+
+    /**
+     * Alias for {@link AvenxComponent#$nextTick}.
+     */
+    nextTick(callback: () => void): void;
+    nextTick(): Promise<void>;
+
+    /**
      * Keys or mappings to share reactively with descendant components.
      */
     provide?: Record<string, any> | (() => Record<string, any>) | string[];
