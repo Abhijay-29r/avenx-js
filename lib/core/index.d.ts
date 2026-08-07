@@ -40,6 +40,17 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     readonly $parent: AvenxComponent<any> | null;
 
     /**
+     * Helpers for inspecting whether the parent provided slot content.
+     */
+    readonly $slots: {
+        /**
+         * Returns true when content was provided for the named slot (or the default slot).
+         * @param slotName Named slot, or `default` / omitted for the default slot.
+         */
+        has(slotName?: string): boolean;
+    };
+
+    /**
      * The active route details.
      */
     readonly $route: { hash: string; page: string; params: Record<string, any> };
