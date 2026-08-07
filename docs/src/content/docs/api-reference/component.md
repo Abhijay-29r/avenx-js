@@ -241,6 +241,35 @@ This pattern is especially useful for integrating libraries that need to re-init
 
 ## Core Methods
 
+### `static mixin(mixinObject)`
+
+Registers a global mixin merged into every subsequent `AvenxComponent` instance. `AvenxApp.mixin()` delegates to this method.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `mixinObject` | `object` | Options to merge (`state`/`data`, `computed`, `methods`, `props`, lifecycle hooks, custom fields). |
+
+#### Option merging rules
+
+| Option | Behavior | Precedence |
+| :--- | :--- | :--- |
+| `state` / `data` | Shallow key merge | Component keys override mixin keys |
+| `computed` | Getter merge | Component overrides mixin |
+| `methods` | Method merge | Component overrides mixin |
+| `props` | Schema merge | Component defaults override mixin |
+| Lifecycle hooks | All registered hooks run | Mixins first (registration order), then the component |
+
+```javascript
+AvenxComponent.mixin({
+  state: { locale: 'en' },
+  methods: {
+    t(key) { return key; },
+  },
+});
+```
+
+For conceptual examples see [Plugins & Mixins](/core-concepts/plugins-and-mixins).
+
 ### `mount(target)`
 
 Mounts the component to the target DOM element or selector.
