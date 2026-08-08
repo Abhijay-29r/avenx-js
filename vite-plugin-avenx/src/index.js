@@ -1,5 +1,4 @@
 import { createCompiler } from './compiler.js';
-import { wrapComponent, wrapPage } from './wrapper.js';
 import { handleAvenxHotUpdate } from './hmr.js';
 import { loadStyle } from './css.js';
 import pkg from '../package.json' with { type: 'json' };
@@ -93,22 +92,22 @@ export default function avenxPlugin(options = {}) {
       if (isComponentFile(id)) {
         log('Compile Component:', id);
 
-        const result = compiler.compileComponent(id);
+        const result = compiler.compileComponent(id, code);
 
         return {
-          code: wrapComponent(result.code, result.className),
-          map: null,
+          code: result.code,
+          map: result.map,
         };
       }
 
       if (isPageFile(id)) {
         log('Compile Page:', id);
 
-        const result = compiler.compilePage(id);
+        const result = compiler.compilePage(id, code);
 
         return {
-          code: wrapPage(result.code, result.className),
-          map: null,
+          code: result.code,
+          map: result.map,
         };
       }
 

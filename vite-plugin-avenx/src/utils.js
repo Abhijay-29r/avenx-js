@@ -11,7 +11,16 @@ import {
  * @returns {boolean}
  */
 export function isComponentFile(file) {
-  return file.endsWith(COMPONENT_EXT);
+  if (file.endsWith('index.html') || file.includes('index.html?')) {
+    return false;
+  }
+  return (
+    file.endsWith(COMPONENT_EXT) ||
+    file.endsWith('.component.html') ||
+    file.endsWith('.component.avx') ||
+    (file.endsWith('.html') && !file.endsWith('.page.html')) ||
+    (file.endsWith('.avx') && !file.endsWith('.page.avx'))
+  );
 }
 
 /**
@@ -20,7 +29,11 @@ export function isComponentFile(file) {
  * @returns {boolean}
  */
 export function isPageFile(file) {
-  return file.endsWith(PAGE_EXT);
+  return (
+    file.endsWith(PAGE_EXT) ||
+    file.endsWith('.page.html') ||
+    file.endsWith('.page.avx')
+  );
 }
 
 /**
