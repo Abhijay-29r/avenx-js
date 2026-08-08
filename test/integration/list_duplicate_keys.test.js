@@ -436,34 +436,34 @@ global.Node = {
     assert.strictEqual(listItemsUpdated[1].customState, 'second');
 
     // Test AVX_W19 includes the raw key expression and component name
-  warnings.length = 0;
+    warnings.length = 0;
 
-  const errorListTemplate = createMockElementNode('template', {
-    'data-ax-for': 'items',
-    'data-ax-as': 'item',
-    'data-ax-key': 'item.profile.id',
-  });
-  errorListTemplate.innerHTML = '<li>{%item%}</li>';
-  listContainer.appendChild(errorListTemplate);
+    const errorListTemplate = createMockElementNode('template', {
+      'data-ax-for': 'items',
+      'data-ax-as': 'item',
+      'data-ax-key': 'item.profile.id',
+    });
+    errorListTemplate.innerHTML = '<li>{%item%}</li>';
+    listContainer.appendChild(errorListTemplate);
 
-  const errorListManager = new ListManager(evaluator, renderer, undefined, 'UserCard');
+    const errorListManager = new ListManager(evaluator, renderer, undefined, 'UserCard');
 
-  errorListManager.process(
-    listContainer,
-    { items: ['apple'] },
-    {}
-  );
+    errorListManager.process(
+      listContainer,
+      { items: ['apple'] },
+      {}
+    );
 
-  const hasKeyEvaluationWarning = warnings.some((w) =>
-    w.includes(
-      '[AVX_W19] Failed to evaluate key expression "item.profile.id" in component <UserCard>'
-    )
-  );
+    const hasKeyEvaluationWarning = warnings.some((w) =>
+      w.includes(
+        '[AVX_W19] Failed to evaluate key expression "item.profile.id" in component <UserCard>'
+      )
+    );
 
-  assert.ok(
-    hasKeyEvaluationWarning,
-    'Should include the raw key expression and component name in the AVX_W19 warning'
-  );
+    assert.ok(
+      hasKeyEvaluationWarning,
+      'Should include the raw key expression and component name in the AVX_W19 warning'
+    );
 
     // Restore original console.warn
     console.warn = originalConsoleWarn;
