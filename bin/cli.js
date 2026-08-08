@@ -129,12 +129,13 @@ export class AvenxCLI {
           this.config.server.liveReload = false;
         }
 
-        const port =
-          portIdx !== -1 && args[portIdx + 1]
-            ? parseInt(args[portIdx + 1], 10)
-            : (!args[0]?.startsWith('-') && args[0]) || process.env.PORT || this.config.server.port || 3000;
+        const rawPort = portIdx !== -1 ? args[portIdx + 1]?.replace(/[^0-9]/g, '') : null;
+        const port = rawPort
+          ? parseInt(rawPort, 10)
+          : (!args[0]?.startsWith('-') && args[0]) || process.env.PORT || this.config.server.port || 3000;
 
-        const host = hostIdx !== -1 && args[hostIdx + 1] ? args[hostIdx + 1] : 'localhost';
+        const rawHost = hostIdx !== -1 ? args[hostIdx + 1] : null;
+        const host = rawHost ? rawHost.trim().replace(/\/$/g, '') : 'localhost';
 
         serveProject(this, port, host);
         break;
