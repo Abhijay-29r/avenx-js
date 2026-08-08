@@ -1,5 +1,4 @@
 import { createCompiler } from './compiler.js';
-import { wrapComponent, wrapPage } from './wrapper.js';
 import { handleAvenxHotUpdate } from './hmr.js';
 import { loadStyle } from './css.js';
 import pkg from '../package.json' with { type: 'json' };

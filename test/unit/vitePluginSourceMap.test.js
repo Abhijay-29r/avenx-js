@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import avenxPlugin from '../../vite-plugin-avenx/src/index.js';
-import { createCompiler } from '../../vite-plugin-avenx/src/compiler.js';
 import { isComponentFile, isPageFile } from '../../vite-plugin-avenx/src/utils.js';
-import { generateTemplateSourceMap, encodeVLQ } from '../../vite-plugin-avenx/src/sourcemap.js';
+import { encodeVLQ } from '../../vite-plugin-avenx/src/sourcemap.js';
 
 console.log('🧪 Testing Source Map Generation in vite-plugin-avenx...');
 
