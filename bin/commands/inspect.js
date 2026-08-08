@@ -120,7 +120,8 @@ function isComponentUsed(compName, compFile, srcDir, rootDir) {
     if (file.startsWith(compDir)) continue;
     if (!file.endsWith('.js') && !file.endsWith('.html') && !file.endsWith('.ts')) continue;
 
-    const content = fs.readFileSync(file, 'utf-8');
+    const rawContent = fs.readFileSync(file, 'utf-8');
+    const content = rawContent.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '');
 
     // Check template tag references
     const tagRegex = new RegExp(`<(${compName}|${kebabName})\\b`, 'i');
