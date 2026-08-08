@@ -544,6 +544,23 @@ async function runTest() {
 
     console.log('✅ Destroy command tests passed!');
 
+    // 6b. Test inspect command (and alias i)
+    console.log('🧪 Testing avenx inspect & avenx i...');
+    execSync(`node ${BIN_PATH} generate component unused-inspect-btn`, { cwd: TEST_DIR });
+    execSync(`node ${BIN_PATH} generate bridge inspect-auth`, { cwd: TEST_DIR });
+
+    const inspectOutput = execSync(`node ${BIN_PATH} inspect`, { cwd: TEST_DIR, encoding: 'utf8' });
+    assert.match(inspectOutput, /📦 Avenx Project Hierarchy \(src\/\)/, 'inspect should display header');
+    assert.match(inspectOutput, /📄 Pages/, 'inspect should display Pages category');
+    assert.match(inspectOutput, /🧩 Components/, 'inspect should display Components category');
+    assert.match(inspectOutput, /🌉 Bridges/, 'inspect should display Bridges category');
+    assert.match(inspectOutput, /UnusedInspectBtn.*\(⚠️ Unused\)/, 'should flag unused component with ⚠️ Unused');
+    assert.match(inspectOutput, /InspectAuthBridge -> src\/global\/inspect-auth\.bridge\.js/, 'should list bridge');
+
+    const inspectAliasOutput = execSync(`node ${BIN_PATH} i`, { cwd: TEST_DIR, encoding: 'utf8' });
+    assert.strictEqual(inspectAliasOutput, inspectOutput, 'avenx i should produce identical output to avenx inspect');
+    console.log('✅ Inspect command tests passed!');
+
     // 7. Test watch command
     console.log('🧪 Testing avenx watch...');
     const watchProc = spawn(process.execPath, [BIN_PATH, 'watch'], {
