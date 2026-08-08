@@ -10,6 +10,7 @@ import { buildProject, cleanProject, checkProject } from './commands/build.js';
 import { serveProject, watchProject } from './commands/serve.js';
 import { printHelp } from './commands/help.js';
 import { runDoctor } from './commands/doctor.js';
+import { runInspect } from './commands/inspect.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,6 +116,10 @@ export class AvenxCLI {
         break;
       case 'doctor':
         runDoctor(this);
+        break;
+      case 'inspect':
+      case 'i':
+        runInspect(this);
         break;
       case 'serve': {
         const portIdx = args.findIndex((a) => a === '--port' || a === '-p');
