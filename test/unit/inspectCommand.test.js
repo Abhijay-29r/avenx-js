@@ -81,7 +81,7 @@ export class HomePage {}
   );
 
   // Capture console.log
-  let logs = [];
+  const logs = [];
   const originalLog = console.log;
   console.log = (...args) => {
     logs.push(args.join(' '));

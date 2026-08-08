@@ -62,7 +62,7 @@ function extractRoutesMap(srcDir) {
     const content = fs.readFileSync(file, 'utf-8');
 
     // Look for initRouter({ ... })
-    const initRouterMatches = content.matchAll(/initRouter\s*\(\s*\{([\s\S]*?)\}\s*[\),]/g);
+    const initRouterMatches = content.matchAll(/initRouter\s*\(\s*\{([\s\S]*?)\}\s*[),]/g);
     for (const match of initRouterMatches) {
       const body = match[1];
       const pairRegex = /['"]([^'"]+)['"]\s*:\s*['"]?([A-Za-z0-9_$]+)['"]?/g;
