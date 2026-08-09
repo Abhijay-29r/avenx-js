@@ -448,7 +448,7 @@ async function runTest() {
 
     console.log('🧪 Testing avenx destroy component (dry-run & actual)...');
 
-    // 1. Dry run of destroying the default-box component
+    // 1. Dry run of destroying the default-box component with --dry-run and -d
     const defaultBoxDir = path.join(TEST_DIR, 'src/components/default-box');
     assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should exist before destroy test');
 
@@ -459,7 +459,15 @@ async function runTest() {
 
     assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should still exist after dry-run');
     assert.match(destroyDryRunOutput, /🧪 \[Dry Run\] Component 'default-box' files would be deleted/, 'should print dry run message');
+    assert.match(destroyDryRunOutput, /\[DRY-RUN\] Would delete: src\/components\/default-box\/default-box\.component\.js/, 'should print [DRY-RUN] Would delete: path');
     assert.match(destroyDryRunOutput, /No files were deleted or modified/, 'should report no modifications');
+
+    const destroyDryRunShortOutput = execSync(`node ${BIN_PATH} destroy component default-box -d`, {
+      cwd: TEST_DIR,
+      encoding: 'utf8',
+    });
+    assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should still exist after -d dry-run');
+    assert.match(destroyDryRunShortOutput, /\[DRY-RUN\] Would delete: src\/components\/default-box\/default-box\.component\.js/, 'should print [DRY-RUN] Would delete: path with -d flag');
 
     // Make sure main.app.js still contains the registration
     let mainAppJsContent = fs.readFileSync(path.join(TEST_DIR, 'src/main.app.js'), 'utf-8');

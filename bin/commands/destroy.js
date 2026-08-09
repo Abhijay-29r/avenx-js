@@ -79,9 +79,9 @@ export function destroyComponent(cli, name, dryRun = false) {
 
   if (dryRun) {
     console.log(`🧪 [Dry Run] Component '${lowerName}' files would be deleted:`);
-    console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`);
-    console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`);
-    console.log(`  ${cli.config.srcDir}/components/${lowerName}/`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/components/${lowerName}/`);
     console.log(
       `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove registrations/imports for '${capitalizedName}'.`,
     );
@@ -118,8 +118,8 @@ export function destroyPage(cli, name, dryRun = false) {
 
   if (dryRun) {
     console.log(`🧪 [Dry Run] Page '${lowerName}' files would be deleted:`);
-    console.log(`  ${cli.config.srcDir}/pages/${lowerName}.page.js`);
-    console.log(`  ${cli.config.srcDir}/pages/${lowerName}.page.css`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/pages/${lowerName}.page.js`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/pages/${lowerName}.page.css`);
     console.log(
       `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations/routes for '${capitalizedName}'.`,
     );
@@ -167,7 +167,7 @@ export function destroyBridge(cli, name, dryRun = false) {
 
   if (dryRun) {
     console.log(`🧪 [Dry Run] Bridge '${capitalizedName}' file would be deleted:`);
-    console.log(`  ${cli.config.srcDir}/global/${lowerName}.bridge.js`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/global/${lowerName}.bridge.js`);
     console.log(
       `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations for '${capitalizedName}'.`,
     );
@@ -204,7 +204,7 @@ export function destroyGuard(cli, name, dryRun = false) {
 
   if (dryRun) {
     console.log(`🧪 [Dry Run] Guard '${capitalizedName}' file would be deleted:`);
-    console.log(`  ${cli.config.srcDir}/guards/${lowerName}.guard.js`);
+    console.log(`[DRY-RUN] Would delete: ${cli.config.srcDir}/guards/${lowerName}.guard.js`);
     console.log(
       `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations for '${capitalizedName}'.`,
     );
