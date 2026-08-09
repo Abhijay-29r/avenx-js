@@ -340,6 +340,29 @@ Components can receive child HTML blocks using `<slot>` elements. Both default a
 
 If a component's caller does not provide content for a given slot, Avenx-JS automatically falls back to rendering the default content defined inside that `<slot>` element in the component's template. This applies to both named and default slots. For example, in the `Card` component above, if no `slot="header"` element is passed in, the header slot will render its fallback text, `Default Header`, instead of being left empty. This makes it easy to define sensible defaults for optional component content without requiring the caller to always supply every slot.
 
+### Checking Slot Presence (`this.$slots.has()`)
+
+Components can determine whether a slot was provided by the parent using
+`this.$slots.has(slotName)`.
+
+#### Default Slot
+
+```javascript
+if (this.$slots.has('default')) {
+  console.log('Default slot provided');
+}
+```
+
+#### Named Slot
+
+```javascript
+if (this.$slots.has('header')) {
+  console.log('Header slot provided');
+}
+```
+
+If the slot is not provided, `this.$slots.has()` returns `false`, allowing components to conditionally render fallback content.
+
 ## 9. Passing Props to Child Components (`data-props-*`)
 
 Custom child components can receive props from a parent page or component using the `data-props-<propName>` attribute syntax. The parser evaluates the attribute's value as an expression in the parent's scope and passes the resulting value into the child component as a prop.
