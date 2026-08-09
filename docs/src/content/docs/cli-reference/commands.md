@@ -3,7 +3,7 @@ title: 'CLI Commands'
 description: 'Explore the command-line interface of Avenx-JS to create, compile, run, and watch projects.'
 ---
 
-The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, and template validation.
+The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, project architecture inspection, and template validation.
 
 ## Command Syntax
 
@@ -245,7 +245,53 @@ npx avenx check
 
 ---
 
-### 8. `avenx clean`
+### 8. `avenx inspect` (alias: `i`)
+
+Scans the project `src/` directory and outputs a formatted terminal tree view displaying pages (with mapped route paths), components (annotated with unused warnings), and global state bridges offline without launching a development server.
+
+#### Command Purpose
+
+The `avenx inspect` command analyzes application architecture, route mappings, and component utilization offline. It allows developers to quickly audit project structure, inspect route registrations, and detect orphaned components without launching a development server or browser environment.
+
+#### Terminal Output Hierarchy
+
+`avenx inspect` categorizes the project structure into three tree branches:
+
+- **📄 Pages**: Lists page components (`src/pages/*.page.js`) alongside their mapped route paths (e.g. `/home`, `/user/:id`).
+- **🧩 Components**: Lists UI components (`src/components/*`) annotated with `(⚠️ Unused)` warnings when unreferenced.
+- **🌉 Bridges**: Lists global reactive state bridges (`src/bridges/*` or `src/global/*.bridge.js`).
+
+#### Unused Component Detection
+
+`avenx inspect` scans application templates, scripts, and `app.mount()` calls. If a component defined in `src/components/` is not referenced in any template tags or mount declarations, `avenx inspect` automatically flags it with `(⚠️ Unused)` in the hierarchy view.
+
+#### Usage Example & Output Sample
+
+```bash
+# Print project route and component hierarchy
+npx avenx inspect
+
+# Or using the shorthand alias
+npx avenx i
+```
+
+**Sample Output:**
+
+```text
+📦 Avenx Project Hierarchy (src/)
+├── 📄 Pages (2)
+│   ├── HomePage (/home) -> src/pages/home.page.js
+│   └── UserPage (/user/:id) -> src/pages/user.page.js
+├── 🧩 Components (2)
+│   ├── Header -> src/components/header/header.component.js
+│   └── UnusedBtn -> src/components/unused-btn/unused-btn.component.js (⚠️ Unused)
+└── 🌉 Bridges (1)
+    └── AuthBridge -> src/bridges/auth.bridge.js
+```
+
+---
+
+### 9. `avenx clean`
 
 Deletes the target build distribution directory (typically `dist/` or configured `distDir`) to ensure a fresh build state.
 
@@ -255,11 +301,12 @@ npx avenx clean
 
 ---
 
-### 9. `avenx help`
+### 10. `avenx help`
 
 Prints the CLI usage manual and command reference to the console.
 
 ```bash
 npx avenx help
 ```
+
 
