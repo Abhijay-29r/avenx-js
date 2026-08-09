@@ -787,6 +787,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "dineshsinghdhami",
+      "name": "Dinesh Singh Dhami",
+      "avatar_url": "https://avatars.githubusercontent.com/u/187259771?v=4",
+      "profile": "http://dineshsinghdhami.com.np",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
