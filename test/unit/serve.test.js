@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { EventEmitter } from 'events';
 import { listenWithPortFallback } from '../../bin/commands/serve.js';
+import { AvenxCLI } from '../../bin/cli.js';
 
 class OccupiedPortServer extends EventEmitter {
   constructor() {
@@ -45,11 +46,43 @@ function runTests() {
   assert.ok(warnings[0].includes('Trying 3001'));
 }
 
+async function testCliServeParsing() {
+  let lastCall = null;
+  class TestCLI extends AvenxCLI {
+    serveProject(port, host) {
+      lastCall = { port, host };
+    }
+  }
+
+  const cli = new TestCLI();
+
+  // Test --port 3000/
+  await cli.run('serve', ['--port', '3000/']);
+  assert.deepStrictEqual(lastCall, { port: 3000, host: 'localhost' });
+
+  // Test --host localhost/
+  await cli.run('serve', ['--host', 'localhost/']);
+  assert.deepStrictEqual(lastCall, { port: 3000, host: 'localhost' });
+
+  // Test trailing slashes and accidental whitespace
+  await cli.run('serve', ['--port', ' 3000/ ', '--host', ' 127.0.0.1/ ']);
+  assert.deepStrictEqual(lastCall, { port: 3000, host: '127.0.0.1' });
+
+  // Test positional port 3000/
+  await cli.run('serve', ['3000/']);
+  assert.deepStrictEqual(lastCall, { port: 3000, host: 'localhost' });
+
+  // Test flag assignments --port=8080/ --host=localhost/
+  await cli.run('serve', ['--port=8080/', '--host=localhost/']);
+  assert.deepStrictEqual(lastCall, { port: 8080, host: 'localhost' });
+}
+
 try {
   runTests();
-  console.log('Dev server port fallback tests passed!');
+  await testCliServeParsing();
+  console.log('Dev server port fallback and CLI serve sanitization tests passed!');
 } catch (error) {
-  console.error('Dev server port fallback tests failed!');
+  console.error('Dev server tests failed!');
   console.error(error);
   process.exit(1);
 }

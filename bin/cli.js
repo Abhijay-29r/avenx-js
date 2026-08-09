@@ -33,6 +33,15 @@ export class AvenxCLI {
   }
 
   /**
+   * Serves the project on specified port and host.
+   * @param {number} port
+   * @param {string} host
+   */
+  serveProject(port, host) {
+    return serveProject(this, port, host);
+  }
+
+  /**
    * Executes a given CLI command with provided arguments.
    * @param {string} command - The command to run (e.g., 'init', 'generate', 'build', 'serve', 'help').
    * @param {string[]} args - Additional arguments for the command.
@@ -122,22 +131,27 @@ export class AvenxCLI {
         runInspect(this);
         break;
       case 'serve': {
-        const portIdx = args.findIndex((a) => a === '--port' || a === '-p');
-        const hostIdx = args.findIndex((a) => a === '--host' || a === '-h');
+        const portIdx = args.findIndex((a) => a === '--port' || a === '-p' || a.startsWith('--port=') || a.startsWith('-p='));
+        const hostIdx = args.findIndex((a) => a === '--host' || a === '-h' || a.startsWith('--host=') || a.startsWith('-h='));
 
         if (args.includes('--no-live-reload') || args.includes('--live-reload=false')) {
           this.config.server.liveReload = false;
         }
 
-        const rawPort = portIdx !== -1 ? args[portIdx + 1]?.replace(/[^0-9]/g, '') : null;
+        const rawPortVal = portIdx !== -1
+          ? (args[portIdx].includes('=') ? args[portIdx].split('=').slice(1).join('=') : args[portIdx + 1])
+          : (!args[0]?.startsWith('-') ? args[0] : null);
+        const rawPort = rawPortVal?.replace(/[^0-9]/g, '');
         const port = rawPort
           ? parseInt(rawPort, 10)
-          : (!args[0]?.startsWith('-') && args[0]) || process.env.PORT || this.config.server.port || 3000;
+          : (process.env.PORT ? parseInt(String(process.env.PORT).replace(/[^0-9]/g, ''), 10) : null) || this.config.server?.port || 3000;
 
-        const rawHost = hostIdx !== -1 ? args[hostIdx + 1] : null;
-        const host = rawHost ? rawHost.trim().replace(/\/$/g, '') : 'localhost';
+        const rawHostVal = hostIdx !== -1
+          ? (args[hostIdx].includes('=') ? args[hostIdx].split('=').slice(1).join('=') : args[hostIdx + 1])
+          : null;
+        const host = rawHostVal ? rawHostVal.trim().replace(/\/+$/g, '') : 'localhost';
 
-        serveProject(this, port, host);
+        this.serveProject(port, host);
         break;
       }
       case 'watch':
