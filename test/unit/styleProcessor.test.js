@@ -204,6 +204,55 @@ try {
     'CompB should not contain CompA scoped variable hash',
   );
 
+  // Test Deep Scoped CSS Selectors (:deep() / ::v-deep)
+  const deepCss = `
+    .parent-container :deep(.child-button) { background-color: red; }
+    :deep(.standalone-child) { color: blue; }
+    & :deep(.nested-child) { color: green; }
+    .card ::v-deep .legacy-child { display: flex; }
+    .card ::v-deep(.legacy-paren-child) { margin: 10px; }
+    .list :deep(.item:nth-child(2)) { font-weight: bold; }
+    .nav :deep(> .link + .active) { opacity: 1; }
+    .foo :deep(.bar), .other ::v-deep .baz { border: 1px solid black; }
+  `;
+  const spDeep = new StyleProcessor();
+  const hashDeep = spDeep.getHash(deepCss, 'DeepComp');
+  spDeep.extractRules(deepCss, hashDeep);
+  const genDeepCss = spDeep.scopedStyles;
+
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep}.parent-container .child-button { background-color: red; }`),
+    'Should support :deep(.child-button) selector',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep} .standalone-child { color: blue; }`),
+    'Should support top-level :deep() selector',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep} .nested-child { color: green; }`),
+    'Should support & :deep() selector',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep}.card .legacy-child { display: flex; }`),
+    'Should support legacy ::v-deep space selector syntax',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep}.card .legacy-paren-child { margin: 10px; }`),
+    'Should support legacy ::v-deep() parenthesis selector syntax',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep}.list .item:nth-child(2) { font-weight: bold; }`),
+    'Should support nested parens inside :deep()',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep}.nav > .link + .active { opacity: 1; }`),
+    'Should support combinators inside :deep()',
+  );
+  assert.ok(
+    genDeepCss.includes(`.${hashDeep}.foo .bar, .${hashDeep}.other .baz { border: 1px solid black; }`),
+    'Should support deep selectors in comma-separated selector lists',
+  );
+
   console.log('  ✅ StyleProcessor tests passed!');
 } catch (error) {
   console.error('❌ StyleProcessor tests failed!');
