@@ -723,7 +723,48 @@ export class AvenxMock {
     };
 
     static trigger(element: any, eventName: string, eventData?: Record<string, any>): void;
+
+    static mountTestComponent<C extends AvenxComponent<any> = AvenxComponent<any>>(
+        ComponentClass: new (...args: any[]) => C,
+        options?: MountTestComponentOptions
+    ): Promise<MountTestComponentResult<C>>;
+
+    static fireEvent(
+        element: any,
+        eventType: string,
+        detail?: Record<string, any>
+    ): Promise<void>;
 }
+
+export interface MountTestComponentOptions {
+    props?: Record<string, any>;
+    slots?: Record<string, any> | string | any;
+    state?: Record<string, any>;
+    initialState?: Record<string, any>;
+    bridges?: Record<string, any>;
+    components?: Record<string, typeof AvenxComponent>;
+    container?: any;
+    route?: Record<string, any>;
+}
+
+export interface MountTestComponentResult<C = AvenxComponent<any>> {
+    instance: C;
+    element: any;
+    container: any;
+    unmount(): void;
+    readonly html: string;
+}
+
+export function mountTestComponent<C extends AvenxComponent<any> = AvenxComponent<any>>(
+    ComponentClass: new (...args: any[]) => C,
+    options?: MountTestComponentOptions
+): Promise<MountTestComponentResult<C>>;
+
+export function fireEvent(
+    element: any,
+    eventType: string,
+    detail?: Record<string, any>
+): Promise<void>;
 
 export class AvenxSandbox {
     components: Map<string, typeof AvenxComponent>;
