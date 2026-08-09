@@ -57,6 +57,13 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     };
 
     /**
+     * Programmatically clear cached KeepAlive component instances.
+     */
+    readonly $keepAlive: {
+        clear(componentName?: string): void;
+    };
+
+    /**
      * The active route details.
      */
     readonly $route: { hash: string; page: string; params: Record<string, any> };
@@ -467,6 +474,12 @@ export class AvenxApp {
      * @param targetSelector Target DOM element query selector.
      */
     mount(name: string, targetSelector?: string | null): void;
+
+    /**
+     * Programmatically clears cached KeepAlive component instances.
+     * @param componentName Optional component or page name to purge.
+     */
+    clearKeepAliveCache(componentName?: string): void;
 
     /**
      * Scaffolds hash-change router listeners.
