@@ -33,7 +33,37 @@ interface AvenxComponent {
 - **Lifecycle Availability:** `$refs` entries are populated once the component is mounted into the DOM (`onMount`, `onUpdate`). Accessing `$refs` prior to DOM mounting (`onBeforeMount`) returns an empty object (`{}`).
 - **Automatic Teardown Cleanup:** When a component is unmounted (`unmount()`), `this.$refs` is automatically cleared and reset to `{}` to prevent memory leaks and dangling DOM references.
 
+## `this.$slots`
 
+The `this.$slots` object provides access to slots passed by the parent component. You can use `this.$slots.has()` to determine whether a specific slot was provided before rendering conditional content.
+
+### `this.$slots.has(slotName = 'default')`
+
+Checks whether a slot with the specified name exists.
+
+#### Returns
+
+- `true` if the slot is present.
+- `false` otherwise.
+
+#### Examples
+
+```javascript
+if (this.$slots.has()) {
+  console.log("Default slot provided");
+}
+
+if (this.$slots.has("default")) {
+  console.log("Default slot provided");
+}
+
+if (this.$slots.has("header")) {
+  console.log("Header slot provided");
+}
+
+if (this.$slots.has("footer")) {
+  console.log("Footer slot provided");
+}
 
 ## Lifecycle Hooks
 
