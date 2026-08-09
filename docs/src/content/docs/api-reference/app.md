@@ -126,6 +126,22 @@ Registers a page view class for routing.
 app.registerPage('Dashboard', DashboardPage);
 ```
 
+### `getRegisteredPages()`
+
+Returns an array of string identifiers for all page components registered via `app.registerPage(name, pageClass)` from the internal `pages` Map.
+
+**Returns**
+
+`string[]`
+
+Returns an array containing the names of all registered pages.
+
+```javascript
+const registeredPages = app.getRegisteredPages();
+console.log('Registered pages:', registeredPages);
+// Example output: ['Home', 'Dashboard', 'UserProfile']
+```
+
 ### `initRouter(routes)`
 
 Instantiates and starts the hash-based router. Accepts a route mapping configuration object.
