@@ -796,6 +796,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "aryansk",
+      "name": "Aryan Singh K.",
+      "avatar_url": "https://avatars.githubusercontent.com/u/70511529?v=4",
+      "profile": "https://github.com/aryansk",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
