@@ -3,7 +3,7 @@ title: 'CLI Commands'
 description: 'Explore the command-line interface of Avenx-JS to create, compile, run, and watch projects.'
 ---
 
-The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, project architecture inspection, and template validation.
+The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, project architecture inspection, template validation, and environment health diagnostics.
 
 ## Command Syntax
 
@@ -291,7 +291,48 @@ npx avenx i
 
 ---
 
-### 9. `avenx clean`
+### 9. `avenx doctor`
+
+Runs environment, project configuration, directory structure, and Git working tree diagnostics to ensure your workspace meets Avenx-JS project health requirements.
+
+#### Command Purpose & When to Run
+
+The `avenx doctor` command performs comprehensive diagnostic health checks on your local development environment and project setup. Run this command when:
+- Setting up or troubleshooting a newly scaffolded project workspace.
+- Verifying environment compatibility and configuration in Continuous Integration (CI/CD) pipelines.
+- Debugging unexpected build, styling, or routing issues.
+
+#### Diagnostics Performed
+
+`avenx doctor` checks the following areas:
+
+1. **Node.js Environment**:
+   - Verifies that Node.js version is `>= 18.0.0`.
+2. **Project Configuration**:
+   - Checks presence and JSON validity of `package.json`.
+   - Validates `avenx.config.json` schema and emits warnings for unknown or unsupported configuration keys across top-level fields, `server`, `style`, `debug`, and `logging` blocks.
+3. **Project Structure**:
+   - Validates existence of the source directory (`src/` or custom `srcDir`) and build output directory (`dist/` or custom `distDir`).
+   - Checks for recommended subdirectories: `src/components/`, `src/pages/`, and `src/global/`.
+   - Verifies presence of `.vscode/jsconfig.json` (editor path aliases) and root `index.html`.
+4. **Git Repository Status**:
+   - Checks Git status and warns if the working tree has uncommitted local changes.
+
+#### Exit Codes
+
+- `0`: Diagnostic checks passed successfully (or only non-critical warnings were reported).
+- `1`: Diagnostic checks failed due to critical errors (e.g., Node.js version lower than required, missing or invalid `package.json`, or malformed configuration).
+
+#### Usage Examples
+
+```bash
+# Run environment and project health diagnostics
+npx avenx doctor
+```
+
+---
+
+### 10. `avenx clean`
 
 Deletes the target build distribution directory (typically `dist/` or configured `distDir`) to ensure a fresh build state.
 
@@ -301,12 +342,13 @@ npx avenx clean
 
 ---
 
-### 10. `avenx help`
+### 11. `avenx help`
 
 Prints the CLI usage manual and command reference to the console.
 
 ```bash
 npx avenx help
 ```
+
 
 
