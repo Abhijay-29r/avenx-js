@@ -14,8 +14,31 @@ const app = new AvenxApp({ target: '#app' });
 | Param           | Type     | Description                                                                                                    |
 | --------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `config.target` | `string` | A valid DOM selector (e.g., `'#app'`) pointing to the root element. Throws exception `[AVX_R01]` if not found. |
+| `config.enableProfiling` | `boolean` | Enables browser Performance Timeline marks and measures for component lifecycle work. Default: `false`. |
 | `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. When the limit is exceeded, the least recently used cached page is removed. Default: `5`. |
 | `config.logging` | `object` | Configuration applied to the shared runtime `logger` on startup. Accepts the same options as `AvenxLogger` (`level`, `silent`, `formatter`, `transports`). See [AvenxLogger](/api-reference/utils/#avenxlogger). |
+
+### `enableProfiling`
+
+Set `enableProfiling` to `true` in the `AvenxApp` constructor to record
+`performance.mark`/`performance.measure` entries for component `mount`,
+`patch`, `render`, and `onMount` work. The resulting measurements use the
+`[Avenx] <Component> - <Phase>` name, so they can be inspected in the browser's
+Performance panel.
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  enableProfiling: true,
+});
+```
+
+When profiling is enabled on an app, Avenx also sets
+`window.__avenx_enable_profiling = true`. You can set that global flag yourself
+before component work begins to enable the same profiling fallback for
+components that do not have an app-level profiling option. The flag is only
+read in browser environments and has no effect when the Performance Timeline
+methods are unavailable.
 
 ### `logging`
 
