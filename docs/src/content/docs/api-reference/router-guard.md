@@ -21,6 +21,7 @@ The second argument to `initRouter` is an optional `options` object that control
 | `titlePrefix`          | `string` | `''`        | A string prepended to every resolved route title. Use this to add application-wide branding, such as `MyCompany | `.                                                                                                |
 | `titleSuffix`          | `string` | `''`        | A string appended to every resolved route title. Use this to add consistent branding, such as ` | MyCompany`.                                                                                                      |
 | `transition`           | `string` | `'none'`    | Enables a named transition effect (e.g. `'fade'`, `'slide'`) applied to the page container when navigating between routes.                                                                                        |
+| `scrollRestoration` | `'top' \| 'auto' \| 'manual'` | `'top'` | Controls window scroll behavior on route transitions. `'top'` scrolls to the top on every navigation, `'auto'` remembers and restores scroll positions, and `'manual'` leaves the current scroll position unchanged. |
 
 ```javascript
 const router = AvenxApp.initRouter(routes, {
@@ -29,6 +30,7 @@ const router = AvenxApp.initRouter(routes, {
   guardTimeoutRedirect: '#/login',
   titlePrefix: 'MyCompany | ',
   titleSuffix: ' | Avenx',
+  scrollRestoration: 'auto',
   transition: 'fade',
 });
 
