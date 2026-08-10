@@ -234,6 +234,73 @@ console.log(mockUserBridge.$stateChanges);
 
 ---
 
+## Component Unit Testing Helpers
+
+Avenx-JS provides built-in component mounting and event dispatching helpers to simplify isolated unit testing in Vitest, Jest, or Playwright.
+
+### `mountTestComponent(ComponentClass, options)`
+
+Mounts an Avenx Single File Component in an isolated DOM container with custom initial props, state overrides, and slot content.
+
+**Parameters**
+
+- `ComponentClass` (`typeof AvenxComponent`): Component class or definition object to instantiate.
+- `options` (`object`, optional):
+  - `props` (`object`): Initial component prop values.
+  - `state` (`object`): State property overrides.
+  - `slots` (`object`): HTML string or node content for default and named slots.
+  - `target` (`HTMLElement`): DOM target container (defaults to dynamically created div).
+
+**Return Value**
+
+Returns a `TestWrapper` object with the following properties and methods:
+
+- `component`: The mounted `AvenxComponent` instance.
+- `element`: Root DOM element of the mounted component.
+- `update()`: Method to flush pending asynchronous updates.
+- `unmount()`: Cleans up DOM nodes and invokes lifecycle teardown.
+
+### `fireEvent(element, eventName, detail)`
+
+Dispatches synthetic browser events (e.g. `click`, `input`, `change`, `submit`) on rendered DOM elements and triggers component update cycles.
+
+**Parameters**
+
+- `element` (`HTMLElement`): Target DOM node to receive the event.
+- `eventName` (`string`): Event type (e.g. `'click'`, `'input'`, `'submit'`).
+- `detail` (`object`, optional): Custom event detail payload.
+
+**Return Value**
+
+- `Promise<void>` (resolves after event dispatch and component re-render).
+
+### Full Unit Test Example
+
+```javascript
+import { describe, it, expect } from 'vitest';
+import { mountTestComponent, fireEvent } from 'avenx-js/testing';
+import CounterComponent from '../src/components/Counter.component.js';
+
+describe('CounterComponent', () => {
+  it('increments count when button is clicked', async () => {
+    const wrapper = await mountTestComponent(CounterComponent, {
+      props: { initialCount: 5 },
+    });
+
+    expect(wrapper.element.querySelector('.count').textContent).toBe('Count: 5');
+
+    const button = wrapper.element.querySelector('button.increment');
+    await fireEvent(button, 'click');
+
+    expect(wrapper.element.querySelector('.count').textContent).toBe('Count: 6');
+
+    wrapper.unmount();
+  });
+});
+```
+
+---
+
 ## Headless Router Testing & SSR (`MemoryNavigationDelegate`)
 
 To test router transitions, guards, resolvers, and page title updates in Jest, Vitest, or Node.js without a browser DOM environment, use `MemoryNavigationDelegate` (`lib/core/runtime/navigation/MemoryNavigationDelegate.js`).

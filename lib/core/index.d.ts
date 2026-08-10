@@ -766,8 +766,10 @@ export interface MountTestComponentOptions {
 
 export interface MountTestComponentResult<C = AvenxComponent<any>> {
     instance: C;
+    component: C;
     element: any;
     container: any;
+    update(): void;
     unmount(): void;
     readonly html: string;
 }
