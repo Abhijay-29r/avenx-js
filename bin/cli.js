@@ -121,7 +121,7 @@ export class AvenxCLI {
         break;
       case 'check':
       case 'lint':
-        checkProject(this);
+        checkProject(this, args);
         break;
       case 'doctor':
         runDoctor(this);
