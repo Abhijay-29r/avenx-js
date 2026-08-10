@@ -349,6 +349,8 @@ async function runTests() {
     testComponentWatchAPI();
     testFunctionBasedComputedProperty();
     testDynamicDependencyPruning();
+    await testDebounceWatcher();
+    await testThrottleWatcher();
     await testBridgeTargetedUpdates();
     console.log('✅ All AvenxWatcher tests passed successfully!');
   } catch (error) {
@@ -356,6 +358,88 @@ async function runTests() {
     console.error(error);
     process.exit(1);
   }
+}
+
+/**
+ * Tests AvenxWatcher debounce option.
+ */
+async function testDebounceWatcher() {
+  console.log('🧪 Testing AvenxWatcher debounce option...');
+
+  const state = new StateFactory().create({ count: 0 });
+  let callbackCalls = 0;
+  let lastNew = null;
+  let lastOld = null;
+
+  const watcher = new AvenxWatcher(
+    () => state.count,
+    (newVal, oldVal) => {
+      callbackCalls++;
+      lastNew = newVal;
+      lastOld = oldVal;
+    },
+    { debounce: 50 },
+  );
+
+  // Trigger rapid mutations within 50ms window
+  state.count = 1;
+  state.count = 2;
+  state.count = 3;
+
+  assert.strictEqual(callbackCalls, 0, 'Callback should not run immediately when debounced');
+
+  // Wait for debounce window
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  assert.strictEqual(callbackCalls, 1, 'Callback should run once after debounce window');
+  assert.strictEqual(lastNew, 3);
+  assert.strictEqual(lastOld, 0);
+
+  // Test teardown during pending debounce timer
+  state.count = 4;
+  watcher.teardown();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.strictEqual(callbackCalls, 1, 'Callback should not run after teardown during pending debounce timer');
+
+  console.log('  ✅ Debounce watcher tests passed!');
+}
+
+/**
+ * Tests AvenxWatcher throttle option.
+ */
+async function testThrottleWatcher() {
+  console.log('🧪 Testing AvenxWatcher throttle option...');
+
+  const state = new StateFactory().create({ val: 0 });
+  let callbackCalls = 0;
+  const receivedValues = [];
+
+  new AvenxWatcher(
+    () => state.val,
+    (newVal) => {
+      callbackCalls++;
+      receivedValues.push(newVal);
+    },
+    { throttle: 80 },
+  );
+
+  // Initial mutation at t=0ms (outside window) -> leading execution
+  state.val = 1;
+  assert.strictEqual(callbackCalls, 1, 'Throttle should execute leading call immediately');
+  assert.deepStrictEqual(receivedValues, [1]);
+
+  // High-frequency mutations within throttle window
+  state.val = 2;
+  state.val = 3;
+  assert.strictEqual(callbackCalls, 1, 'Subsequent calls in window should be buffered');
+
+  // Wait for trailing window execution
+  await new Promise((resolve) => setTimeout(resolve, 110));
+
+  assert.strictEqual(callbackCalls, 2, 'Trailing call should execute at end of throttle window');
+  assert.deepStrictEqual(receivedValues, [1, 3]);
+
+  console.log('  ✅ Throttle watcher tests passed!');
 }
 
 runTests();
