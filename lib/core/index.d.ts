@@ -189,7 +189,7 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     watch(
         getter: () => any,
         callback: (newValue: any, oldValue: any) => void,
-        options?: { immediate?: boolean; lazy?: boolean }
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number }
     ): AvenxWatcher;
 
     /**
@@ -677,13 +677,13 @@ export const consoleTransport: {
 export class AvenxWatcher {
     getter: () => any;
     callback: (newValue: any, oldValue: any) => void;
-    options: { immediate?: boolean; lazy?: boolean };
+    options: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number };
     value: any;
     dirty: boolean;
     constructor(
         getter: () => any,
         callback?: ((newValue: any, oldValue: any) => void) | null,
-        options?: { immediate?: boolean; lazy?: boolean }
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number }
     );
     get(): any;
     evaluate(): any;
