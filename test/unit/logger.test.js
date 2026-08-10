@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { AvenxLogger, defaultFormatter } from '../../lib/core/runtime/AvenxLogger.js';
+import { AvenxLogger, defaultFormatter, formatContextTag } from '../../lib/core/runtime/AvenxLogger.js';
 
 function testLoggerLevels() {
   console.log('🧪 Testing AvenxLogger Levels and Priorities...');
@@ -130,6 +130,43 @@ function testDefaultFormatter() {
   console.log('  ✅ defaultFormatter tests passed!');
 }
 
+function testContextAnnotations() {
+  console.log('🧪 Testing Component Context Annotations in AvenxLogger...');
+
+  // Test formatContextTag helper directly
+  assert.strictEqual(
+    formatContextTag({ componentName: 'UserCard', fileName: 'src/components/user-card.component.js' }),
+    '[UserCard <src/components/user-card.component.js>]'
+  );
+  assert.strictEqual(formatContextTag({ componentName: 'UserCard' }), '[UserCard]');
+  assert.strictEqual(formatContextTag({ fileName: 'src/components/user-card.component.js' }), '[<src/components/user-card.component.js>]');
+  assert.strictEqual(formatContextTag(null), '');
+
+  // Test defaultFormatter with component context
+  const formattedContext = defaultFormatter('warn', [
+    '[AVX_W05] Invalid prop type for "count". Expected Number, got String.',
+    { componentName: 'UserCard', fileName: 'src/components/user-card.component.js' },
+  ]);
+  assert.strictEqual(
+    formattedContext[0],
+    '[Avenx warn] [UserCard <src/components/user-card.component.js>] [AVX_W05] Invalid prop type for "count". Expected Number, got String.'
+  );
+
+  // Test defaultFormatter with componentName only
+  const formattedCompOnly = defaultFormatter('error', [
+    'Lifecycle hook error',
+    { componentName: 'UserCard' },
+  ]);
+  assert.strictEqual(formattedCompOnly[0], '[Avenx error] [UserCard] Lifecycle hook error');
+
+  // Verify non-context objects are preserved as raw arguments
+  const formattedDataObj = defaultFormatter('info', ['Data payload', { count: 42 }]);
+  assert.strictEqual(formattedDataObj[0], '[Avenx info] Data payload');
+  assert.deepStrictEqual(formattedDataObj[1], { count: 42 });
+
+  console.log('  ✅ Component Context Annotations tests passed!');
+}
+
 (function runAllLoggerTests() {
   console.log('\n======================================');
   console.log('🏃 Running Logger Unit Tests');
@@ -139,5 +176,6 @@ function testDefaultFormatter() {
   testLoggerCustomFormatter();
   testLoggerCustomTransports();
   testDefaultFormatter();
+  testContextAnnotations();
   console.log('======================================\n');
 })();
