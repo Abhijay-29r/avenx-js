@@ -67,6 +67,65 @@ async function runTests() {
     assert.strictEqual(called, 1, 'Object plugin should not be installed twice');
   }
 
+  // Test 2b: Dynamic Imports & Async Loader Plugin registration
+  {
+    console.log('  2b. Testing Async Loader Functions and Dynamic Imports in app.use()...');
+    const app = createApp();
+
+    // 2b-1: Async loader function returning ES module with default functional plugin
+    let calledAsync1 = 0;
+    let options1 = null;
+    const asyncPlugin1 = (a, opts) => {
+      calledAsync1++;
+      options1 = opts;
+    };
+
+    const loader1 = async () => ({ default: asyncPlugin1 });
+    const res1 = await app.use(loader1, { mode: 'async-1' });
+
+    assert.strictEqual(res1, app, 'app.use should return app instance when awaited');
+    assert.strictEqual(calledAsync1, 1);
+    assert.deepStrictEqual(options1, { mode: 'async-1' });
+
+    // Test duplicate prevention for async loader
+    await app.use(loader1);
+    assert.strictEqual(calledAsync1, 1, 'Async loader plugin should not be installed twice');
+
+    // 2b-2: Async loader returning ES module with default object plugin (.install)
+    let calledAsync2 = 0;
+    let options2 = null;
+    const asyncObjPlugin = {
+      install(a, opts) {
+        calledAsync2++;
+        options2 = opts;
+      }
+    };
+    const loader2 = async () => ({ default: asyncObjPlugin });
+    await app.use(loader2, { mode: 'async-2' });
+
+    assert.strictEqual(calledAsync2, 1);
+    assert.deepStrictEqual(options2, { mode: 'async-2' });
+
+    // 2b-3: Direct Promise argument (e.g. app.use(import(...)))
+    let calledAsync3 = 0;
+    const directPromisePlugin = (a) => {
+      calledAsync3++;
+      assert.strictEqual(a, app);
+    };
+    await app.use(Promise.resolve({ default: directPromisePlugin }));
+    assert.strictEqual(calledAsync3, 1);
+
+    // 2b-4: Async installer function
+    let calledAsync4 = 0;
+    const asyncInstaller = async (a) => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      calledAsync4++;
+      assert.strictEqual(a, app);
+    };
+    await app.use(asyncInstaller);
+    assert.strictEqual(calledAsync4, 1);
+  }
+
   // Test 3: Mixin State, Computed, Methods, Props, Styles merging
   {
     console.log('  3. Testing Mixin options merging (state, computed, methods, props, styles)...');
