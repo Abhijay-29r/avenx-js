@@ -111,6 +111,9 @@ export function checkProject(cli, args = []) {
   const originalWarn = console.warn;
   const originalError = console.error;
   const originalLog = console.log;
+  const originalInfo = console.info;
+  const originalDebug = console.debug;
+  const originalTrace = console.trace;
 
   let warningCount = 0;
   let errorCount = 0;
@@ -127,6 +130,9 @@ export function checkProject(cli, args = []) {
     };
 
     console.log = () => {};
+    console.info = () => {};
+    console.debug = () => {};
+    console.trace = () => {};
   } else {
     console.warn = (...messages) => {
       warningCount++;
@@ -154,6 +160,9 @@ export function checkProject(cli, args = []) {
     console.warn = originalWarn;
     console.error = originalError;
     console.log = originalLog;
+    console.info = originalInfo;
+    console.debug = originalDebug;
+    console.trace = originalTrace;
   }
 
   if (isJson) {
