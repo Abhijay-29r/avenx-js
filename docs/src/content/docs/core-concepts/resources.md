@@ -36,6 +36,16 @@ Use self-closing syntax to delegate resource fetching to a component action/meth
 <resource name="profile" handler="this.fetchUserProfile" />
 ```
 
+### 3. Background Polling (`pollInterval`)
+
+Configure automated background polling by specifying the `pollInterval` attribute in milliseconds on any `<resource>` tag:
+
+```html
+<resource name="liveMetrics" pollInterval="5000">
+  return fetch('/api/metrics').then(res => res.json());
+</resource>
+```
+
 ---
 
 ## Runtime `Resource` Class API
@@ -47,7 +57,7 @@ Under the hood, every declared resource creates an instance of the `Resource` cl
 ```javascript
 import { Resource } from 'avenx-core/reactive';
 
-const resource = new Resource(name, handlerFn, componentContext);
+const resource = new Resource(name, handlerFn, componentContext, options);
 ```
 
 | Parameter | Type | Description |
@@ -55,6 +65,13 @@ const resource = new Resource(name, handlerFn, componentContext);
 | `name` | `string` | Unique string identifier for the resource. |
 | `handlerFn` | `function(): any` | Function executing the asynchronous operation (e.g., returning a `Promise`). |
 | `componentContext` | `object` | The containing component instance context (`this`). |
+| `options` | `object` | *(Optional)* Configuration options object. |
+
+### Constructor Options (`options`)
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `pollInterval` | `number` | `0` | Interval in milliseconds for automated background data polling (disabled if `0`). |
 
 ---
 
@@ -125,7 +142,7 @@ const data = resource.read();
 
 ### `teardown()`
 
-Cleans up the internal `AvenxWatcher` dependency tracker. This is invoked automatically when a component unmounts to prevent memory leaks and unnecessary background re-fetches:
+Cleans up the internal `AvenxWatcher` dependency tracker and clears any active background polling timer (`pollTimer`). This is invoked automatically when a component unmounts to prevent memory leaks and unnecessary background re-fetches:
 
 ```javascript
 resource.teardown();
@@ -139,7 +156,38 @@ resource.teardown();
 
 1. **Dependency Tracking:** When a `Resource` is constructed, it wraps `handlerFn` in an `AvenxWatcher`. Any reactive state property accessed during `handlerFn` execution (such as `state.userId` or `state.filter`) is automatically registered as a dependency.
 2. **Automatic Re-fetching:** When any tracked state dependency mutates, `AvenxWatcher` triggers `resource.fetch(newVal)` automatically.
-3. **Component Re-rendering:** When the async operation resolves or rejects, `Resource` marks `componentContext.renderWatcher.dirty = true` and invokes `componentContext.update()` to flush DOM updates.
+3. **Background Polling:** When `pollInterval` is specified (> 0), `Resource` initializes `pollTimer` (`setInterval`). Every `pollInterval` milliseconds, it re-evaluates `handlerFn` to fetch fresh data in the background.
+4. **Teardown & Cleanup:** When the component unmounts, `resource.teardown()` automatically clears `pollTimer` via `clearInterval` alongside `AvenxWatcher` cleanup to prevent memory leaks.
+5. **Component Re-rendering:** When the async operation resolves or rejects, `Resource` marks `componentContext.renderWatcher.dirty = true` and invokes `componentContext.update()` to flush DOM updates.
+
+---
+
+## Real-Time Polling SFC Example
+
+The following Single File Component demonstrates background polling to periodically check real-time server health every 10 seconds:
+
+```javascript
+// src/components/server-status.component.js
+export default {
+  template: `
+    <!-- Poll server status endpoint every 10 seconds -->
+    <resource name="serverStatus" pollInterval="10000">
+      return fetch('/api/health').then(r => r.json());
+    </resource>
+
+    <div class="status-widget">
+      <div data-ax-show="serverStatus.status === 'pending'" class="loading">
+        Checking server health...
+      </div>
+
+      <div data-ax-show="serverStatus.status === 'resolved'" class="status-badge">
+        Server Status: <strong>{{ serverStatus.value?.status }}</strong>
+        (Uptime: {{ serverStatus.value?.uptime }}s)
+      </div>
+    </div>
+  `,
+};
+```
 
 ---
 
