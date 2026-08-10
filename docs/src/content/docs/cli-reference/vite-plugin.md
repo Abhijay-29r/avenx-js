@@ -50,6 +50,12 @@ interface AvenxPluginOptions {
   debug?: boolean;
 
   /**
+   * Controls Source Map v3 generation for .component.js and .page.js templates during build & transformation passes.
+   * @default true in dev
+   */
+  sourcemap?: boolean;
+
+  /**
    * Configuration options passed directly to StyleProcessor.
    * @default {}
    */
@@ -62,6 +68,7 @@ interface AvenxPluginOptions {
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `debug` | `boolean` | `false` | When enabled, logs file resolution, stylesheet loading, compilation phases (`Compile Component`, `Compile Page`), and HMR events to stdout (`[vite-plugin-avenx] ...`). |
+| `sourcemap` | `boolean` | `true in dev` | Controls Source Map v3 generation for `.component.js` and `.page.js` templates during build & transformation passes. |
 | `style` | `object` | `{}` | Options passed directly to internal `StyleProcessor` for CSS scoping, preprocessor handlers, or style transformations. |
 
 ---
@@ -195,6 +202,55 @@ export function handleAvenxHotUpdate(ctx) {
 
 ---
 
+## Template Source Maps & DevTools Debugging
+
+`vite-plugin-avenx` includes native Source Map v3 generation for `.component.js` and `.page.js` files. During Vite transformation passes, the plugin constructs VLQ-encoded source maps mapping compiled JavaScript blocks (constructor initialization, action methods, computed property getters, resources, and rendered HTML templates) back to exact line numbers in original template files.
+
+### How Source Mapping Operates
+
+During template compilation (`compileComponent` and `compilePage`), `vite-plugin-avenx` constructs a Source Map v3 compliant mapping object:
+
+- **Constructor & State Initialization:** Maps `constructor()` and `super()` state bindings back to original template `<state>` block lines.
+- **Action Methods:** Maps compiled action handlers (`<action name="...">`) to their original template source line indices.
+- **Computed Properties:** Maps computed getters (`<computed name="...">`) to their original source definitions.
+- **Resource Management:** Links resource hooks (`<resource name="...">`) directly back to original template lines.
+- **Template & Expression Interpolations:** Maps transformed HTML template strings and dynamic string interpolations back to original template lines.
+
+### DevTools Integration
+
+Browser developer tools (**Chrome DevTools**, **Firefox Developer Edition**, **Safari Web Inspector**) leverage these VLQ-encoded source maps to map executed runtime ES modules back to your original source code:
+
+- **Line-by-Line Breakpoint Debugging:** Place breakpoints directly inside original `.component.js` or `.page.js` source files within browser DevTools.
+- **Precise Stack Traces:** Console errors and warnings display exact line numbers referencing original template source files rather than compiled bundle output.
+- **Scope & State Inspection:** Inspect local variables, reactive component state, actions, and computed properties in their original template scope.
+
+### Configuration Example
+
+You can explicitly configure sourcemap generation in your `vite.config.js`:
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite';
+import avenxPlugin from 'vite-plugin-avenx';
+
+export default defineConfig({
+  plugins: [
+    avenxPlugin({
+      debug: process.env.NODE_ENV === 'development',
+      sourcemap: true, // Enable template line mapping for browser DevTools
+      style: {
+        scoped: true,
+      },
+    }),
+  ],
+  build: {
+    sourcemap: true, // Also generate JS bundle source maps
+  },
+});
+```
+
+---
+
 ## Full `vite.config.js` Boilerplate
 
 Here is a complete, production-ready `vite.config.js` example for building single-page or multi-page Avenx applications:
@@ -208,6 +264,7 @@ export default defineConfig({
   plugins: [
     avenxPlugin({
       debug: process.env.NODE_ENV === 'development',
+      sourcemap: true,
       style: {
         scoped: true,
       },
@@ -225,6 +282,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
+    sourcemap: true,
   },
 });
 ```
