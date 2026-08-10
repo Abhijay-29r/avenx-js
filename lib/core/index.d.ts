@@ -498,6 +498,21 @@ export class AvenxApp {
     onError(callback: (error: Error, component: AvenxComponent, origin: string) => void): this;
 
     /**
+     * Registers a plugin with the application. Supports synchronous plugins, async installer functions, dynamic import loaders, or Promises.
+     * @param plugin The plugin object, installer function, async loader function, or Promise.
+     * @param options Optional configurations for the plugin.
+     * @returns The app instance or a Promise resolving to the app instance.
+     */
+    use(
+        plugin:
+            | ((app: AvenxApp, options?: Record<string, any>) => any)
+            | { install(app: AvenxApp, options?: Record<string, any>): any }
+            | (() => Promise<any>)
+            | Promise<any>,
+        options?: Record<string, any>
+    ): this | Promise<this>;
+
+    /**
      * Registers a custom directive.
      * @param name Directive name.
      * @param definition Directive lifecycle definition.
