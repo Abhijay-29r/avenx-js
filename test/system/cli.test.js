@@ -630,6 +630,17 @@ async function runTest() {
 
     console.log('✅ All watch command tests passed!');
 
+    // 7.5. Test avenx check --json flag
+    console.log('🧪 Testing avenx check --json...');
+    const checkJsonRes = runCli(['check', '--json']);
+    assert.strictEqual(checkJsonRes.status, 0, 'avenx check --json should exit with 0 on valid project');
+    const parsedReport = JSON.parse(checkJsonRes.stdout);
+    assert.strictEqual(parsedReport.valid, true);
+    assert.strictEqual(parsedReport.errorCount, 0);
+    assert.strictEqual(parsedReport.warningCount, 0);
+    assert.deepStrictEqual(parsedReport.diagnostics, []);
+    console.log('✅ avenx check --json system test passed!');
+
     // 8. Test interactive wizard for avenx init
     console.log('🧪 Testing avenx init interactive wizard...');
     if (fs.existsSync(INTERACTIVE_TEST_DIR)) {
