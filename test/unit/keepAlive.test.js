@@ -301,13 +301,45 @@ async function testComponentKeepAliveClear() {
   assert.strictEqual(typeof activeComp.$keepAlive.clear, 'function');
 
   activeHistory = [];
-  activeComp.$keepAlive.clear('PageA');
+  const res = activeComp.$keepAlive.clear('PageA');
+  assert.strictEqual(res, true, 'this.$keepAlive.clear should return true when cache entry evicted');
 
   const hasPageAUnmounted = activeHistory.some((h) => h.page === 'A' && h.action === 'unmount');
   assert.strictEqual(hasPageAUnmounted, true, 'this.$keepAlive.clear should trigger unmount of cached component');
 
   global.document.body.removeChild(container);
   console.log('  ✅ this.$keepAlive.clear() test passed!');
+}
+
+async function testComponentDirectClearKeepAliveCache() {
+  console.log('🧪 Testing this.clearKeepAliveCache() helper method on component instance...');
+
+  const container = global.document.createElement('div');
+  container.id = 'app';
+  global.document.body.appendChild(container);
+
+  activeHistory = [];
+
+  const app = new AvenxApp({ target: '#app', keepAliveLimit: 5 });
+  app.registerPage('PageA', PageA);
+  app.registerPage('PageB', PageB);
+
+  app.mountPage('PageA', {}, { keepAlive: true });
+  app.mountPage('PageB', {}, { keepAlive: true });
+
+  const activeComp = container.__avenx_comp_instance;
+  assert.ok(activeComp);
+  assert.strictEqual(typeof activeComp.clearKeepAliveCache, 'function');
+
+  activeHistory = [];
+  const evicted = activeComp.clearKeepAliveCache('PageA');
+  assert.strictEqual(evicted, true, 'this.clearKeepAliveCache should return true when cache entry evicted');
+
+  const hasPageAUnmounted = activeHistory.some((h) => h.page === 'A' && h.action === 'unmount');
+  assert.strictEqual(hasPageAUnmounted, true, 'this.clearKeepAliveCache should trigger unmount of cached component');
+
+  global.document.body.removeChild(container);
+  console.log('  ✅ this.clearKeepAliveCache() test passed!');
 }
 
 try {
@@ -317,6 +349,7 @@ try {
   await testClearKeepAliveCacheSpecific();
   await testClearKeepAliveCacheAll();
   await testComponentKeepAliveClear();
+  await testComponentDirectClearKeepAliveCache();
   console.log('✅ All Keep-Alive integration tests successfully completed!');
 } catch (error) {
   console.error('❌ Keep-Alive integration tests failed!');

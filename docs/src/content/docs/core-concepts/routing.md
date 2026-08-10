@@ -63,6 +63,31 @@ const app = new AvenxApp({
 
 With this configuration, navigating among four or more keep-alive pages retains only the three most recently used inactive page instances in memory. Older cached pages are automatically removed as needed.
 
+### Programmatic Page Cache Invalidation
+
+In addition to automatic LRU eviction via `keepAliveLimit`, developers can manually purge cached page instances from memory using `clearKeepAliveCache(pageName?: string)`.
+
+This is useful when page instances hold stale data or user-specific state that must be cleared (e.g. after a user logs out or updates profile data).
+
+Calling `this.clearKeepAliveCache('UserProfilePage')` (or `app.clearKeepAliveCache('UserProfilePage')`) evicts the specified cached page instance from memory and triggers its `onUnmount()` hook. Calling `this.clearKeepAliveCache()` without arguments purges all cached page instances.
+
+```javascript
+// Inside a Component Action (e.g. Logout / Refresh Button)
+export default {
+  actions: {
+    handleLogout() {
+      // Evict specific cached page instance
+      this.clearKeepAliveCache('UserProfilePage');
+
+      // Or purge all cached keep-alive pages
+      this.clearKeepAliveCache();
+
+      // Navigate to login
+      this.$router.navigate('/login');
+    }
+  }
+};
+```
 
 
 ## 3. Dynamic Route Parameters
