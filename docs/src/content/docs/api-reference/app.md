@@ -211,3 +211,25 @@ Mounts a registered component onto the specified DOM element, triggering the com
 ```javascript
 app.mount('MyRootComponent', '#app');
 ```
+
+### `clearKeepAliveCache(pageName)`
+
+Programmatically clears cached KeepAlive component instances from memory. Unmounts evicted page instances and destroys their cached DOM trees.
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `pageName` | `string` (optional) | Name of the page component to evict from cache. If omitted, clears all cached page instances. |
+
+**Returns**
+
+`boolean`
+
+Returns `true` if cache entries were evicted, `false` otherwise.
+
+```javascript
+// Evict a specific cached page instance
+const evicted = app.clearKeepAliveCache('UserProfilePage');
+
+// Purge all cached keep-alive pages
+app.clearKeepAliveCache();
+```

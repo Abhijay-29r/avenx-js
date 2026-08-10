@@ -453,6 +453,28 @@ comp.$watch('items.length', () => {
 
 Forces a DOM patch and re-evaluates slots. Typically called automatically by the scheduler.
 
+### `clearKeepAliveCache(pageName)`
+
+Helper method available on component instances (`this.clearKeepAliveCache`) to programmatically clear cached KeepAlive component instances. Delegates to `app.clearKeepAliveCache(pageName)`.
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `pageName` | `string` (optional) | Name of the page component to evict from cache. If omitted, clears all cached page instances. |
+
+**Returns**
+
+`boolean`
+
+Returns `true` if cache entries were evicted, `false` otherwise.
+
+```javascript
+// Inside a component action or method
+this.clearKeepAliveCache('UserProfilePage');
+
+// Or purge all cached keep-alive pages
+this.clearKeepAliveCache();
+```
+
 ---
 
 ## Component Style Lifecycle & StyleMountManager
