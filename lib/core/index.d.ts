@@ -668,6 +668,8 @@ export const logger: AvenxLogger;
 
 export const LogLevels: Record<string, number>;
 
+export function formatContextTag(context: any): string;
+
 export function defaultFormatter(level: string, args: any[]): any[];
 
 export const consoleTransport: {
