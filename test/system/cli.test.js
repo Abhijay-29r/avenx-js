@@ -166,6 +166,11 @@ async function runTest() {
 
     assert.ok(bundleContent.includes('html'), 'bundle.js should contain html function');
 
+    assert.ok(
+      bundleContent.includes('ListManager = class'),
+      'bundle.js should contain ListManager runtime dependency',
+    );
+
     assert.match(buildOutput, /Asset sizes:/, 'prints asset size');
 
     assert.match(buildOutput, /bundle\.js: \d+\.\d{2} KB/, 'prints bundle.js asset size');
