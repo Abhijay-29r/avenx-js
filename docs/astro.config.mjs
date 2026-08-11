@@ -56,12 +56,19 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Guides',
+					items: [
+						{ label: 'VirtualList Performance Guide', slug: 'guides/virtual-list' },
+					],
+				},
+				{
 					label: 'API Reference',
 					items: [
 						{ label: 'AvenxApp API', slug: 'api-reference/app' },
 						{ label: 'AvenxComponent API', slug: 'api-reference/component' },
 						{ label: 'AvenxPage API', slug: 'api-reference/page' },
 						{ label: 'AvenxRouter & Guard API', slug: 'api-reference/router-guard' },
+						{ label: 'VirtualList API', slug: 'api-reference/virtuallist' },
 						{ label: 'Utility Functions', slug: 'api-reference/utils' },
 						{ label: 'Testing API', slug: 'api-reference/testing' },
 					],
