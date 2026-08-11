@@ -160,6 +160,44 @@ The default height is used only until the row is measured. A row that grows or s
 </div>
 ```
 
+### High-volume API Data Fetching with `<resource>` & `<@suspense>`
+
+When fetching large datasets (e.g., 10,000+ items) from an API endpoint using `<resource>`, combine `<VirtualList>` with `<@suspense>` and `<@errorBoundary>`. The resource handles async data fetching and pending states, while `<VirtualList>` ensures only the visible rows are rendered into DOM nodes:
+
+```html
+<resource name="users">
+  return fetch('/api/users').then((res) => {
+    if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
+    return res.json();
+  });
+</resource>
+
+<@errorBoundary>
+  <@fallback as="err">
+    <div class="error-banner">Failed to load user directory: {{ err.message }}</div>
+  </@fallback>
+
+  <@suspense>
+    <@fallback>
+      <div class="loading-spinner">Fetching large user dataset from API...</div>
+    </@fallback>
+
+    <!-- Once resolved, users array is passed to VirtualList for high-performance rendering -->
+    <div class="virtual-list-shell" style="height: 500px;">
+      <VirtualList :item-height="40" :items="users">
+        <template data-ax-as="user">
+          <div class="user-row">
+            <span class="user-id">#{{ index + 1 }}</span>
+            <span class="user-name">{{ user.username }}</span>
+            <span class="user-email">{{ user.email }}</span>
+          </div>
+        </template>
+      </VirtualList>
+    </div>
+  </@suspense>
+</@errorBoundary>
+```
+
 ## Performance tips
 
 - Keep row templates light. The component patches recycled nodes, but a heavy template still costs work on every scroll frame.

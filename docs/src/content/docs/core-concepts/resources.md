@@ -245,3 +245,32 @@ export default {
   `,
 };
 ```
+
+---
+
+## Rendering Large Datasets with `<VirtualList>`
+
+When fetching large arrays from an API (such as 1,000+ to 100,000+ items), rendering standard DOM elements for every array item with `data-ax-for` or `<@for>` can degrade browser rendering performance and increase memory usage. 
+
+To maintain 60 FPS scrolling and low memory footprint, pass the fetched resource array directly into the built-in `<VirtualList>` component inside `<@suspense>`:
+
+```html
+<resource name="largeDataset">
+  return fetch('/api/large-dataset').then(r => r.json());
+</resource>
+
+<@suspense>
+  <@fallback>Loading large dataset...</@fallback>
+
+  <div style="height: 600px;">
+    <VirtualList :item-height="40" :items="largeDataset">
+      <template data-ax-as="item">
+        <div class="row">#{{ index + 1 }} — {{ item.name }}</div>
+      </template>
+    </VirtualList>
+  </div>
+</@suspense>
+```
+
+> [!TIP]
+> `<VirtualList>` recycles DOM nodes as the user scrolls, rendering only the rows currently visible inside the viewport. Combined with `<resource>` and `<@suspense>`, this pattern provides instant loading indicators and smooth scrolling for large API responses.
