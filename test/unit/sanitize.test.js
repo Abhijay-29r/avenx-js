@@ -148,10 +148,70 @@ function testCustomVoidTags() {
   }
 }
 
+function testConfigurablePolicyOptions() {
+  console.log('🧪 Testing Sanitizer configurable policy options...');
+  setupDOMMock();
+
+  try {
+    // 1. disallowedTags filtering
+    const banBoldSanitizer = new Sanitizer({
+      disallowedTags: ['b', 'script'],
+    });
+    const html1 = '<p>Text</p><b>Bold</b><i>Italic</i>';
+    assert.strictEqual(banBoldSanitizer.sanitize(html1), '<p>Text</p>Bold<i>Italic</i>');
+
+    // 2. disallowedAttributes filtering
+    const banStyleSanitizer = new Sanitizer({
+      disallowedAttributes: { div: ['style', 'id'] },
+    });
+    const html2 = '<div id="main" class="box" style="color:red">Content</div>';
+    assert.strictEqual(banStyleSanitizer.sanitize(html2), '<div class="box">Content</div>');
+
+    // Global disallowedAttributes array syntax
+    const banGlobalAttrSanitizer = new Sanitizer({
+      disallowedAttributes: ['style', 'title'],
+    });
+    const html2b = '<p title="tooltip" class="text" style="margin:0">Paragraph</p>';
+    assert.strictEqual(banGlobalAttrSanitizer.sanitize(html2b), '<p class="text">Paragraph</p>');
+
+    // 3. stripComments option (true vs false)
+    const stripCommentsSanitizer = new Sanitizer({ stripComments: true });
+    const keepCommentsSanitizer = new Sanitizer({ stripComments: false });
+
+    const commentContainer = new MockDOMElement('div');
+    commentContainer.childNodes.push({ nodeType: 8, data: ' secret comment ' });
+
+    assert.strictEqual(stripCommentsSanitizer._sanitizeNode(commentContainer), '');
+    assert.strictEqual(keepCommentsSanitizer._sanitizeNode(commentContainer), '<!-- secret comment -->');
+
+    // 4. stripContentTags option
+    const customStripContentSanitizer = new Sanitizer({
+      allowedTags: ['p', 'b'],
+      stripContentTags: ['secret-tag'],
+    });
+    const html4 = '<p>Public</p><secret-tag>Hidden Secret Content</secret-tag><b>End</b>';
+    assert.strictEqual(customStripContentSanitizer.sanitize(html4), '<p>Public</p><b>End</b>');
+
+    // 5. allowDataUrls preference
+    const noDataUrlSanitizer = new Sanitizer({ allowDataUrls: false });
+    const imgContainer = new MockDOMElement('div');
+    const imgNode = new MockDOMElement('img');
+    imgNode.setAttribute('src', 'data:image/png;base64,abc');
+    imgNode.setAttribute('alt', 'pic');
+    imgContainer.appendChild(imgNode);
+    assert.strictEqual(noDataUrlSanitizer._sanitizeNode(imgContainer), '<img alt="pic" />');
+
+    console.log('  ✅ Configurable policy options tests passed!');
+  } finally {
+    teardownDOMMock();
+  }
+}
+
 try {
   testSanitizerWithDOM();
   testSanitizerFallback();
   testCustomVoidTags();
+  testConfigurablePolicyOptions();
   console.log('✅ All Sanitizer tests successfully completed!');
   process.exit(0);
 } catch (error) {

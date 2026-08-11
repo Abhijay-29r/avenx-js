@@ -145,6 +145,23 @@ try {
 
   console.log('    ✅ Standard compatibility preserved.');
 
+  // =========================================================================
+  //  6. HTML Sanitizer Policy Integration
+  // =========================================================================
+  console.log('  Testing DynamicEvaluator.sanitizeHTML with policy options...');
+
+  const rawHtml = '<div><b>Bold Text</b><script>alert("xss")</script><img src="pic.png" style="color:red" /></div>';
+  const defaultSanitized = evaluator.sanitizeHTML(rawHtml);
+  assert.strictEqual(defaultSanitized.includes('<script>'), false, 'Default sanitizeHTML should strip script tags');
+
+  const customPolicySanitized = evaluator.sanitizeHTML(rawHtml, {
+    disallowedTags: ['img'],
+    disallowedAttributes: ['style'],
+  });
+  assert.strictEqual(customPolicySanitized.includes('<img'), false, 'Custom policy should strip img tag');
+
+  console.log('    ✅ DynamicEvaluator.sanitizeHTML policy integration passed.');
+
   console.log('All DynamicEvaluator security sandbox tests passed!');
 } catch (error) {
   console.error('❌ DynamicEvaluator security sandbox tests failed!');
