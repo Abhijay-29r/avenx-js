@@ -429,7 +429,7 @@ For per-instance dynamic CSS values, use the [`data-ax-style`](/core-concepts/te
 | Warning | Identifier | When it appears | What to do |
 | :--- | :--- | :--- | :--- |
 | `AVX_W24` | `COMPILER_PREPROCESSOR_MISSING` | Configured preprocessor package is not installed | Install the package (e.g. `sass`) or remove the `style.preprocessor` setting |
-| `AVX_W26` | `COMPILER_PREPROCESSOR_FAILED` | Preprocessor throws (syntax error, bad hook return) | Fix the stylesheet/source; compiler falls back to raw CSS |
+| `AVX_W31` | `COMPILER_PREPROCESSOR_FAILED` | Preprocessor throws (syntax error, bad hook return) | Fix the stylesheet/source; compiler falls back to raw CSS |
 
 Full details: [Compiler Warnings](/troubleshooting/errors#avx_w24--compiler_preprocessor_missing).
 
