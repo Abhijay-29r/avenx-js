@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { AvenxComponent, RESERVED_INSTANCE_KEYS } from '../../lib/core/runtime/AvenxComponent.js';
-import { AvenxErrorCodes } from '../../lib/core/runtime/AvenxError.js';
 import ComponentParser from '../../lib/compiler/ComponentParser.js';
 import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
 import { logger } from '../../lib/core/runtime/AvenxLogger.js';
