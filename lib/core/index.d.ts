@@ -268,6 +268,10 @@ export class VirtualList extends AvenxComponent<any> {
         bridges?: Record<string, any>,
         props?: Record<string, any>
     );
+    currentPage: number;
+    goToPage(targetPage: number): void;
+    nextPage(): void;
+    prevPage(): void;
 }
 
 /**
