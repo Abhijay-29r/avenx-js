@@ -612,6 +612,10 @@ export class DynamicEvaluator {
  * Evaluates template bracket expressions.
  */
 export class TemplateRenderer {
+    constructor(capacityOrConfig?: number | { capacity?: number; templateCacheCapacity?: number });
+    capacity: number;
+    cache: LruCache;
+    clearCache(): void;
     render(template: string, resolver: (expr: string) => any): string;
 }
 
