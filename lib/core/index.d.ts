@@ -596,6 +596,17 @@ export class ListManager {
 }
 
 /**
+ * Manages deferred loading (<@defer>) of DOM subtrees.
+ */
+export class DeferManager {
+    constructor(evaluator: DynamicEvaluator, renderer: TemplateRenderer, eventBinder?: EventBinder, componentName?: string);
+    process(root: Element, scope: Record<string, any>, state: Record<string, any>, app?: any): void;
+    isLoaded(el: Element): boolean;
+    loadDeferredContent(container: Element, scope: Record<string, any>, state: Record<string, any>, app?: any): void;
+    destroy(): void;
+}
+
+/**
  * Provides static HTML diff string algorithms.
  */
 export class HtmlDiff {
