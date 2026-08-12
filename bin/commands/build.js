@@ -229,14 +229,14 @@ export function checkProject(cli, args = []) {
 
     let timeout;
     const watcher = fs.watch(srcPath, { recursive: true }, (eventType, filename) => {
-      if (filename) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          console.log(`\n[${getTimestamp()}] 📄 Change detected in ${filename}. Re-checking templates...`);
-          executeCheck();
-        }, 100);
-      }
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        const fileMsg = filename ? ` in ${filename}` : '';
+        console.log(`\n[${getTimestamp()}] 📄 Change detected${fileMsg}. Re-checking templates...`);
+        executeCheck();
+      }, 100);
     });
+
 
     const cleanup = () => {
       console.log('\nStopping template check watcher...');

@@ -687,15 +687,20 @@ async function runTest() {
     await checkWatchReadyPromise;
     console.log('  Check watch process started and is ready.');
 
+    // Small delay to ensure OS watcher listener is fully attached before file modification
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     // Make a change to a file to trigger re-check
     const checkMainAppJsPath = path.join(TEST_DIR, 'src/main.app.js');
     fs.appendFileSync(checkMainAppJsPath, '\n// Trigger check watch change\n');
 
-
-
-    // Wait for re-check to trigger
-    await checkRecheckDonePromise;
+    // Wait for re-check to trigger (with timeout protection)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout waiting for template watcher re-check event')), 4000)
+    );
+    await Promise.race([checkRecheckDonePromise, timeoutPromise]);
     console.log('  ✅ Template re-check was successfully triggered on change.');
+
 
     // Stop the check watcher by sending SIGINT (Ctrl+C)
     checkWatchProc.kill('SIGINT');
