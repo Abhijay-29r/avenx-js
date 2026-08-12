@@ -5,17 +5,35 @@
 /**
  * Base class for all route guards in Avenx.
  */
+
+export interface GuardControlObject {
+    cancel?: boolean;
+    silent?: boolean;
+    redirect?: string;
+    state?: Record<string, any>;
+}
+
+export type GuardResult =
+    | boolean
+    | string
+    | GuardControlObject
+    | Promise<boolean | string | GuardControlObject>;
 export class AvenxGuard {
     /**
      * Determines whether the route can be activated.
-     * Can return a boolean, a redirect string, or a Promise resolving to either.
+     * Can return a boolean, a redirect string, control object,
+     * or a Promise resolving to either.
      * @param to Target route information.
      * @param from Current route information.
      */
     canActivate(
         to: { hash: string; page: string; params: Record<string, any> },
         from: { hash: string; page: string; params: Record<string, any> } | null
-    ): boolean | string | Promise<boolean | string>;
+    ): GuardResult;
+    canDeactivate?(
+        current: { hash: string; page: string; params: Record<string, any> },
+        next: { hash: string; page: string; params: Record<string, any> }
+    ): boolean | Promise<boolean>;
 }
 
 /**
@@ -690,6 +708,32 @@ export function defaultFormatter(level: string, args: any[]): any[];
 export const consoleTransport: {
     log(level: string, formattedArgs: any[]): void;
 };
+
+export interface ResourceOptions {
+    pollInterval?: number;
+}
+
+export type ResourceStatus = 'idle' | 'pending' | 'resolved' | 'rejected';
+
+export class Resource<T = any> {
+    constructor(
+        name: string,
+        handlerFn: () => any,
+        componentContext?: object | ResourceOptions,
+        options?: ResourceOptions
+    );
+
+    name: string;
+    status: ResourceStatus;
+    value: T | undefined;
+    error: any;
+    promise: Promise<T> | null;
+    pollInterval: number;
+
+    read(): T;
+    fetch(result?: any): void;
+    teardown(): void;
+}
 
 export class AvenxWatcher {
     getter: () => any;
