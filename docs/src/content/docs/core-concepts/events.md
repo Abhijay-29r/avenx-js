@@ -181,11 +181,14 @@ The runtime first verifies the key modifier, then applies `.prevent`, and finall
 
 ## Custom Component Events
 
-Components can communicate with their parent containers by dispatching custom events. Avenx provides a built-in helper method, `$emit(eventName, detail)`, on the base `AvenxComponent` class to clean up component interactions.
+Components can communicate with their parent containers by dispatching custom events. Avenx provides two event emission methods on the base `AvenxComponent` class:
+
+- **`this.$emit(eventName, detail)`**: Built-in helper method for standard child-to-parent event emission (defaults `composed: true`).
+- **`this.emit(eventName, detail, options)`**: Flexible event emission method allowing component authors to supply native [`CustomEventInit`](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent/CustomEvent) options (e.g. `{ bubbles: false, cancelable: true, composed: false }`) to fine-tune event propagation.
 
 ### Emitting Events (`$emit`)
 
-To emit an event from a child component, call `$emit` inside actions or component methods. The second parameter is an optional payload (`detail`) passed to the parent handler:
+To emit a standard custom event from a child component, call `$emit` inside actions or component methods. The second parameter is an optional payload (`detail`) passed to the parent handler:
 
 ```html
 <!-- src/components/child/child.component.js -->
@@ -197,6 +200,35 @@ To emit an event from a child component, call `$emit` inside actions or componen
 </action>
 
 <button @click="increment()">Click me</button>
+```
+
+### Fine-Tuning Event Propagation (`this.emit`)
+
+When you need granular control over event behavior—such as stopping an event from bubbling up the DOM or creating non-cancelable events—use `this.emit(eventName, detail, options)` instead.
+
+#### Options Parameter Schema (`options`)
+
+| Option | Type | `this.emit()` Default | `this.$emit()` Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `bubbles` | `boolean` | `true` | `true` | Controls whether the event bubbles up through parent DOM elements. |
+| `cancelable` | `boolean` | `true` | `true` | Controls whether listeners can cancel the event via `event.preventDefault()`. |
+| `composed` | `boolean` | `false` | `true` | Controls whether the event propagates across Shadow DOM boundaries into the parent DOM. |
+
+#### Code Examples: Non-Bubbling or Non-Cancelable Custom Events
+
+```javascript
+// 1. Emit a non-bubbling event (prevents parent containers from catching it unless bound directly)
+this.emit('tab-selected', { tabId: 'dashboard' }, { bubbles: false });
+
+// 2. Emit a non-cancelable event (event.preventDefault() is ignored)
+this.emit('system-alert', { code: 'AVX_01' }, { cancelable: false });
+
+// 3. Emit a non-bubbling, non-cancelable, non-composed internal event
+this.emit('internal-scroll', { scrollTop: 250 }, {
+  bubbles: false,
+  cancelable: false,
+  composed: false
+});
 ```
 
 ### Listening to Custom Events (`@eventName`)

@@ -449,6 +449,59 @@ comp.$watch('items.length', () => {
 ```
 
 
+### `emit(eventName, detail, options)`
+
+Emits a custom DOM [`CustomEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent) on the component's root element (`this.$element`). Provides full access to native `CustomEventInit` options for fine-grained control over event propagation, bubbling, and cancelability.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `eventName` | `string` | Name of the custom event to dispatch. |
+| `detail` | `object` | Optional. Event detail payload accessible via `event.detail`. Defaults to `{}`. |
+| `options` | `object` | Optional. Native `CustomEventInit` dictionary to configure event propagation behavior. Defaults to `{}`. |
+
+#### Event Options (`options`)
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `bubbles` | `boolean` | `true` | Controls whether the event bubbles up through ancestor DOM elements. |
+| `cancelable` | `boolean` | `true` | Controls whether the event can be canceled via `event.preventDefault()`. |
+| `composed` | `boolean` | `false` | Controls whether the event propagates across Shadow DOM boundaries into the standard DOM. |
+
+#### Example: Non-bubbling and Non-cancelable Events
+
+```javascript
+// Emit a non-bubbling custom event
+this.emit('tab-change', { tabId: 'settings' }, { bubbles: false });
+
+// Emit a non-cancelable custom event
+this.emit('status-sync', { status: 'active' }, { cancelable: false });
+
+// Emit a strictly internal non-bubbling, non-cancelable event
+this.emit('internal-scroll', { offset: 120 }, { bubbles: false, cancelable: false });
+```
+
+---
+
+### `$emit(eventName, detail)`
+
+Convenience shortcut for emitting custom events up the component hierarchy. Delegates to `this.emit(eventName, detail, { composed: true })`.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `eventName` | `string` | Name of the custom event to dispatch. |
+| `detail` | `object` | Optional. Event detail payload accessible via `event.detail`. Defaults to `{}`. |
+
+#### `this.$emit()` vs `this.emit()`
+
+| Feature | `this.$emit()` | `this.emit()` |
+| :--- | :--- | :--- |
+| **`bubbles` Default** | `true` | `true` (configurable) |
+| **`cancelable` Default** | `true` | `true` (configurable) |
+| **`composed` Default** | `true` | `false` (configurable) |
+| **Options Parameter** | Not available | Supported via 3rd argument (`options`) |
+| **Primary Use Case** | Standard parent-child component event emission | Advanced propagation control (e.g. non-bubbling or non-cancelable events) |
+
+
 ### `update()`
 
 Forces a DOM patch and re-evaluates slots. Typically called automatically by the scheduler.
