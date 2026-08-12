@@ -139,6 +139,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="http://dineshsinghdhami.com.np"><img src="https://avatars.githubusercontent.com/u/187259771?v=4?s=100" width="100px;" alt="Dinesh Singh Dhami"/><br /><sub><b>Dinesh Singh Dhami</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=dineshsinghdhami" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/aryansk"><img src="https://avatars.githubusercontent.com/u/70511529?v=4?s=100" width="100px;" alt="Aryan Singh K."/><br /><sub><b>Aryan Singh K.</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=aryansk" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Lavanya-N24"><img src="https://avatars.githubusercontent.com/u/190243603?v=4?s=100" width="100px;" alt="Lavanya N M "/><br /><sub><b>Lavanya N M </b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Lavanya-N24" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Heliskee"><img src="https://avatars.githubusercontent.com/u/300656353?v=4?s=100" width="100px;" alt="Heliskee"/><br /><sub><b>Heliskee</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Heliskee" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
