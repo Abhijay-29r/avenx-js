@@ -814,6 +814,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Heliskee",
+      "name": "Heliskee",
+      "avatar_url": "https://avatars.githubusercontent.com/u/300656353?v=4",
+      "profile": "https://github.com/Heliskee",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
