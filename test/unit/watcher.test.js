@@ -143,6 +143,62 @@ function testWatcherTeardown() {
 }
 
 /**
+ * Tests pause and resume behavior of AvenxWatcher.
+ */
+function testWatcherPauseResume() {
+  console.log('🧪 Testing AvenxWatcher pause/resume...');
+
+  const state = new StateFactory().create({
+    count: 0,
+  });
+
+  let callbackCount = 0;
+  let lastNewValue = null;
+
+  const watcher = new AvenxWatcher(
+    () => state.count,(newVal) =>{
+      callbackCount++;
+      lastNewValue = newVal;
+    },
+  );
+
+  // Watcher should start in active state
+  state.count = 1;
+
+  assert.strictEqual(watcher.value, 1);
+  assert.strictEqual(callbackCount, 1);
+  assert.strictEqual(lastNewValue, 1);
+
+  // Pause the watcher
+  watcher.pause();
+
+  // State mutation should not re-evaluate the watcher or trigger callback
+  state.count = 2;
+
+  assert.strictEqual(
+    watcher.value,
+    1,
+    'Paused watcher should not re-evaluate its value',
+  );
+  assert.strictEqual(
+    callbackCount,
+    1,
+    'Paused watcher should not trigger callback',
+  );
+
+  // Resume the watcher
+  watcher.resume();
+
+  state.count = 3;
+
+  assert.strictEqual(watcher.value, 3);
+  assert.strictEqual(callbackCount, 2);
+  assert.strictEqual(lastNewValue, 3);
+
+  console.log('  ✅ Watcher pause/resume tests passed!');
+}
+
+/**
  * Tests programmatic Component watch method.
  */
 function testComponentWatchAPI() {
@@ -346,6 +402,7 @@ async function runTests() {
     testBasicWatcher();
     testImmediateWatcher();
     testWatcherTeardown();
+    testWatcherPauseResume();
     testComponentWatchAPI();
     testFunctionBasedComputedProperty();
     testDynamicDependencyPruning();
