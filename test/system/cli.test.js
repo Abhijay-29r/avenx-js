@@ -646,6 +646,79 @@ async function runTest() {
     assert.deepStrictEqual(parsedReport.diagnostics, []);
     console.log('✅ avenx check --json system test passed!');
 
+    // 7.6. Test avenx check --watch flag
+    console.log('🧪 Testing avenx check --watch...');
+    const checkWatchProc = spawn(process.execPath, [BIN_PATH, 'check', '--watch'], {
+      cwd: TEST_DIR,
+    });
+
+    let checkWatchOutput = '';
+    let resolveCheckWatchReady;
+    const checkWatchReadyPromise = new Promise((resolve) => {
+      resolveCheckWatchReady = resolve;
+    });
+
+    let resolveCheckRecheckDone;
+    const checkRecheckDonePromise = new Promise((resolve) => {
+      resolveCheckRecheckDone = resolve;
+    });
+
+    checkWatchProc.stdout.on('data', (data) => {
+      const chunk = data.toString('utf8');
+      checkWatchOutput += chunk;
+
+      if (chunk.includes('Watching for template changes')) {
+        resolveCheckWatchReady();
+      }
+      if (chunk.includes('Change detected') || chunk.includes('Re-checking templates')) {
+        resolveCheckRecheckDone();
+      }
+    });
+
+    checkWatchProc.stderr.on('data', (data) => {
+      const chunk = data.toString('utf8');
+      checkWatchOutput += chunk;
+      if (chunk.includes('Change detected') || chunk.includes('Re-checking templates')) {
+        resolveCheckRecheckDone();
+      }
+    });
+
+    // Wait for the template watcher to start
+    await checkWatchReadyPromise;
+    console.log('  Check watch process started and is ready.');
+
+    // Make a change to a file to trigger re-check
+    const checkMainAppJsPath = path.join(TEST_DIR, 'src/main.app.js');
+    fs.appendFileSync(checkMainAppJsPath, '\n// Trigger check watch change\n');
+
+
+
+    // Wait for re-check to trigger
+    await checkRecheckDonePromise;
+    console.log('  ✅ Template re-check was successfully triggered on change.');
+
+    // Stop the check watcher by sending SIGINT (Ctrl+C)
+    checkWatchProc.kill('SIGINT');
+
+    const checkExitPromise = new Promise((resolve) => {
+      checkWatchProc.on('exit', (code, signal) => {
+        resolve({ code, signal });
+      });
+    });
+
+    const { code: checkExitCode, signal: checkExitSignal } = await checkExitPromise;
+    assert.ok(
+      checkExitCode === 0 || checkExitCode === null || checkExitSignal === 'SIGINT',
+      `avenx check --watch should exit with 0 or be terminated by SIGINT (code: ${checkExitCode}, signal: ${checkExitSignal})`
+    );
+    assert.ok(
+      checkWatchOutput.includes('Watching for template changes') && checkWatchOutput.includes('No template validation issues found'),
+      'check watch output should contain watch startup and timestamped status'
+    );
+    console.log('  ✅ avenx check --watch exited gracefully on SIGINT.');
+    console.log('✅ avenx check --watch system test passed!');
+
+
     // 8. Test interactive wizard for avenx init
     console.log('🧪 Testing avenx init interactive wizard...');
     if (fs.existsSync(INTERACTIVE_TEST_DIR)) {

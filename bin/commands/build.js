@@ -99,12 +99,20 @@ export function parseDiagnostic(severity, args) {
 }
 
 /**
- * Validates template files without building.
- * @param {object} cli - AvenxCLI instance containing config and baseDir.
- * @param {string[]} [args] - Additional command line arguments.
- * @returns {object|undefined} Diagnostic report when running in json mode or testing.
+ * Helper to get formatted local time string for timestamps (HH:MM:SS format).
+ * @returns {string}
  */
-export function checkProject(cli, args = []) {
+function getTimestamp() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+/**
+ * Runs a single template check pass and returns structured results.
+ * @param {object} cli - AvenxCLI instance containing config and baseDir.
+ * @param {string[]} [args] - Command line arguments.
+ * @returns {{ valid: boolean, errorCount: number, warningCount: number, diagnostics: any[] }}
+ */
+export function runCheckPass(cli, args = []) {
   const isJson = args.includes('--json') || args.includes('-j');
   const diagnostics = [];
 
@@ -165,15 +173,93 @@ export function checkProject(cli, args = []) {
     console.trace = originalTrace;
   }
 
-  if (isJson) {
-    const report = {
-      valid: errorCount === 0 && warningCount === 0,
-      errorCount,
-      warningCount,
-      diagnostics,
+  return {
+    valid: errorCount === 0 && warningCount === 0,
+    errorCount,
+    warningCount,
+    diagnostics,
+  };
+}
+
+/**
+ * Validates template files without building.
+ * Supports --watch / -w for continuous watching and template linting.
+ * @param {object} cli - AvenxCLI instance containing config and baseDir.
+ * @param {string[]} [args] - Additional command line arguments.
+ * @returns {object|fs.FSWatcher|undefined} Diagnostic report or watcher instance.
+ */
+export function checkProject(cli, args = []) {
+  const isJson = args.includes('--json') || args.includes('-j');
+  const isWatch = args.includes('--watch') || args.includes('-w');
+
+  if (isWatch) {
+    const srcDir = (cli && cli.config && cli.config.srcDir) || 'src';
+    const srcPath = path.join((cli && cli.baseDir) || process.cwd(), srcDir);
+
+    console.log(`[${getTimestamp()}] 👀 Watching for template changes in ${srcDir}/...`);
+
+    const executeCheck = () => {
+      const timestamp = getTimestamp();
+      const report = runCheckPass(cli, args);
+
+      if (isJson) {
+        const jsonReport = {
+          timestamp,
+          ...report,
+        };
+        console.log(JSON.stringify(jsonReport, null, 2));
+      } else {
+        const totalIssues = report.warningCount + report.errorCount;
+        if (totalIssues > 0) {
+          console.error(`[${timestamp}] ❌ Found ${totalIssues} validation issue(s).`);
+        } else {
+          console.log(`[${timestamp}] ✓ No template validation issues found.`);
+        }
+      }
+      return report;
     };
 
-    originalLog(JSON.stringify(report, null, 2));
+    // Initial check
+    const initialReport = executeCheck();
+
+    if (!fs.existsSync(srcPath)) {
+      console.error(`❌ Source directory does not exist: ${srcPath}`);
+      return initialReport;
+    }
+
+    let timeout;
+    const watcher = fs.watch(srcPath, { recursive: true }, (eventType, filename) => {
+      if (filename) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          console.log(`\n[${getTimestamp()}] 📄 Change detected in ${filename}. Re-checking templates...`);
+          executeCheck();
+        }, 100);
+      }
+    });
+
+    const cleanup = () => {
+      console.log('\nStopping template check watcher...');
+      if (watcher) watcher.close();
+      if (!cli || !cli._noExit) {
+        process.exit(0);
+      }
+    };
+
+    process.on('SIGINT', cleanup);
+
+    if (cli) {
+      cli._watcher = watcher;
+    }
+
+    return watcher;
+  }
+
+  // Single-pass mode
+  const report = runCheckPass(cli, args);
+
+  if (isJson) {
+    console.log(JSON.stringify(report, null, 2));
 
     process.exitCode = report.valid ? 0 : 1;
     if (!cli || !cli._noExit) {
@@ -182,19 +268,22 @@ export function checkProject(cli, args = []) {
     return report;
   }
 
-  if (warningCount > 0 || errorCount > 0) {
-    originalError(`\nFound ${warningCount + errorCount} validation issue(s).`);
+  const totalIssues = report.warningCount + report.errorCount;
+  if (totalIssues > 0) {
+    console.error(`\nFound ${totalIssues} validation issue(s).`);
     process.exitCode = 1;
     if (!cli || !cli._noExit) {
       process.exit(1);
     }
-    return;
+    return report;
   }
 
-  originalLog('✓ No template validation issues found.');
+  console.log('✓ No template validation issues found.');
   process.exitCode = 0;
   if (!cli || !cli._noExit) {
     process.exit(0);
   }
+  return report;
 }
+
 
