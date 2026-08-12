@@ -116,10 +116,55 @@ function testCustomEventDelegation() {
   console.log('  ✅ Parent captures child events via @eventName="handler" syntax.');
 }
 
+/**
+ * Tests this.emit() with CustomEventInit options (bubbles, cancelable).
+ */
+function testEmitWithOptions() {
+  console.log('🧪 Testing this.emit() with custom options (bubbles, cancelable)...');
+
+  let caughtOnRoot = false;
+  let caughtOnChild = false;
+  let eventCancelable = null;
+  let eventBubbles = null;
+
+  const component = new AvenxComponent(
+    {},
+    {},
+    {},
+    '<button data-ax-ref="btn">Click</button>',
+    {},
+  );
+
+  const root = document.createElement('div');
+  const container = document.createElement('div');
+  root.appendChild(container);
+  component.mount(container);
+
+  root.addEventListener('non-bubbling-event', () => {
+    caughtOnRoot = true;
+  });
+
+  component.$element.addEventListener('non-bubbling-event', (e) => {
+    caughtOnChild = true;
+    eventBubbles = e.bubbles;
+    eventCancelable = e.cancelable;
+  });
+
+  component.emit('non-bubbling-event', { payload: 123 }, { bubbles: false, cancelable: false });
+
+  assert.strictEqual(caughtOnChild, true, 'Event should fire on target element');
+  assert.strictEqual(caughtOnRoot, false, 'Non-bubbling event should not bubble up to parent');
+  assert.strictEqual(eventBubbles, false, 'Event bubbles property should be false');
+  assert.strictEqual(eventCancelable, false, 'Event cancelable property should be false');
+
+  console.log('  ✅ this.emit() correctly handles CustomEventInit options (bubbles: false, cancelable: false).');
+}
+
 function runTests() {
   try {
     testEmitFunctionality();
     testCustomEventDelegation();
+    testEmitWithOptions();
     console.log('✅ All component custom event emission tests passed!');
   } catch (error) {
     console.error('❌ Component custom event emission tests failed!');
