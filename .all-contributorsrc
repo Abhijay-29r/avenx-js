@@ -850,6 +850,15 @@
       "contributions": [
         "test"
       ]
+    },
+    {
+      "login": "ragul023",
+      "name": "Ragul Radhakrishnan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/218540256?v=4",
+      "profile": "https://github.com/ragul023",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
