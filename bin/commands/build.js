@@ -1,13 +1,27 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import AvenxCompiler from '../../lib/compiler.js';
 
 /**
- * Runs the compiler build.
+ * Runs the compiler build along with optional prebuild and postbuild lifecycle hooks.
  * @param {object} cli - AvenxCLI instance containing config and baseDir.
  */
 export function buildProject(cli) {
+  const hooks = (cli && cli.config && cli.config.hooks) || {};
+  const baseDir = (cli && cli.baseDir) || process.cwd();
+
+  if (hooks.prebuild && typeof hooks.prebuild === 'string' && hooks.prebuild.trim() !== '') {
+    console.log(`🏃 Running prebuild hook: ${hooks.prebuild}...`);
+    execSync(hooks.prebuild, { stdio: 'inherit', cwd: baseDir });
+  }
+
   new AvenxCompiler(cli.config).build();
+
+  if (hooks.postbuild && typeof hooks.postbuild === 'string' && hooks.postbuild.trim() !== '') {
+    console.log(`🏃 Running postbuild hook: ${hooks.postbuild}...`);
+    execSync(hooks.postbuild, { stdio: 'inherit', cwd: baseDir });
+  }
 }
 
 /**

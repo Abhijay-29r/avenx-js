@@ -125,6 +125,20 @@ try {
     writeTestConfig({ preprocessors: 'not-an-object-or-fn' });
     assertThrows(() => loadConfig(), 'preprocessors must be an object or function');
 
+    writeTestConfig({ hooks: 'not-an-object' });
+    assertThrows(() => loadConfig(), 'hooks must be an object');
+
+    writeTestConfig({ hooks: { prebuild: 123 } });
+    assertThrows(() => loadConfig(), 'hooks.prebuild must be a string');
+
+    writeTestConfig({ hooks: { postbuild: true } });
+    assertThrows(() => loadConfig(), 'hooks.postbuild must be a string');
+
+    writeTestConfig({ hooks: { prebuild: 'node pre.js', postbuild: 'node post.js' } });
+    const hooksConfig = loadConfig();
+    assert.strictEqual(hooksConfig.hooks.prebuild, 'node pre.js');
+    assert.strictEqual(hooksConfig.hooks.postbuild, 'node post.js');
+
     writeTestConfig({ warnings: { AVX_W03: 'error', AVX_W01: 'off' } });
     const warnConfig = loadConfig();
     assert.strictEqual(warnConfig.warnings['AVX_W03'], 'error');
@@ -152,7 +166,7 @@ try {
         `Unexpected warning: ${warnings[0]}`
       );
       assert.ok(
-        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors, alias.'),
+        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors, alias, hooks.'),
         `Unexpected warning options list: ${warnings[0]}`
       );
       warnings.length = 0;
@@ -197,6 +211,16 @@ try {
       assert.ok(warnings.length > 0, 'Expected warnings to be emitted');
       assert.ok(
         warnings[0].includes('Unknown configuration option "logging.levels" in avenx.config.json. Did you mean "logging.level"?'),
+        `Unexpected warning: ${warnings[0]}`
+      );
+      warnings.length = 0;
+
+      // 6. Unknown nested hooks option with a suggestion
+      writeTestConfig({ hooks: { prebuildd: 'node pre.js' } });
+      loadConfig();
+      assert.ok(warnings.length > 0, 'Expected warnings to be emitted');
+      assert.ok(
+        warnings[0].includes('Unknown configuration option "hooks.prebuildd" in avenx.config.json. Did you mean "hooks.prebuild"?'),
         `Unexpected warning: ${warnings[0]}`
       );
       warnings.length = 0;
