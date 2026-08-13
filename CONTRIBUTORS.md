@@ -141,6 +141,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Lavanya-N24"><img src="https://avatars.githubusercontent.com/u/190243603?v=4?s=100" width="100px;" alt="Lavanya N M "/><br /><sub><b>Lavanya N M </b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Lavanya-N24" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Heliskee"><img src="https://avatars.githubusercontent.com/u/300656353?v=4?s=100" width="100px;" alt="Heliskee"/><br /><sub><b>Heliskee</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Heliskee" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Mathusan-08"><img src="https://avatars.githubusercontent.com/u/273241641?v=4?s=100" width="100px;" alt="Mathusan-08"/><br /><sub><b>Mathusan-08</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Mathusan-08" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Akanshagore"><img src="https://avatars.githubusercontent.com/u/271256844?v=4?s=100" width="100px;" alt="Akansha Gore"/><br /><sub><b>Akansha Gore</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Akanshagore" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
