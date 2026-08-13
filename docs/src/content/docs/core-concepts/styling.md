@@ -135,6 +135,32 @@ The `&` nesting reference behaves the same way inside nested at-rules such as `@
 </@css>
 ```
 
+## 4c. Inline Component CSS (`static styles`)
+
+Besides companion `.component.css` / `<@css>` blocks, a component **class** may declare a static `styles` string. At runtime, `StyleMountManager` injects that CSS into a shared `<style data-avenx-style="...">` element in `document.head` (one element per component class, reference-counted across instances).
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export class Badge extends AvenxComponent {
+  static styles = `
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+  `;
+}
+```
+
+Notes:
+
+- `styles` must be a non-empty **string** on the constructor (`componentClass.styles`). Empty or non-string values are ignored.
+- Mount increments a ref-count; unmount decrements and removes the `<style>` node when no instances remain.
+- Prefer `<@css>` / scoped stylesheets for compile-time scoping hashes; use `static styles` for simple runtime-injected class CSS shared by all instances of that class.
+
 ## 4. Global CSS & Custom Variables (`<@global>`)
 
 Declare global styles or design token variables using the `<@global>` block. Use the `@def` directive to define custom color codes or measurements. The compiler replaces these variables statically at build time.
@@ -219,7 +245,7 @@ This automatic renaming only applies to custom properties declared **inside** a 
 | | Declared in `<@global>` / `:root` | Declared inside `<@css>` |
 | --- | --- | --- |
 | Renamed at compile time | No | Yes, to `--ax-<hashId>-<name>` |
-| Visible outside the component | Yes | No — effectively private to that component |
+| Visible outside the component | Yes | No â€” effectively private to that component |
 | Typical use | Design tokens / theme variables shared across the app | Component-local values, including ones derived from props or state |
 
 ### Native Variables vs. `@def` Macros
@@ -227,7 +253,7 @@ This automatic renaming only applies to custom properties declared **inside** a 
 It's worth distinguishing the two variable systems available inside `<@css>` and `<@global>` blocks:
 
 - **`@def` macros** (e.g. `@def primary-color #6366f1;`, referenced as `@primary-color`) are resolved by simple text substitution at compile time. The `@primary-color` reference is replaced with its literal value before the CSS is emitted, so it produces no runtime CSS variable at all.
-- **Native custom properties** (e.g. `--color-primary: #6366f1;`, referenced as `var(--color-primary)`) remain real CSS custom properties in the compiled output. They are only renamed to avoid cross-component collisions — they still behave like normal CSS variables at runtime, including being overridable via inline styles or JavaScript.
+- **Native custom properties** (e.g. `--color-primary: #6366f1;`, referenced as `var(--color-primary)`) remain real CSS custom properties in the compiled output. They are only renamed to avoid cross-component collisions â€” they still behave like normal CSS variables at runtime, including being overridable via inline styles or JavaScript.
 
 Use `@def` macros for static design tokens that never need to change at runtime, and native custom properties when you need actual runtime-computed or overridable CSS variables scoped to a component.
 
