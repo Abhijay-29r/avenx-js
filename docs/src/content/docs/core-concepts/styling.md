@@ -184,6 +184,32 @@ instead of attaching the scope attribute to `.badge` itself.
 
 Use deep selectors sparingly: they intentionally pierce encapsulation. Prefer props, slots, or CSS variables when a child can own its own styles.
 
+## 4c. Inline Component CSS (`static styles`)
+
+Besides companion `.component.css` / `<@css>` blocks, a component **class** may declare a static `styles` string. At runtime, `StyleMountManager` injects that CSS into a shared `<style data-avenx-style="...">` element in `document.head` (one element per component class, reference-counted across instances).
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export class Badge extends AvenxComponent {
+  static styles = `
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+  `;
+}
+```
+
+Notes:
+
+- `styles` must be a non-empty **string** on the constructor (`componentClass.styles`). Empty or non-string values are ignored.
+- Mount increments a ref-count; unmount decrements and removes the `<style>` node when no instances remain.
+- Prefer `<@css>` / scoped stylesheets for compile-time scoping hashes; use `static styles` for simple runtime-injected class CSS shared by all instances of that class.
+
 ## 4. Global CSS & Custom Variables (`<@global>`)
 
 Declare global styles or design token variables using the `<@global>` block. Use the `@def` directive to define custom color codes or measurements. The compiler replaces these variables statically at build time.
