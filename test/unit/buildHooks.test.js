@@ -26,8 +26,6 @@ try {
     };
   `, 'utf8');
 
-  const logFile = path.join(testTmpDir, 'hooks_execution.log');
-
   const createMockCli = (hooksConfig = {}) => ({
     baseDir: testTmpDir,
     config: {
