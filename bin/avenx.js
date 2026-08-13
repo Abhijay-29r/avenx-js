@@ -33,6 +33,10 @@ if (command === '-v' || command === '--version') {
   console.log('Avenx-JS v' + packageJson.version);
   process.exit(0);
 } else {
-  const cli = new AvenxCLI();
+  const options = {};
+  if (command === 'init') {
+    options.baseDir = process.cwd();
+  }
+  const cli = new AvenxCLI(options);
   cli.run(command, args);
 }
