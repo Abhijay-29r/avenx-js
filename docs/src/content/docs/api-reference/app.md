@@ -181,21 +181,26 @@ Registers a global reactive state bridge. The bridge will be initialized and exp
 app.registerBridge('AuthBridge', { isLoggedIn: false });
 ```
 
-### `onError(handler)`
+### `onError(callback)`
 
-Registers a global error handler for capturing unhandled errors that occur during component lifecycle events, template evaluations, and event handler executions. Once registered, this handler receives all unhandled errors from the application's error boundary, replacing the default behavior of logging to console.
+Registers an application-wide error handler. Handlers are stored in a list—calling `onError` again **adds** another callback (it does not replace previous ones). Returns `this` for chaining.
 
-The handler is invoked synchronously with the error object. AvenxApp allows registering at most one global error handler — calling `onError` a second time replaces the previous handler.
+When an uncaught component/lifecycle/event error bubbles past local `onErrorCaptured` hooks, AvenxApp dispatches it through internal `_handleError(error, component, origin)`, which invokes every registered callback inside a try/catch so a failing handler cannot break the others.
 
-| Param     | Type       | Description                                                             |
-| --------- | ---------- | ----------------------------------------------------------------------- |
-| `handler` | `Function` | A callback receiving the error object as its first and only argument.    |
+| Param | Type | Description |
+| --- | --- | --- |
+| `callback` | `(error: Error, component: AvenxComponent, origin: string) => void` | Receives the error, the component instance where it occurred, and an origin string (e.g. lifecycle or event context). Non-function values are ignored. |
 
 ```javascript
-app.onError((error) => {
-  reportErrorToServer(error);
+app.onError((error, component, origin) => {
+  // e.g. Sentry / LogRocket
+  reportErrorToServer({
+    message: error.message,
+    code: error.code,
+    component: component?.constructor?.name,
+    origin,
+  });
   showErrorToast('Something went wrong. Please try again.');
-  console.warn('Avenx error caught:', error);
 });
 ```
 
