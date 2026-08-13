@@ -304,6 +304,7 @@ my-avenx-app/
 | `avenx build` (or `b`)    | Compiles the project into `dist/`.                     |
 | `avenx clean`             | Clears build output directory.                         |
 | `avenx check` (or `lint`) | Validates component templates without building.        |
+| `avenx doctor`            | Runs environment and project health diagnostics.       |
 | `avenx serve [port]`      | Starts the dev server with hot-reload (default: 3000). |
 | `avenx watch` (or `w`)    | Watch for file changes and rebuild automatically.      |
 
