@@ -75,6 +75,26 @@ console.log(cleanHtml);
 // Output: <div>Hello  <a>World</a></div>
 ```
 
+## 4b. `formatMessage(code, ...args)`
+
+Formats an Avenx error/warning template into a console-ready string **without throwing**. Use this when you want to log or report a framework message yourself.
+
+```javascript
+import { AvenxErrorCodes, formatMessage } from 'avenx-core/runtime';
+
+logger.warn(formatMessage(AvenxErrorCodes.COMPONENT_INJECT_KEY_NOT_FOUND, 'theme'));
+// => [AVX_W15] Inject key "theme" was not found in the component provide/inject tree.
+```
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | An `AvenxErrorCodes` value (e.g. `AVX_W15`) |
+| `...args` | `any[]` | Values substituted for `{0}`, `{1}`, … placeholders in `AvenxErrorMessages` |
+
+**Returns:** `string` in the form ``[`code`] formatted message``.
+
+Unlike constructing `new AvenxError(code, ...args)`, `formatMessage` never throws—it only builds the text for `logger.warn`, telemetry, or custom UI.
+
 ## 5. Reactivity API Reference
 
 Avenx-JS exposes APIs for programmatically creating reactive state objects and observing reactive values.
@@ -238,12 +258,12 @@ When `true`, the initial getter evaluation is postponed until the watcher is eva
 
 ### Properties
 
-- `getter` — The reactive evaluation function supplied to the constructor.
-- `callback` — The callback function invoked when the watched value changes.
-- `options` — The watcher configuration object.
-- `deps` — A `Set` containing the reactive dependencies tracked by the watcher.
-- `dirty` — A boolean indicating whether a lazy watcher needs to be re-evaluated.
-- `value` — The currently stored value returned by the getter.
+- `getter` â€” The reactive evaluation function supplied to the constructor.
+- `callback` â€” The callback function invoked when the watched value changes.
+- `options` â€” The watcher configuration object.
+- `deps` â€” A `Set` containing the reactive dependencies tracked by the watcher.
+- `dirty` â€” A boolean indicating whether a lazy watcher needs to be re-evaluated.
+- `value` â€” The currently stored value returned by the getter.
 
 ### Methods
 
@@ -529,7 +549,7 @@ const logger = new AvenxLogger({
 
 ## Custom Transport
 
-By default, `AvenxLogger` uses `consoleTransport`, which dispatches each level to a `console` method: `fatal` logs via `console.error`, `trace` logs via `console.debug`, and every other level logs via the matching `console` method (e.g. `info` → `console.info`), falling back to `console.log` if no matching method exists.
+By default, `AvenxLogger` uses `consoleTransport`, which dispatches each level to a `console` method: `fatal` logs via `console.error`, `trace` logs via `console.debug`, and every other level logs via the matching `console` method (e.g. `info` â†’ `console.info`), falling back to `console.log` if no matching method exists.
 
 Custom transports allow log messages to be forwarded to destinations other than the browser console.
 
@@ -619,15 +639,15 @@ const cache = new LruCache(limit, onEvict);
 Retrieves an item from the cache and updates its recency to make it the most recently used item.
 
 - **Parameters:** `key: string`
-- **Returns:** `any` — The cached item, or `undefined` if the key does not exist.
+- **Returns:** `any` â€” The cached item, or `undefined` if the key does not exist.
 
 #### `set(key, value)`
 
 Inserts or updates a key-value pair in the cache. If the cache size reaches the specified `limit`, the least recently used (LRU) item is evicted and the optional `onEvict` callback is triggered.
 
 - **Parameters:**
-  - `key: string` — Item identifier.
-  - `value: any` — Data payload to cache.
+  - `key: string` â€” Item identifier.
+  - `value: any` â€” Data payload to cache.
 - **Returns:** `void`
 
 #### `has(key)`
@@ -635,14 +655,14 @@ Inserts or updates a key-value pair in the cache. If the cache size reaches the 
 Checks whether a key exists in the cache **without** altering its recency ordering.
 
 - **Parameters:** `key: string`
-- **Returns:** `boolean` — `true` if the key exists, otherwise `false`.
+- **Returns:** `boolean` â€” `true` if the key exists, otherwise `false`.
 
 #### `delete(key)`
 
 Removes a specific item from the cache.
 
 - **Parameters:** `key: string`
-- **Returns:** `boolean` — `true` if the item existed and was removed, otherwise `false`.
+- **Returns:** `boolean` â€” `true` if the item existed and was removed, otherwise `false`.
 
 #### `clear()`
 

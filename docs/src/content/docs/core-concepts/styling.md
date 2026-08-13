@@ -135,6 +135,55 @@ The `&` nesting reference behaves the same way inside nested at-rules such as `@
 </@css>
 ```
 
+## 4b. Deep Scoped Selectors (`:deep()` & `::v-deep`)
+
+Scoped CSS keeps rules inside the component. Use **deep selectors** when a parent stylesheet must style child-component DOM or slotted content across that boundary—without switching the whole block to `<@global>`.
+
+`StyleProcessor` strips `:deep(...)` / `::v-deep(...)` (and bare `:deep` / `::v-deep`) at compile time, then applies the component scope hash only to the outer part of the selector. Descendants inside the deep wrapper stay unscoped.
+
+### Supported syntax
+
+| Form | Example | Idea |
+| :--- | :--- | :--- |
+| Parenthesized modern | `.card :deep(.badge)` | Prefer this form |
+| Parenthesized Vue-style | `.card ::v-deep(.badge)` | Same behavior |
+| Combinator form | `.card :deep .badge` | Space/`>`/`+`/`~` after `:deep` |
+
+Conceptually:
+
+```css
+/* Source (scoped component) */
+.card :deep(.badge) {
+  color: #6366f1;
+}
+```
+
+compiles like:
+
+```css
+.card[data-ax-scope-a1b2c3] .badge {
+  color: #6366f1;
+}
+```
+
+instead of attaching the scope attribute to `.badge` itself.
+
+### Example
+
+```css
+<@css>
+    card {
+        padding: 1rem;
+
+        & :deep(.child-title) {
+            font-weight: 600;
+        }
+    }
+</@css>
+```
+
+Use deep selectors sparingly: they intentionally pierce encapsulation. Prefer props, slots, or CSS variables when a child can own its own styles.
+
 ## 4c. Inline Component CSS (`static styles`)
 
 Besides companion `.component.css` / `<@css>` blocks, a component **class** may declare a static `styles` string. At runtime, `StyleMountManager` injects that CSS into a shared `<style data-avenx-style="...">` element in `document.head` (one element per component class, reference-counted across instances).
