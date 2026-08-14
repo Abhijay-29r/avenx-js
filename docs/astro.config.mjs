@@ -59,6 +59,10 @@ export default defineConfig({
 					label: 'Migration Guides',
 					items: [
 						{ label: 'Overview & Architectural Comparison', slug: 'migration/overview' },
+						{ label: 'React Migration Guide', slug: 'migration/react' },
+						{ label: 'Vue Migration Guide', slug: 'migration/vue' },
+						{ label: 'Next.js Migration Guide', slug: 'migration/nextjs' },
+						{ label: 'Angular Migration Guide', slug: 'migration/angular' },
 					],
 				},
 				{
