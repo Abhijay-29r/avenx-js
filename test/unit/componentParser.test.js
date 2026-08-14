@@ -156,20 +156,54 @@ try {
   const contentWithComments = `
     <!-- This is a single line comment -->
     <div class="test">
-      <!-- 
+      <!--
         This is a multi-line
         comment
       -->
       <p>Hello <!-- inline comment --> World</p>
     </div>
   `;
-  const templateWithComments = cp.extractTemplate(contentWithComments, {}, 'TestComp');
+
+  const templateWithComments = cp.extractTemplate(
+    contentWithComments,
+    {},
+    'TestComp',
+  );
+
   assert.ok(!templateWithComments.includes('comment'));
   assert.ok(!templateWithComments.includes('<!--'));
   assert.ok(!templateWithComments.includes('-->'));
   assert.ok(templateWithComments.includes('<div class="test">'));
   assert.ok(templateWithComments.includes('<p>Hello  World</p>'));
+
   console.log('  ✅ HTML Comments Stripping tests passed!');
+
+  // Test 9: Backticks inside template interpolations
+  console.log('🧪 Testing backticks inside template interpolations...');
+
+  const contentWithBackticks = `
+    <div class="{{ state.active ? \`active\` : \`\` }}">
+      {{ state.active ? \`active\` : \`\` }}
+    </div>
+  `;
+
+  const templateWithBackticks = cp.extractTemplate(
+    contentWithBackticks,
+    {},
+    'TestComp',
+  );
+
+  assert.ok(
+    templateWithBackticks.includes('\\`active\\`'),
+    'Backticks inside interpolations should be escaped',
+  );
+
+  assert.ok(
+    templateWithBackticks.includes('\\`\\`'),
+    'Empty backtick template literals inside interpolations should be escaped',
+  );
+
+  console.log('  ✅ Backticks inside template interpolations tests passed!');
   console.log('🧪 Testing custom void tags from config...');
   const cpWithVoidTags = new ComponentParser(sp, ['my-video', 'custom-icon']);
 
