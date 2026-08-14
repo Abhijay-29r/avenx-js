@@ -20,14 +20,14 @@ try {
   // 1. Existing successful event execution still works
   {
     let executeCount = 0;
-    const runHandler = (fn, event, scope) => {
+    const runHandler = (fn, event) => {
       executeCount++;
       return fn({ count: 0 }, {}, event, []);
     };
     const executor = new EventExecutor(runHandler);
     const mockEvent = createMockEvent('BUTTON', 'click', 'TestComp');
     
-    const result = executor.execute('state.count++', mockEvent);
+    executor.execute('state.count++', mockEvent);
     
     assert.strictEqual(executeCount, 1, 'runHandler should execute successfully');
   }
@@ -35,13 +35,13 @@ try {
   // 2. Runtime Error Execution path
   {
     const originalLoggerError = logger.error;
-    let loggedMessages = [];
+    const loggedMessages = [];
     logger.error = (msg, ctx) => {
       loggedMessages.push({ msg, ctx });
     };
 
     let caughtError = null;
-    const runHandler = (fn, event, scope) => {
+    const runHandler = (fn, event) => {
       // Simulate AvenxComponent's catch block logic
       try {
         fn({ state: {} }, {}, event, []);
@@ -76,7 +76,7 @@ try {
   // 3. Compilation Error path (Syntax Error)
   {
     const originalLoggerError = logger.error;
-    let loggedMessages = [];
+    const loggedMessages = [];
     logger.error = (msg, ctx) => {
       loggedMessages.push({ msg, ctx });
     };
@@ -88,7 +88,7 @@ try {
     try {
       let errorThrown = null;
       try {
-        executor.execute("class { foo() {", mockEvent);
+        executor.execute('class { foo() {', mockEvent);
       } catch (e) {
         errorThrown = e;
       }
@@ -100,7 +100,7 @@ try {
       assert.strictEqual(log.ctx.componentName, 'ErrorComp', 'Component name should be present in context');
       assert.ok(log.msg.includes('<SPAN>'), 'Element tag should be present in log message');
       assert.ok(log.msg.includes("'click'"), 'Event type should be present in log message');
-      assert.ok(log.msg.includes("class { foo() {"), 'Action string should be present in log message');
+      assert.ok(log.msg.includes('class { foo() {'), 'Action string should be present in log message');
       assert.ok(log.msg.includes('[AVX_R09]'), 'Should have AVX_R09');
     } finally {
       logger.error = originalLoggerError;
@@ -112,7 +112,7 @@ try {
     const executor = new EventExecutor(null);
     let errorThrown = false;
     try {
-      executor.execute("state.x = 1");
+      executor.execute('state.x = 1');
     } catch (err) {
       errorThrown = true;
       assert.ok(err instanceof TypeError, 'Should throw TypeError if handler torn down');
