@@ -49,6 +49,22 @@ function cleanup() {
 /**
  *
  */
+function resetTestProject() {
+  if (fs.existsSync(TEST_DIR)) {
+    fs.rmSync(TEST_DIR, { recursive: true, force: true });
+  }
+
+  fs.mkdirSync(TEST_DIR);
+
+  execSync(`node ${BIN_PATH} init`, {
+    cwd: TEST_DIR,
+    encoding: 'utf8',
+  });
+}
+
+/**
+ *
+ */
 async function runTest() {
   console.log('🧪 Testing avenx init...');
 
@@ -215,10 +231,12 @@ async function runTest() {
 
     execSync(`node ${BIN_PATH} generate component default-box`, { cwd: TEST_DIR });
 
-    const defaultBoxJs = fs.readFileSync(
-      path.join(TEST_DIR, 'src/components/default-box/default-box.component.js'),
-      'utf-8',
+    const defaultBoxJsPath = path.join(
+      TEST_DIR,
+      'src/components/default-box/default-box.component.js',
     );
+
+    const defaultBoxJs = fs.readFileSync(defaultBoxJsPath, 'utf-8');
 
     assert.ok(defaultBoxJs.includes('DefaultBox Component'), 'Should contain default title');
 
@@ -233,10 +251,192 @@ async function runTest() {
     );
 
     assert.strictEqual(
-      fs.readFileSync(path.join(TEST_DIR, 'src/components/default-box/default-box.component.js'), 'utf-8'),
+      fs.readFileSync(defaultBoxJsPath, 'utf-8'),
       defaultBoxJs,
       'Duplicate component generation should not overwrite existing component files',
     );
+
+    console.log('🧪 Testing avenx generate component --force...');
+
+    fs.writeFileSync(
+      defaultBoxJsPath,
+      '// MODIFIED BY TEST',
+    );
+
+    const forceComponentResult = runCli([
+      'generate',
+      'component',
+      'default-box',
+      '--force',
+    ]);
+
+    assert.strictEqual(forceComponentResult.status, 0, 'Force component generation should succeed');
+
+    assert.match(
+      forceComponentResult.stderr,
+      /Force enabled: overwriting existing Component 'default-box'/,
+      'Force generation should warn before overwriting the existing component',
+    );
+
+    const forcedDefaultBoxJs = fs.readFileSync(
+      defaultBoxJsPath,
+      'utf-8',
+    );
+
+    assert.ok(
+      forcedDefaultBoxJs.includes('DefaultBox Component'),
+      'Force generation should overwrite the modified component',
+    );
+
+    assert.ok(
+      !forcedDefaultBoxJs.includes('// MODIFIED BY TEST'),
+      'Force generation should remove the modified component content',
+    );
+
+    console.log('✅ Component --force test passed!');
+
+    console.log('🧪 Testing avenx generate page --force...');
+
+    execSync(`node ${BIN_PATH} generate page force-dashboard`, { cwd: TEST_DIR });
+
+    const forcePageJsPath = path.join(TEST_DIR, 'src/pages/force-dashboard.page.js');
+
+    const forcePageCssPath = path.join(TEST_DIR, 'src/pages/force-dashboard.page.css');
+
+    fs.writeFileSync(forcePageJsPath, '// MODIFIED JS');
+    fs.writeFileSync(forcePageCssPath, '/* MODIFIED CSS */');
+
+    const forcePageResult = runCli([
+      'generate',
+      'page',
+      'force-dashboard',
+      '--force',
+    ]);
+
+    assert.strictEqual(
+      forcePageResult.status,
+      0,
+      'Force page generation should succeed',
+    );
+
+    assert.match(
+      forcePageResult.stderr,
+      /Force enabled: overwriting existing Page 'force-dashboard'/,
+      'Force generation should warn before overwriting the existing page',
+    );
+
+    const forcedPageJs = fs.readFileSync(forcePageJsPath, 'utf-8');
+    const forcedPageCss = fs.readFileSync(forcePageCssPath, 'utf-8');
+
+    assert.ok(
+      forcedPageJs.includes('ForceDashboard'),
+      'Force generation should overwrite the page JS',
+    );
+
+    assert.ok(
+      !forcedPageJs.includes('// MODIFIED JS'),
+      'Force generation should remove modified page JS content',
+    );
+
+    assert.ok(
+      !forcedPageCss.includes('MODIFIED CSS'),
+      'Force generation should overwrite the page CSS',
+    );
+
+    console.log('✅ Page --force test passed!');
+
+    console.log('🧪 Testing avenx generate bridge --force...');
+
+    execSync(`node ${BIN_PATH} generate bridge force-auth`, { cwd: TEST_DIR });
+
+    const forceBridgePath = path.join(
+      TEST_DIR,
+      'src/global/force-auth.bridge.js',
+    );
+
+    fs.writeFileSync(
+      forceBridgePath,
+      '// MODIFIED BY TEST',
+    );
+
+    const forceBridgeResult = runCli([
+      'generate',
+      'bridge',
+      'force-auth',
+      '--force',
+    ]);
+
+    assert.strictEqual(forceBridgeResult.status, 0, 'Force Bridge generation should succeed');
+
+    assert.match(
+      forceBridgeResult.stderr,
+      /Force enabled: overwriting existing Bridge 'force-auth'/,
+      'Force generation should warn before overwriting the existing Bridge',
+    );
+
+    const forcedForceBridgeJs = fs.readFileSync(
+      forceBridgePath,
+      'utf-8',
+    );
+
+    assert.ok(
+      forcedForceBridgeJs.includes('ForceAuthBridge extends AvenxBridge'),
+      'Force generation should overwrite the modified Bridge',
+    );
+
+    assert.ok(
+      !forcedForceBridgeJs.includes('// MODIFIED BY TEST'),
+      'Force generation should remove the modified Bridge content',
+    );
+
+    console.log('✅ Bridge --force test passed!');
+
+    console.log('🧪 Testing avenx generate guard --force...');
+
+    execSync(`node ${BIN_PATH} generate guard force-auth`, { cwd: TEST_DIR });
+
+    const forceGuardPath = path.join(
+      TEST_DIR,
+      'src/guards/force-auth.guard.js',
+    );
+
+    fs.writeFileSync(
+      forceGuardPath,
+      '// MODIFIED BY TEST',
+    );
+
+    const forceGuardResult = runCli([
+      'generate',
+      'guard',
+      'force-auth',
+      '--force',
+    ]);
+
+    assert.strictEqual(forceGuardResult.status, 0, 'Force guard generation should succeed');
+
+    assert.match(
+      forceGuardResult.stderr,
+      /Force enabled: overwriting existing Guard 'force-auth'/,
+      'Force generation should warn before overwriting the existing guard',
+    );
+
+    const forcedForceGuardJs = fs.readFileSync(
+      forceGuardPath,
+      'utf-8',
+    );
+
+
+    assert.ok(
+      forcedForceGuardJs.includes('ForceAuthGuard extends AvenxGuard'),
+      'Force generation should overwrite the modified guard',
+    );
+
+    assert.ok(
+      !forcedForceGuardJs.includes('// MODIFIED BY TEST'),
+      'Force generation should remove the modified guard content',
+    );
+
+    console.log('✅ Guard --force test passed!');
 
     console.log('🧪 Testing avenx generate component with camelCase name...');
 
@@ -454,6 +654,15 @@ async function runTest() {
     console.log('🧪 Testing avenx destroy component (dry-run & actual)...');
 
     // 1. Dry run of destroying the default-box component with --dry-run and -d
+
+    // Reset the fixture because earlier --force tests modify the shared project.
+    resetTestProject();
+
+    execSync(
+      `node ${BIN_PATH} generate component default-box`,
+      { cwd: TEST_DIR }
+    );
+
     const defaultBoxDir = path.join(TEST_DIR, 'src/components/default-box');
     assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should exist before destroy test');
 
@@ -560,6 +769,28 @@ async function runTest() {
     // 6b. Test inspect command (and alias i)
     console.log('🧪 Testing avenx inspect & avenx i...');
     execSync(`node ${BIN_PATH} generate component unused-inspect-btn`, { cwd: TEST_DIR });
+
+    // The generator automatically registers and mounts generated components.
+    // Remove those references so this fixture is genuinely unused.
+    const inspectMainAppPath = path.join(TEST_DIR, 'src/main.app.js');
+    let inspectMainAppContent = fs.readFileSync(inspectMainAppPath, 'utf-8');
+
+    inspectMainAppContent = inspectMainAppContent
+      .replace(
+        /import UnusedInspectBtn from '\.\/components\/unused-inspect-btn\/unused-inspect-btn\.component\.js';\r?\n?/,
+        '',
+      )
+      .replace(
+        /app\.register\('UnusedInspectBtn', UnusedInspectBtn\);\r?\n?/,
+        '',
+      )
+      .replace(
+        /app\.mount\('UnusedInspectBtn'\);\r?\n?/,
+        '',
+      );
+
+    fs.writeFileSync(inspectMainAppPath, inspectMainAppContent);
+
     execSync(`node ${BIN_PATH} generate bridge inspect-auth`, { cwd: TEST_DIR });
 
     const inspectOutput = execSync(`node ${BIN_PATH} inspect`, { cwd: TEST_DIR, encoding: 'utf8' });

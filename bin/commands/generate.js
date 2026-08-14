@@ -59,8 +59,9 @@ export function registerInMainApp(cli, className, folderName) {
  * @param {object} cli
  * @param {string} name
  * @param {boolean} [dryRun]
+ * @param {boolean} [force]
  */
-export function generateBridge(cli, name, dryRun = false) {
+export function generateBridge(cli, name, dryRun = false, force = false) {
   if (!name) {
     fail('Please provide a bridge name (e.g., avenx g bridge auth)');
     return;
@@ -72,8 +73,14 @@ export function generateBridge(cli, name, dryRun = false) {
   const globalDir = path.join(cli.baseDir, cli.config.srcDir, 'global');
   const bridgePath = path.join(globalDir, `${lowerName}.bridge.js`);
 
-  if (abortIfGeneratedPathExists(cli.baseDir, 'Bridge', lowerName, [bridgePath])) {
+  if (!force && abortIfGeneratedPathExists(cli.baseDir, 'Bridge', lowerName, [bridgePath])) {
     return;
+  }
+
+  if (force && fs.existsSync(bridgePath)) {
+    console.warn(
+      `\x1b[33m⚠️ Force enabled: overwriting existing Bridge '${lowerName}'.\x1b[0m`,
+    );
   }
 
   if (dryRun) {
@@ -101,8 +108,9 @@ export function generateBridge(cli, name, dryRun = false) {
  * @param {object} cli
  * @param {string} name
  * @param {boolean} [dryRun]
+ * @param {boolean} [force]
  */
-export function generateGuard(cli, name, dryRun = false) {
+export function generateGuard(cli, name, dryRun = false, force = false) {
   if (!name) {
     fail('Please provide a guard name (e.g., avenx g guard auth)');
     return;
@@ -114,8 +122,14 @@ export function generateGuard(cli, name, dryRun = false) {
   const guardDir = path.join(cli.baseDir, cli.config.srcDir, 'guards');
   const guardPath = path.join(guardDir, `${lowerName}.guard.js`);
 
-  if (abortIfGeneratedPathExists(cli.baseDir, 'Guard', lowerName, [guardPath])) {
+  if (!force && abortIfGeneratedPathExists(cli.baseDir, 'Guard', lowerName, [guardPath])) {
     return;
+  }
+
+  if (force && fs.existsSync(guardPath)) {
+    console.warn(
+      `\x1b[33m⚠️ Force enabled: overwriting existing Guard '${lowerName}'.\x1b[0m`,
+    );
   }
 
   if (dryRun) {
@@ -143,8 +157,9 @@ export function generateGuard(cli, name, dryRun = false) {
  * @param {object} cli
  * @param {string} name
  * @param {boolean} [dryRun]
+ * @param {boolean} [force]
  */
-export function generatePage(cli, name, dryRun = false) {
+export function generatePage(cli, name, dryRun = false, force = false) {
   if (!name) {
     fail('Please provide a page name (e.g., avenx g page home)');
     return;
@@ -156,8 +171,14 @@ export function generatePage(cli, name, dryRun = false) {
   const jsPath = path.join(pageDir, `${lowerName}.page.js`);
   const cssPath = path.join(pageDir, `${lowerName}.page.css`);
 
-  if (abortIfGeneratedPathExists(cli.baseDir, 'Page', lowerName, [jsPath, cssPath])) {
+  if (!force && abortIfGeneratedPathExists(cli.baseDir, 'Page', lowerName, [jsPath, cssPath])) {
     return;
+  }
+
+  if (force && (fs.existsSync(jsPath) || fs.existsSync(cssPath))) {
+    console.warn(
+      `\x1b[33m⚠️ Force enabled: overwriting existing Page '${lowerName}'.\x1b[0m`,
+    );
   }
 
   if (dryRun) {
@@ -187,8 +208,9 @@ export function generatePage(cli, name, dryRun = false) {
  * @param {object} cli
  * @param {string} name
  * @param {boolean} [dryRun]
+ * @param {boolean} [force]
  */
-export function generateComponent(cli, name, dryRun = false) {
+export function generateComponent(cli, name, dryRun = false, force = false) {
   if (!name) {
     fail('Please provide a component name (e.g., avenx g my-component)');
     return;
@@ -198,8 +220,14 @@ export function generateComponent(cli, name, dryRun = false) {
 
   const compDir = path.join(cli.baseDir, cli.config.srcDir, 'components', lowerName);
 
-  if (abortIfGeneratedPathExists(cli.baseDir, 'Component', lowerName, [compDir])) {
+  if (!force && abortIfGeneratedPathExists(cli.baseDir, 'Component', lowerName, [compDir])) {
     return;
+  }
+
+  if (force && fs.existsSync(compDir)) {
+    console.warn(
+      `\x1b[33m⚠️ Force enabled: overwriting existing Component '${lowerName}'.\x1b[0m`,
+    );
   }
 
   if (dryRun) {
