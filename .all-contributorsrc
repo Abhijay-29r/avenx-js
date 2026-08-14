@@ -859,6 +859,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "rohithssj",
+      "name": "Durga Rohith",
+      "avatar_url": "https://avatars.githubusercontent.com/u/231696317?v=4",
+      "profile": "https://github.com/rohithssj",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
