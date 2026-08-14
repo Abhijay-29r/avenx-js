@@ -868,6 +868,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "WaghuleAsmita",
+      "name": "Asmita Waghule",
+      "avatar_url": "https://avatars.githubusercontent.com/u/230667543?v=4",
+      "profile": "https://github.com/WaghuleAsmita",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
