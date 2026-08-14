@@ -56,6 +56,12 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Migration Guides',
+					items: [
+						{ label: 'Overview & Architectural Comparison', slug: 'migration/overview' },
+					],
+				},
+				{
 					label: 'Guides',
 					items: [
 						{ label: 'VirtualList Performance Guide', slug: 'guides/virtual-list' },
