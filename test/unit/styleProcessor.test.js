@@ -253,6 +253,44 @@ try {
     'Should support deep selectors in comma-separated selector lists',
   );
 
+  // Test clean @media query scoping and duplicate class prevention
+  const mediaCleanCss = `
+    @media (min-width: 768px) {
+        font-size: 16px;
+        .container .card {
+            padding: 20px;
+        }
+        &.active .header {
+            color: purple;
+        }
+    }
+  `;
+  const spMediaClean = new StyleProcessor();
+  const hashMediaClean = spMediaClean.getHash(mediaCleanCss, 'MediaCleanComp');
+  spMediaClean.extractRules(mediaCleanCss, hashMediaClean);
+  const genMediaCleanCss = spMediaClean.scopedStyles;
+
+  assert.ok(
+    genMediaCleanCss.includes(`@media (min-width: 768px) {`),
+    'Should retain @media query header',
+  );
+  assert.ok(
+    genMediaCleanCss.includes(`.${hashMediaClean} { font-size: 16px; }`),
+    'Should scope base properties inside @media block',
+  );
+  assert.ok(
+    genMediaCleanCss.includes(`.${hashMediaClean}.container .card { padding: 20px; }`),
+    'Should inject scope class on root element selector inside @media without duplicating on sub-selectors',
+  );
+  assert.ok(
+    genMediaCleanCss.includes(`.${hashMediaClean}.active .header { color: purple; }`),
+    'Should replace & with scope hash class inside @media',
+  );
+  assert.ok(
+    !genMediaCleanCss.includes(`.${hashMediaClean}.${hashMediaClean}`),
+    'Should not create duplicate scope class hashes',
+  );
+
   console.log('  ✅ StyleProcessor tests passed!');
 } catch (error) {
   console.error('❌ StyleProcessor tests failed!');
