@@ -148,6 +148,42 @@ function testCustomVoidTags() {
   }
 }
 
+function testSanitizeUrl() {
+  console.log('🧪 Testing Sanitizer.sanitizeUrl pseudo-protocol protection...');
+
+  // 1. Disallowed pseudo-protocols are replaced with about:blank
+  assert.strictEqual(Sanitizer.sanitizeUrl('javascript:alert(1)'), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('JaVaScRiPt:alert(1)'), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('data:text/html,<script>alert(1)</script>'), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('vbscript:msgbox(1)'), 'about:blank');
+
+  // 2. Leading whitespace is stripped before the scheme check
+  assert.strictEqual(Sanitizer.sanitizeUrl('  javascript:alert(1)  '), 'about:blank');
+
+  // 3. Allowed protocols pass through unchanged (trimmed)
+  assert.strictEqual(Sanitizer.sanitizeUrl('https://example.com/path'), 'https://example.com/path');
+  assert.strictEqual(Sanitizer.sanitizeUrl('  http://example.com  '), 'http://example.com');
+  assert.strictEqual(Sanitizer.sanitizeUrl('mailto:user@example.com'), 'mailto:user@example.com');
+  assert.strictEqual(Sanitizer.sanitizeUrl('tel:+1234567890'), 'tel:+1234567890');
+
+  // 4. Relative URLs without a scheme are allowed
+  assert.strictEqual(Sanitizer.sanitizeUrl('/relative/path'), '/relative/path');
+  assert.strictEqual(Sanitizer.sanitizeUrl('#fragment'), '#fragment');
+  assert.strictEqual(Sanitizer.sanitizeUrl('example.com'), 'example.com');
+
+  // 5. Empty and nullish input returns about:blank
+  assert.strictEqual(Sanitizer.sanitizeUrl(''), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('   '), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl(null), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl(undefined), 'about:blank');
+
+  // 6. Custom allowed-protocol list
+  assert.strictEqual(Sanitizer.sanitizeUrl('ftp://example.com', ['ftp:', 'https:']), 'ftp://example.com');
+  assert.strictEqual(Sanitizer.sanitizeUrl('https://example.com', ['ftp:']), 'about:blank');
+
+  console.log('  ✅ Sanitizer.sanitizeUrl tests passed!');
+}
+
 function testConfigurablePolicyOptions() {
   console.log('🧪 Testing Sanitizer configurable policy options...');
   setupDOMMock();
@@ -212,6 +248,7 @@ try {
   testSanitizerFallback();
   testCustomVoidTags();
   testConfigurablePolicyOptions();
+  testSanitizeUrl();
   console.log('✅ All Sanitizer tests successfully completed!');
   process.exit(0);
 } catch (error) {
