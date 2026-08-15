@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { EventEmitter } from 'events';
-import { listenWithPortFallback } from '../../bin/commands/serve.js';
+import { listenWithPortFallback, formatStatusCode, formatRequestLog } from '../../bin/commands/serve.js';
+import { setColorEnabled } from '../../bin/colors.js';
 import { AvenxCLI } from '../../bin/cli.js';
 
 class OccupiedPortServer extends EventEmitter {
@@ -77,10 +78,38 @@ async function testCliServeParsing() {
   assert.deepStrictEqual(lastCall, { port: 8080, host: 'localhost' });
 }
 
+function testRequestLoggerFormatting() {
+  setColorEnabled(false);
+  const testDate = new Date();
+  testDate.setHours(14, 23, 5);
+
+  const log200 = formatRequestLog('GET', '/src/main.app.js', 200, 2.4, testDate);
+  assert.strictEqual(log200, '[14:23:05] GET /src/main.app.js - 200 (2.4ms)');
+
+  const testDate404 = new Date(testDate);
+  testDate404.setHours(14, 23, 6);
+  const log404 = formatRequestLog('GET', '/favicon.ico', 404, 1.1, testDate404);
+  assert.strictEqual(log404, '[14:23:06] GET /favicon.ico - 404 (1.1ms)');
+
+  setColorEnabled(true);
+  const status200 = formatStatusCode(200);
+  assert.ok(status200.includes('\x1b[32m200\x1b[39m'), '200 should be green in ANSI');
+
+  const status304 = formatStatusCode(304);
+  assert.ok(status304.includes('\x1b[33m304\x1b[39m'), '304 should be yellow in ANSI');
+
+  const status404 = formatStatusCode(404);
+  assert.ok(status404.includes('\x1b[31m404\x1b[39m'), '404 should be red in ANSI');
+
+  const status500 = formatStatusCode(500);
+  assert.ok(status500.includes('\x1b[31m500\x1b[39m'), '500 should be red in ANSI');
+}
+
 try {
+  testRequestLoggerFormatting();
   runTests();
   await testCliServeParsing();
-  console.log('Dev server port fallback and CLI serve sanitization tests passed!');
+  console.log('Dev server port fallback, request logger formatting, and CLI serve sanitization tests passed!');
 } catch (error) {
   console.error('Dev server tests failed!');
   console.error(error);

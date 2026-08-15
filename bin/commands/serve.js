@@ -3,7 +3,47 @@ import path from 'path';
 import http from 'http';
 import { exec } from 'child_process';
 import { buildProject } from './build.js';
-import { cyan, green, yellow } from '../colors.js';
+import { cyan, green, yellow, red, gray, dim } from '../colors.js';
+
+/**
+ * Formats an HTTP response status code with ANSI colors.
+ * @param {number|string} status
+ * @returns {string}
+ */
+export function formatStatusCode(status) {
+  const code = Number(status) || 0;
+  if (code >= 200 && code < 300) {
+    return green(code);
+  }
+  if (code >= 300 && code < 400) {
+    return yellow(code);
+  }
+  if (code >= 400) {
+    return red(code);
+  }
+  return String(code);
+}
+
+/**
+ * Formats a log line for an incoming HTTP request.
+ * @param {string} method - HTTP method (GET, POST, etc.)
+ * @param {string} url - Request URL path.
+ * @param {number|string} statusCode - Response HTTP status code.
+ * @param {number} durationMs - Execution time in milliseconds.
+ * @param {Date} [date] - Timestamp date object.
+ * @returns {string} The formatted log string.
+ */
+export function formatRequestLog(method, url, statusCode, durationMs, date = new Date()) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const timestamp = `[${hours}:${minutes}:${seconds}]`;
+
+  const formattedStatus = formatStatusCode(statusCode);
+  const formattedDuration = `${Number(durationMs || 0).toFixed(1)}ms`;
+
+  return `${timestamp} ${method} ${url} - ${formattedStatus} (${formattedDuration})`;
+}
 
 /**
  * Opens the browser to the specified URL.
