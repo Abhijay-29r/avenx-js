@@ -877,6 +877,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "madhaviporte",
+      "name": "Madhavi Porte",
+      "avatar_url": "https://avatars.githubusercontent.com/u/157514020?v=4",
+      "profile": "https://github.com/madhaviporte",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
