@@ -130,7 +130,7 @@ async function runTests() {
 
     assert.ok(mountedCalled, 'mounted hook should have been called');
     assert.strictEqual(mountedEl.tagName, 'DIV');
-    assert.deepStrictEqual(mountedBinding, { value: 'initial', expression: 'stateVal' });
+    assert.deepStrictEqual(mountedBinding, { value: 'initial', expression: 'stateVal', modifiers: {} });
 
     // Update stateVal to trigger updated hook
     lifeComp.state.stateVal = 'updated-value';
@@ -138,14 +138,82 @@ async function runTests() {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     assert.ok(updatedCalled, 'updated hook should have been called when bound value shifts');
-    assert.deepStrictEqual(updatedBinding, { value: 'updated-value', oldValue: 'initial', expression: 'stateVal' });
+    assert.deepStrictEqual(updatedBinding, { value: 'updated-value', oldValue: 'initial', expression: 'stateVal', modifiers: {} });
 
     // Unmount component to trigger unmounted hook
     lifeComp.unmount();
     assert.ok(unmountedCalled, 'unmounted hook should have been called');
-    assert.deepStrictEqual(unmountedBinding, { value: 'updated-value', oldValue: 'updated-value', expression: 'stateVal' });
+    assert.deepStrictEqual(unmountedBinding, { value: 'updated-value', oldValue: 'updated-value', expression: 'stateVal', modifiers: {} });
 
-    // 4. Verify compiler template checks reject undeclared identifiers in custom directives
+    // 4. Verify dot-notation modifiers are parsed and exposed on the binding
+    console.log('  Testing custom directive modifiers...');
+    let modMountedCalled = false;
+    let modMountedBinding = null;
+    let modUpdatedBinding = null;
+    let modUnmountedBinding = null;
+
+    app.directive('mod-test', {
+      mounted(el, binding) {
+        modMountedCalled = true;
+        modMountedBinding = binding;
+      },
+      updated(el, binding) {
+        modUpdatedBinding = binding;
+      },
+      unmounted(el, binding) {
+        modUnmountedBinding = binding;
+      }
+    });
+
+    class ModifierComponent extends AvenxComponent {
+      constructor() {
+        super({ stateVal: 'initial' });
+      }
+      render() {
+        return `<div data-ax-mod-test.once.passive="stateVal">Text</div>`;
+      }
+    }
+
+    const modComp = new ModifierComponent({});
+    modComp.$app = app;
+    modComp.mount(new MockDOMElement('div'));
+
+    // Regression: a modifier suffix previously stopped the directive from running at all,
+    // because the directive name was looked up as "mod-test.once.passive".
+    assert.ok(modMountedCalled, 'mounted hook should fire on a directive carrying modifiers');
+    assert.deepStrictEqual(
+      modMountedBinding,
+      { value: 'initial', expression: 'stateVal', modifiers: { once: true, passive: true } },
+      'mounted binding should expose modifiers as an object'
+    );
+
+    modComp.state.stateVal = 'updated-value';
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.deepStrictEqual(
+      modUpdatedBinding,
+      {
+        value: 'updated-value',
+        oldValue: 'initial',
+        expression: 'stateVal',
+        modifiers: { once: true, passive: true }
+      },
+      'updated binding should expose modifiers'
+    );
+
+    modComp.unmount();
+    assert.deepStrictEqual(
+      modUnmountedBinding,
+      {
+        value: 'updated-value',
+        oldValue: 'updated-value',
+        expression: 'stateVal',
+        modifiers: { once: true, passive: true }
+      },
+      'unmounted binding should expose modifiers'
+    );
+
+    // 5. Verify compiler template checks reject undeclared identifiers in custom directives
     console.log('  Testing compiler validation for custom directives...');
     const cp = new ComponentParser(new StyleProcessor());
     const tempFile = path.join(__dirname, 'TempCustomDirComp.component.js');

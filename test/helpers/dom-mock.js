@@ -257,7 +257,7 @@ function setupDOMMock() {
 
         const element = new MockDOMElement(tagName);
 
-        const attrRegex = /([\w@:-]+)(?:=(?:"([^"]*)"|'([^']*)'))?/g;
+        const attrRegex = /([\w@:.-]+)(?:=(?:"([^"]*)"|'([^']*)'))?/g;
         let attrMatch;
 
         while ((attrMatch = attrRegex.exec(attrsStr)) !== null) {
