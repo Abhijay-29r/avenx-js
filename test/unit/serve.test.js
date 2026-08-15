@@ -1,4 +1,7 @@
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import http from 'http';
 import { EventEmitter } from 'events';
 import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger } from '../../bin/commands/serve.js';
 import { setColorEnabled } from '../../bin/colors.js';
@@ -123,14 +126,64 @@ function testAttachRequestLogger() {
   assert.strictEqual(logs.length, 1);
 }
 
-try {
-  testRequestLoggerFormatting();
-  testAttachRequestLogger();
-  runTests();
-  await testCliServeParsing();
-  console.log('Dev server port fallback, request logger formatting, attach logger, and CLI serve sanitization tests passed!');
-} catch (error) {
-  console.error('Dev server tests failed!');
-  console.error(error);
-  process.exit(1);
+async function testHttpDevServerRequestLogging() {
+  setColorEnabled(false);
+  const logs = [];
+
+  const server = http.createServer((req, res) => {
+    attachRequestLogger(req, res, (msg) => logs.push(msg));
+    if (req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html></html>');
+    } else {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+
+  try {
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+
+    // Send HTTP GET / request (200)
+    await new Promise((resolve, reject) => {
+      http.get(`http://127.0.0.1:${port}/`, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      }).on('error', reject);
+    });
+
+    // Send HTTP GET /favicon.ico request (404)
+    await new Promise((resolve, reject) => {
+      http.get(`http://127.0.0.1:${port}/favicon.ico`, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      }).on('error', reject);
+    });
+
+    assert.ok(logs.some((l) => l.includes('GET / - 200')), 'Should log GET / - 200');
+    assert.ok(logs.some((l) => l.includes('GET /favicon.ico - 404')), 'Should log GET /favicon.ico - 404');
+  } finally {
+    server.close();
+  }
 }
+
+async function main() {
+  try {
+    testRequestLoggerFormatting();
+    testAttachRequestLogger();
+    await testHttpDevServerRequestLogging();
+    runTests();
+    await testCliServeParsing();
+    console.log('Dev server port fallback, request logger formatting, HTTP request logging, and CLI serve sanitization tests passed!');
+  } catch (error) {
+    console.error('Dev server tests failed!');
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
