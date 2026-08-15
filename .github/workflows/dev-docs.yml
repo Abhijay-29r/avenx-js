@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: avenx-js/dev-docs
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN || secrets.GH_PAT || secrets.DEPLOY_TOKEN }}
           path: target-dev-docs
 
       - name: Deploy documentation to target repository
