@@ -46,6 +46,15 @@ async function runTests() {
       }
     });
 
+    let sameValueUpdatedCalls = 0;
+
+    app.directive('same-value-test', {
+      mounted() {},
+      updated() {
+        sameValueUpdatedCalls++;
+      }
+    });
+
     assert.ok(app.directives.has('custom-test'), 'custom-test directive should be registered in app.directives');
 
     // 2. Verify focus directive makes the target input gain focus upon load
@@ -85,9 +94,37 @@ async function runTests() {
       }
     }
 
+    class SameValueComponent extends AvenxComponent {
+      constructor() {
+        super({ stateVal: 'same-value' });
+      }
+
+      render() {
+        return `<div data-ax-same-value-test="stateVal">Text</div>`;
+      }
+    }
+
+    const sameValueComp = new SameValueComponent({});
+    sameValueComp.$app = app;
+
+    const sameValueTarget = new MockDOMElement('div');
+    sameValueComp.mount(sameValueTarget);
+
+    // Assign the same value again
+    sameValueComp.state.stateVal = 'same-value';
+
+    // Wait for the batched update
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.strictEqual(
+      sameValueUpdatedCalls,
+      0,
+      'updated hook should not be called when directive value remains unchanged'
+    );
+
     const lifeComp = new LifecycleComponent({});
     lifeComp.$app = app;
-    
+
     const targetEl = new MockDOMElement('div');
     lifeComp.mount(targetEl);
 
