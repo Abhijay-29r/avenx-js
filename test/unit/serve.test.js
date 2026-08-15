@@ -1,6 +1,4 @@
 import assert from 'assert';
-import fs from 'fs';
-import path from 'path';
 import http from 'http';
 import { EventEmitter } from 'events';
 import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger } from '../../bin/commands/serve.js';

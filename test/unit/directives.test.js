@@ -324,7 +324,7 @@ function parseHTML(htmlStr) {
       const attrs = {};
       if (firstSpace !== -1) {
         const attrStr = cleanTagContent.substring(firstSpace + 1);
-        const attrRegex = /([a-zA-Z0-9_@:\-\[\]]+)=(?:"([^"]*)"|'([^']*)')/g;
+        const attrRegex = /([a-zA-Z0-9_@:\-[\]]+)=(?:"([^"]*)"|'([^']*)')/g;
         let attrMatch;
         while ((attrMatch = attrRegex.exec(attrStr)) !== null) {
           attrs[attrMatch[1]] = attrMatch[2] !== undefined ? attrMatch[2] : attrMatch[3];

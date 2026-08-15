@@ -3,7 +3,7 @@ import path from 'path';
 import http from 'http';
 import { exec } from 'child_process';
 import { buildProject } from './build.js';
-import { cyan, green, yellow, red, gray, dim } from '../colors.js';
+import { cyan, green, yellow, red } from '../colors.js';
 
 /**
  * Formats an HTTP response status code with ANSI colors.
