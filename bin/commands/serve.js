@@ -46,6 +46,38 @@ export function formatRequestLog(method, url, statusCode, durationMs, date = new
 }
 
 /**
+ * Attaches an HTTP request logging listener to a response object.
+ * @param {import('http').IncomingMessage} req
+ * @param {import('http').ServerResponse} res
+ * @param {function(string): void} [logger] - Custom logger function.
+ * @returns {() => void} Completion logger handler.
+ */
+export function attachRequestLogger(req, res, logger = console.log) {
+  const startTime = performance.now();
+  let logged = false;
+
+  const logResponse = () => {
+    if (logged) return;
+    logged = true;
+    const durationMs = performance.now() - startTime;
+    const statusCode = res.statusCode || 200;
+    const method = req.method || 'GET';
+    const url = req.url || '/';
+    const logLine = formatRequestLog(method, url, statusCode, durationMs);
+    logger(logLine);
+  };
+
+  res.on('finish', logResponse);
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      logResponse();
+    }
+  });
+
+  return logResponse;
+}
+
+/**
  * Opens the browser to the specified URL.
  * @param {string} url
  */
@@ -575,6 +607,7 @@ export function serveProject(cli, port, host = 'localhost') {
   }
 
   const server = http.createServer((req, res) => {
+    attachRequestLogger(req, res);
     if (cli.config.server.liveReload && req.url === '/__avenx_live_reload__') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',

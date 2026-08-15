@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { EventEmitter } from 'events';
-import { listenWithPortFallback, formatStatusCode, formatRequestLog } from '../../bin/commands/serve.js';
+import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger } from '../../bin/commands/serve.js';
 import { setColorEnabled } from '../../bin/colors.js';
 import { AvenxCLI } from '../../bin/cli.js';
 
@@ -105,11 +105,30 @@ function testRequestLoggerFormatting() {
   assert.ok(status500.includes('\x1b[31m500\x1b[39m'), '500 should be red in ANSI');
 }
 
+function testAttachRequestLogger() {
+  setColorEnabled(false);
+  const logs = [];
+  const mockReq = { method: 'GET', url: '/src/main.app.js' };
+  const mockRes = new EventEmitter();
+  mockRes.statusCode = 200;
+
+  attachRequestLogger(mockReq, mockRes, (log) => logs.push(log));
+
+  mockRes.emit('finish');
+  assert.strictEqual(logs.length, 1);
+  assert.ok(logs[0].includes('GET /src/main.app.js - 200'));
+
+  // Ensure double emit finish does not duplicate log
+  mockRes.emit('finish');
+  assert.strictEqual(logs.length, 1);
+}
+
 try {
   testRequestLoggerFormatting();
+  testAttachRequestLogger();
   runTests();
   await testCliServeParsing();
-  console.log('Dev server port fallback, request logger formatting, and CLI serve sanitization tests passed!');
+  console.log('Dev server port fallback, request logger formatting, attach logger, and CLI serve sanitization tests passed!');
 } catch (error) {
   console.error('Dev server tests failed!');
   console.error(error);
