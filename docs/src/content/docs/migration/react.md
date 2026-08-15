@@ -23,7 +23,185 @@ React components are JavaScript functions returning JSX elements, where state up
 
 ## 2. Component Structure and Props
 
-*This section will document companion file structure, `data-props-*` prop passing, `this.props`, and `<slot>` transclusion.*
+A React component is a single `.jsx`/`.tsx` file that mixes markup, logic, and styling imports. An Avenx-JS component is a **companion file pair**: a `.component.js` file holding the HTML template plus its component logic, and an optional `.component.css` file with the scoped stylesheet. Top-level views are **page components** (`.page.js`) that live under `src/pages/` and are the only place custom child components get mounted. See the [Component Structure](/getting-started/structure) and [Scoped Styles](/core-concepts/styling) guides for the full model.
+
+### File Structure: From JSX to Companion Files
+
+React spreads a component across one file, inline styles, and global CSS files. Avenx-JS splits it into two siblings in the same folder:
+
+```text
+src/components/user-card/
+├── user-card.component.js   # HTML template + <action> methods + <state>
+└── user-card.component.css  # Scoped styles in <@css> blocks
+```
+
+The `.component.css` file is imported automatically by the Vite plugin — no `import './user-card.css'` line needed, and every rule you write is scoped to this component. The `@css` attribute on an element binds it to a named block inside the stylesheet, so `class="user-card"` in React becomes `class="user-card" @css card` in Avenx-JS.
+
+#### Before — React Functional Component & Props
+
+```jsx
+// UserCard.jsx
+export function UserCard({ title, user, children }) {
+  return (
+    <div className="user-card">
+      <h3>{title}</h3>
+      <p>Name: {user.name}</p>
+      <div className="card-body">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// App.jsx
+<UserCard title="Account Overview" user={currentUser}>
+  <button onClick={handleEdit}>Edit Profile</button>
+</UserCard>
+```
+
+#### After — Avenx-JS Companion Component & Props
+
+```html
+<!-- src/components/user-card/user-card.component.js -->
+<div class="user-card" @css card>
+  <h3>{{ this.props.title }}</h3>
+  <p>Name: {{ this.props.user.name }}</p>
+  <div class="card-body">
+    <slot></slot>
+  </div>
+</div>
+```
+
+```css
+/* src/components/user-card/user-card.component.css */
+<@css>
+  card {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+</@css>
+```
+
+```html
+<!-- src/pages/dashboard.page.js (Parent Page) -->
+<UserCard data-props-title="'Account Overview'" data-props-user="state.currentUser">
+  <button @click="editProfile()">Edit Profile</button>
+</UserCard>
+```
+
+### Passing Props with `data-props-*`
+
+React passes props as JSX attributes (`<UserCard user={currentUser} />`). Avenx-JS passes props with the **`data-props-<propName>` attribute**: the value is evaluated as an expression in the parent's scope and delivered to the child as `this.props.<propName>` — see [Slots & Transclusion](/core-concepts/templates#8-slots--transclusion) and the [Props reference](/api-reference/component).
+
+```html
+<MyProfile data-props-user="state.currentUser" data-props-isAdmin="state.isAdmin" />
+```
+
+Inside the child component, read the props through `this.props` — the template interpolates them directly:
+
+```html
+<!-- src/components/my-profile/my-profile.component.js -->
+<div>
+  <h3>{{ this.props.user.name }}</h3>
+  <p>Admin: {{ this.props.isAdmin }}</p>
+</div>
+```
+
+Two rules that trip up React imports:
+
+- **The value is an expression, not a string.** `data-props-title="'Account Overview'"` passes the *string* `Account Overview` (note the inner quotes); `data-props-user="state.currentUser"` passes the live value of `state.currentUser`. If you forget the inner quotes, the parent scope is searched for a variable named `Account Overview`, which fails.
+- **The suffix after `data-props-` is the prop name.** `data-props-user` becomes `this.props.user`. Multi-word props keep their casing (`data-props-userId` → `this.props.userId`).
+
+### Children vs. Slots
+
+React injects child JSX through the `children` prop. Avenx-JS injects it through native `<slot>` elements inside the component template: everything between the parent's opening and closing tags is rendered where the `<slot>` sits. Named slots let a component define several injection points; the parent targets one with `slot="<name>"`.
+
+#### Before — React `children` Prop
+
+```jsx
+export function Panel({ title, children }) {
+  return (
+    <section className="panel">
+      <h2>{title}</h2>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+<Panel title="Settings">
+  <p>Content rendered inside the panel body.</p>
+</Panel>
+```
+
+#### After — Avenx-JS Default & Named Slots
+
+```html
+<!-- src/components/panel/panel.component.js -->
+<section class="panel">
+  <header>
+    <slot name="header">Default Header</slot>
+  </header>
+  <h2>{{ this.props.title }}</h2>
+  <div>
+    <slot></slot>
+  </div>
+</section>
+```
+
+```html
+<!-- src/pages/settings.page.js -->
+<Panel data-props-title="'Settings'">
+  <h2 slot="header">Custom Header</h2>
+  <p>Content rendered inside the default slot.</p>
+</Panel>
+```
+
+If the parent omits a slot's content, the child's fallback markup inside `<slot>` renders instead (the `Default Header` above), so optional regions stay usable without every caller supplying them. Scoped slots go further and let the child pass data back into the parent's slot template via `:prop` bindings — see [Scoped Slots](/core-concepts/components#scoped-slots--passing-slot-props).
+
+### Why Components Mount Inside Pages
+
+Avenx-JS currently resolves and mounts **custom components only when they are declared directly inside a `.page.js` template**. React lets you nest components arbitrarily; Avenx-JS does not support mounting one standard `.component.js` inside another (see [Component Nesting Restrictions](/core-concepts/components#component-nesting-restrictions)). The supported shape is:
+
+```html
+<!-- src/pages/dashboard/dashboard.page.js -->
+<div class="dashboard">
+  <Navbar />
+  <UserCard data-props-title="'Account Overview'" />
+</div>
+```
+
+Nesting `UserCard` inside `Navbar`'s template instead will not instantiate it — hoist the custom component to the page, or compose it with `<slot>` transclusion so the page supplies the child content.
+
+### `className` → `class` + Scoped Styles
+
+Avenx-JS templates are standard HTML: write `class`, never `className`, and no `style={{ ... }}` objects. Styling is scoped per component through `<@css>` blocks in the `.component.css` file, keyed by the `@css` attribute:
+
+```html
+<div class="user-card" @css card>...</div>
+```
+
+```css
+/* user-card.component.css */
+<@css>
+  card {
+    border-radius: 8px;
+    background: var(--surface);
+  }
+</@css>
+```
+
+The `card` block compiles to a hashed class applied only to elements bound with `@css card` — no class-name collisions across components, and no CSS Modules or Tailwind needed. See [Scoped CSS](/core-concepts/styling) for deep selectors (`&`), `@media` nesting, and global blocks.
+
+### Key Differences at a Glance
+
+- **Component Execution**: React re-runs the entire function body on every render; Avenx-JS compiles components into classes where methods and interpolations run in the instance context.
+- **`className` vs `class`**: Avenx-JS templates use standard HTML `class` attributes.
+- **`children` vs `<slot>`**: Transcluded content flows into `<slot>` containers rather than a JS prop, and named slots provide multiple injection points.
+- **Component Nesting**: Custom child components mount within `.page.js` files, not inside another standard `.component.js`.
+- **Props**: `data-props-*` attributes evaluate expressions in the parent scope; the child reads them via `this.props.*`.
+
+See the [Component Structure](/getting-started/structure) guide for the file layout, the [Slots & Transclusion](/core-concepts/templates#8-slots--transclusion) reference for transclusion details, and the [Migration Overview](/migration/overview) for where component structure fits in the overall paradigm map.
 
 ---
 
