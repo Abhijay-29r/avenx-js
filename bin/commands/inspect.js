@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { bold, cyan, yellow } from '../colors.js';
 
 /**
  * Converts a string to PascalCase.
@@ -213,26 +214,26 @@ export function runInspect(cli) {
   components.sort((a, b) => a.relPath.localeCompare(b.relPath));
   bridges.sort((a, b) => a.relPath.localeCompare(b.relPath));
 
-  console.log(`📦 Avenx Project Hierarchy (${srcRel}/)`);
+  console.log(bold(cyan(`📦 Avenx Project Hierarchy (${srcRel}/)`)));
 
   const categories = [
     {
       title: `📄 Pages (${pages.length})`,
       items: pages.map((p) => {
         const routeStr = p.route ? ` (${p.route})` : '';
-        return `${p.name}${routeStr} -> ${p.relPath}`;
+        return { text: `${p.name}${routeStr} -> ${p.relPath}`, warn: false };
       }),
     },
     {
       title: `🧩 Components (${components.length})`,
       items: components.map((c) => {
         const unusedStr = c.isUnused ? ' (⚠️ Unused)' : '';
-        return `${c.name} -> ${c.relPath}${unusedStr}`;
+        return { text: `${c.name} -> ${c.relPath}${unusedStr}`, warn: Boolean(c.isUnused) };
       }),
     },
     {
       title: `🌉 Bridges (${bridges.length})`,
-      items: bridges.map((b) => `${b.name} -> ${b.relPath}`),
+      items: bridges.map((b) => ({ text: `${b.name} -> ${b.relPath}`, warn: false })),
     },
   ];
 
@@ -242,13 +243,15 @@ export function runInspect(cli) {
     const catPrefix = isLastCategory ? '└── ' : '├── ';
     const childIndent = isLastCategory ? '    ' : '│   ';
 
-    console.log(`${catPrefix}${category.title}`);
+    console.log(bold(`${catPrefix}${category.title}`));
 
     for (let iIdx = 0; iIdx < category.items.length; iIdx++) {
       const item = category.items[iIdx];
       const isLastItem = iIdx === category.items.length - 1;
       const itemPrefix = isLastItem ? '└── ' : '├── ';
-      console.log(`${childIndent}${itemPrefix}${item}`);
+      // Styling wraps the whole line so the tree stays aligned and greppable.
+      const line = `${childIndent}${itemPrefix}${item.text}`;
+      console.log(item.warn ? yellow(line) : line);
     }
   }
 }

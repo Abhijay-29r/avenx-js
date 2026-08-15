@@ -63,7 +63,13 @@ async function runTestFile(file) {
   }
 
   return new Promise((resolve) => {
-    const child = fork(file, [], { stdio: 'inherit', execArgv });
+    // Tests inherit this runner's stdio, so a real terminal would otherwise enable
+    // CLI colors and wrap asserted output in ANSI escapes. Keep it deterministic.
+    const child = fork(file, [], {
+      stdio: 'inherit',
+      execArgv,
+      env: { ...process.env, NO_COLOR: '1' },
+    });
     child.on('exit', (code) => {
       if (code === 0) {
         resolve({ file: relativePath, success: true });

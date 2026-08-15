@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parseName, readTemplate, abortIfGeneratedPathExists, fail } from '../utils.js';
+import { cyan, gray, green, yellow } from '../colors.js';
 
 /**
  * Automatically adds import and registration for a component in src/main.app.js.
@@ -51,7 +52,7 @@ export function registerInMainApp(cli, className, folderName) {
   }
 
   fs.writeFileSync(mainPath, lines.join('\n'));
-  console.log(`✅ Component '${className}' registered in ${cli.config.srcDir}/main.app.js`);
+  console.log(green(`✅ Component '${className}' registered in ${cli.config.srcDir}/main.app.js`));
 }
 
 /**
@@ -78,16 +79,14 @@ export function generateBridge(cli, name, dryRun = false, force = false) {
   }
 
   if (force && fs.existsSync(bridgePath)) {
-    console.warn(
-      `\x1b[33m⚠️ Force enabled: overwriting existing Bridge '${lowerName}'.\x1b[0m`,
-    );
+    console.warn(yellow(`⚠️ Force enabled: overwriting existing Bridge '${lowerName}'.`));
   }
 
   if (dryRun) {
     console.log(
-      `🧪 [Dry Run] Bridge '${capitalizedName}' would be created at ${cli.config.srcDir}/global/${lowerName}.bridge.js`,
+      cyan(`🧪 [Dry Run] Bridge '${capitalizedName}' would be created at ${cli.config.srcDir}/global/${lowerName}.bridge.js`),
     );
-    console.log('🧪 [Dry Run] No files were written.');
+    console.log(cyan('🧪 [Dry Run] No files were written.'));
     return;
   }
 
@@ -99,8 +98,8 @@ export function generateBridge(cli, name, dryRun = false, force = false) {
 
   fs.writeFileSync(bridgePath, template.replace(/{{ name }}/g, capitalizedName));
 
-  console.log(`✅ Bridge '${capitalizedName}' generated at ${cli.config.srcDir}/global/${lowerName}.bridge.js`);
-  console.log(`ℹ️ It will be automatically registered as '${capitalizedName}' on the next build.`);
+  console.log(green(`✅ Bridge '${capitalizedName}' generated at ${cli.config.srcDir}/global/${lowerName}.bridge.js`));
+  console.log(gray(`ℹ️ It will be automatically registered as '${capitalizedName}' on the next build.`));
 }
 
 /**
@@ -127,16 +126,14 @@ export function generateGuard(cli, name, dryRun = false, force = false) {
   }
 
   if (force && fs.existsSync(guardPath)) {
-    console.warn(
-      `\x1b[33m⚠️ Force enabled: overwriting existing Guard '${lowerName}'.\x1b[0m`,
-    );
+    console.warn(yellow(`⚠️ Force enabled: overwriting existing Guard '${lowerName}'.`));
   }
 
   if (dryRun) {
     console.log(
-      `🧪 [Dry Run] Guard '${capitalizedName}' would be created at ${cli.config.srcDir}/guards/${lowerName}.guard.js`,
+      cyan(`🧪 [Dry Run] Guard '${capitalizedName}' would be created at ${cli.config.srcDir}/guards/${lowerName}.guard.js`),
     );
-    console.log('🧪 [Dry Run] No files were written.');
+    console.log(cyan('🧪 [Dry Run] No files were written.'));
     return;
   }
 
@@ -148,8 +145,8 @@ export function generateGuard(cli, name, dryRun = false, force = false) {
 
   fs.writeFileSync(guardPath, template.replace(/{{ name }}/g, capitalizedName));
 
-  console.log(`✅ Guard '${capitalizedName}' generated at ${cli.config.srcDir}/guards/${lowerName}.guard.js`);
-  console.log(`ℹ️ It can be used in your route configurations.`);
+  console.log(green(`✅ Guard '${capitalizedName}' generated at ${cli.config.srcDir}/guards/${lowerName}.guard.js`));
+  console.log(gray(`ℹ️ It can be used in your route configurations.`));
 }
 
 /**
@@ -176,16 +173,14 @@ export function generatePage(cli, name, dryRun = false, force = false) {
   }
 
   if (force && (fs.existsSync(jsPath) || fs.existsSync(cssPath))) {
-    console.warn(
-      `\x1b[33m⚠️ Force enabled: overwriting existing Page '${lowerName}'.\x1b[0m`,
-    );
+    console.warn(yellow(`⚠️ Force enabled: overwriting existing Page '${lowerName}'.`));
   }
 
   if (dryRun) {
-    console.log(`🧪 [Dry Run] Page '${capitalizedName}' would be created at:`);
+    console.log(cyan(`🧪 [Dry Run] Page '${capitalizedName}' would be created at:`));
     console.log(`  ${cli.config.srcDir}/pages/${lowerName}.page.js`);
     console.log(`  ${cli.config.srcDir}/pages/${lowerName}.page.css`);
-    console.log('🧪 [Dry Run] No files were written.');
+    console.log(cyan('🧪 [Dry Run] No files were written.'));
     return;
   }
 
@@ -199,8 +194,8 @@ export function generatePage(cli, name, dryRun = false, force = false) {
   fs.writeFileSync(jsPath, jsTemplate.replace(/{{ name }}/g, capitalizedName));
   fs.writeFileSync(cssPath, cssTemplate);
 
-  console.log(`✅ Page '${capitalizedName}' generated at ${cli.config.srcDir}/pages/${lowerName}.page.js`);
-  console.log(`ℹ️ It will be automatically registered and routed if you update src/main.app.js.`);
+  console.log(green(`✅ Page '${capitalizedName}' generated at ${cli.config.srcDir}/pages/${lowerName}.page.js`));
+  console.log(gray(`ℹ️ It will be automatically registered and routed if you update src/main.app.js.`));
 }
 
 /**
@@ -225,19 +220,17 @@ export function generateComponent(cli, name, dryRun = false, force = false) {
   }
 
   if (force && fs.existsSync(compDir)) {
-    console.warn(
-      `\x1b[33m⚠️ Force enabled: overwriting existing Component '${lowerName}'.\x1b[0m`,
-    );
+    console.warn(yellow(`⚠️ Force enabled: overwriting existing Component '${lowerName}'.`));
   }
 
   if (dryRun) {
-    console.log(`🧪 [Dry Run] Component '${lowerName}' would be created at:`);
+    console.log(cyan(`🧪 [Dry Run] Component '${lowerName}' would be created at:`));
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`);
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`);
-    console.log(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated with:`);
+    console.log(cyan(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated with:`));
     console.log(`  import ${capitalizedName} from './components/${lowerName}/${lowerName}.component.js';`);
     console.log(`  app.register('${capitalizedName}', ${capitalizedName});`);
-    console.log('🧪 [Dry Run] No files were written.');
+    console.log(cyan('🧪 [Dry Run] No files were written.'));
     return;
   }
 
@@ -252,6 +245,6 @@ export function generateComponent(cli, name, dryRun = false, force = false) {
   );
   fs.writeFileSync(path.join(compDir, `${lowerName}.component.css`), cssTemplate);
 
-  console.log(`✅ Component '${lowerName}' generated at ${cli.config.srcDir}/components/${lowerName}/`);
+  console.log(green(`✅ Component '${lowerName}' generated at ${cli.config.srcDir}/components/${lowerName}/`));
   registerInMainApp(cli, capitalizedName, lowerName);
 }

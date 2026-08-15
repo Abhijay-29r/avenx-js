@@ -1,4 +1,5 @@
 import { promptQuestion } from './utils.js';
+import { bold, cyan } from './colors.js';
 
 /**
  * Runs the interactive project wizard prompts if interactive mode is enabled.
@@ -16,7 +17,7 @@ export async function runWizard(args = []) {
   let layoutTemplate = 'blank';
 
   if (isInteractive) {
-    console.log('\n\x1b[36m--- Avenx-JS Project Wizard ---\x1b[0m\n');
+    console.log(`\n${bold(cyan('--- Avenx-JS Project Wizard ---'))}\n`);
 
     const preprocessorInput = await promptQuestion(
       'Select style preprocessor:\n' +

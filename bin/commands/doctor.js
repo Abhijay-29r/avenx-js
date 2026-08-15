@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { bold, cyan, green, yellow, red, gray } from '../colors.js';
 
 const MIN_NODE_VERSION = [18, 0, 0];
 
@@ -43,10 +44,10 @@ function compareVersions(current, required) {
  * @param {string} [hint]
  */
 function printCheck(status, message, hint) {
-  const icons = { pass: '\x1b[32m✔\x1b[0m', warn: '\x1b[33m⚠\x1b[0m', fail: '\x1b[31m✖\x1b[0m' };
+  const icons = { pass: green('✔'), warn: yellow('⚠'), fail: red('✖') };
   console.log(`  ${icons[status]} ${message}`);
   if (hint) {
-    console.log(`    \x1b[90m→ ${hint}\x1b[0m`);
+    console.log(`    ${gray(`→ ${hint}`)}`);
   }
 }
 
@@ -98,11 +99,11 @@ export function runDoctor(cli) {
     printCheck(status, message, hint);
   };
 
-  console.log('\x1b[1;36mAvenx Doctor\x1b[0m');
-  console.log(`Project root: ${root}\n`);
+  console.log(bold(cyan('Avenx Doctor')));
+  console.log(`${gray(`Project root: ${root}`)}\n`);
 
   // --- Node.js ---
-  console.log('\x1b[1mNode.js\x1b[0m');
+  console.log(bold('Node.js'));
   const current = process.versions.node.split('.').map(Number);
   if (compareVersions(current, MIN_NODE_VERSION)) {
     record('pass', `Node.js ${process.versions.node} (>= ${MIN_NODE_VERSION.join('.')})`);
@@ -115,7 +116,7 @@ export function runDoctor(cli) {
   }
 
   // --- package.json ---
-  console.log('\n\x1b[1mProject files\x1b[0m');
+  console.log(`\n${bold('Project files')}`);
   const pkgPath = path.join(root, 'package.json');
   let isFrameworkRepo = false;
   if (fs.existsSync(pkgPath)) {
@@ -185,7 +186,7 @@ export function runDoctor(cli) {
   }
 
   // --- Directories ---
-  console.log('\n\x1b[1mProject structure\x1b[0m');
+  console.log(`\n${bold('Project structure')}`);
   const srcRel = (userConfig && userConfig.srcDir) || cli.config.srcDir || 'src';
   const distRel = (userConfig && userConfig.distDir) || cli.config.distDir || 'dist';
   const srcDir = path.join(root, srcRel);
@@ -237,7 +238,7 @@ export function runDoctor(cli) {
   }
 
   // --- Git ---
-  console.log('\n\x1b[1mGit\x1b[0m');
+  console.log(`\n${bold('Git')}`);
   try {
     const output = execSync('git status --porcelain', {
       cwd: root,
@@ -254,12 +255,14 @@ export function runDoctor(cli) {
   }
 
   // --- Summary ---
-  console.log('\n\x1b[1mSummary\x1b[0m');
-  console.log(`  \x1b[32m${results.pass} passed\x1b[0m · \x1b[33m${results.warn} warnings\x1b[0m · \x1b[31m${results.fail} failed\x1b[0m`);
+  console.log(`\n${bold('Summary')}`);
+  console.log(
+    `  ${green(`${results.pass} passed`)} · ${yellow(`${results.warn} warnings`)} · ${red(`${results.fail} failed`)}`,
+  );
   if (results.fail > 0) {
-    console.log('\n\x1b[31mDoctor found issues that should be fixed.\x1b[0m\n');
+    console.log(`\n${red('Doctor found issues that should be fixed.')}\n`);
     process.exitCode = 1;
   } else {
-    console.log('\n\x1b[32mEnvironment looks healthy.\x1b[0m\n');
+    console.log(`\n${green('Environment looks healthy.')}\n`);
   }
 }

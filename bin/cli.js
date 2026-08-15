@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import loadConfig from '../lib/config.js';
 import { loadEnv } from '../lib/env.js';
 import { checkGitStatus } from './utils.js';
+import { createSeverityFormatter, cyan, gray } from './colors.js';
 import { initProject } from './commands/init.js';
 import { generateComponent, generatePage, generateBridge, generateGuard } from './commands/generate.js';
 import { destroyComponent, destroyPage, destroyBridge, destroyGuard } from './commands/destroy.js';
@@ -30,6 +31,9 @@ export class AvenxCLI {
     loadEnv(this.baseDir);
     this.frameworkDir = path.join(__dirname, '..');
     this.config = { ...loadConfig(this.baseDir), ...options };
+    // Tint compiler warnings yellow and errors red for every command that compiles
+    // (build, check, watch, serve). Stays inert when colors are unsupported.
+    this.config.logging = { ...this.config.logging, formatter: createSeverityFormatter() };
   }
 
   /**
@@ -54,7 +58,9 @@ export class AvenxCLI {
         arg !== '--dry-run' &&
         arg !== '-d' &&
         arg !== '--force' &&
-        arg !== '-f',
+        arg !== '-f' &&
+        arg !== '--no-color' &&
+        arg !== '--no-colors',
     );
     const type = filteredArgs[0];
     const name = filteredArgs[1];
@@ -162,11 +168,11 @@ export class AvenxCLI {
       }
       case 'watch':
       case 'w':
-        console.log(`👀 Watching for changes in ${this.config.srcDir}/...\n`);
+        console.log(cyan(`👀 Watching for changes in ${this.config.srcDir}/...\n`));
         buildProject(this);
         watchProject(this);
         process.on('SIGINT', () => {
-          console.log('\nStopping watch...');
+          console.log(`\n${gray('Stopping watch...')}`);
           process.exit(0);
         });
         break;

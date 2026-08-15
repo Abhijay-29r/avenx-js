@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import AvenxCompiler from '../../lib/compiler.js';
+import { cyan, gray, green, red } from '../colors.js';
 
 /**
  * Runs the compiler build along with optional prebuild and postbuild lifecycle hooks.
@@ -12,14 +13,14 @@ export function buildProject(cli) {
   const baseDir = (cli && cli.baseDir) || process.cwd();
 
   if (hooks.prebuild && typeof hooks.prebuild === 'string' && hooks.prebuild.trim() !== '') {
-    console.log(`🏃 Running prebuild hook: ${hooks.prebuild}...`);
+    console.log(gray(`🏃 Running prebuild hook: ${hooks.prebuild}...`));
     execSync(hooks.prebuild, { stdio: 'inherit', cwd: baseDir });
   }
 
   new AvenxCompiler(cli.config).build();
 
   if (hooks.postbuild && typeof hooks.postbuild === 'string' && hooks.postbuild.trim() !== '') {
-    console.log(`🏃 Running postbuild hook: ${hooks.postbuild}...`);
+    console.log(gray(`🏃 Running postbuild hook: ${hooks.postbuild}...`));
     execSync(hooks.postbuild, { stdio: 'inherit', cwd: baseDir });
   }
 }
@@ -31,11 +32,11 @@ export function buildProject(cli) {
 export function cleanProject(cli) {
   const distDir = path.join(cli.baseDir, cli.config.distDir);
   if (fs.existsSync(distDir)) {
-    console.log(`🧹 Cleaning build output directory: ${cli.config.distDir}...`);
+    console.log(cyan(`🧹 Cleaning build output directory: ${cli.config.distDir}...`));
     fs.rmSync(distDir, { recursive: true, force: true });
-    console.log('✅ Clean complete.');
+    console.log(green('✅ Clean complete.'));
   } else {
-    console.log(`🧹 Build output directory ${cli.config.distDir} does not exist. Nothing to clean.`);
+    console.log(cyan(`🧹 Build output directory ${cli.config.distDir} does not exist. Nothing to clean.`));
   }
 }
 
@@ -176,7 +177,7 @@ export function runCheckPass(cli, args = []) {
     if (isJson) {
       diagnostics.push(parseDiagnostic('error', [err]));
     } else {
-      originalError(`❌ ${err.message || err}`);
+      originalError(red(`❌ ${err.message || err}`));
     }
   } finally {
     console.warn = originalWarn;
@@ -210,7 +211,7 @@ export function checkProject(cli, args = []) {
     const srcDir = (cli && cli.config && cli.config.srcDir) || 'src';
     const srcPath = path.join((cli && cli.baseDir) || process.cwd(), srcDir);
 
-    console.log(`[${getTimestamp()}] 👀 Watching for template changes in ${srcDir}/...`);
+    console.log(cyan(`[${getTimestamp()}] 👀 Watching for template changes in ${srcDir}/...`));
 
     const executeCheck = () => {
       const timestamp = getTimestamp();
@@ -225,9 +226,9 @@ export function checkProject(cli, args = []) {
       } else {
         const totalIssues = report.warningCount + report.errorCount;
         if (totalIssues > 0) {
-          console.error(`[${timestamp}] ❌ Found ${totalIssues} validation issue(s).`);
+          console.error(red(`[${timestamp}] ❌ Found ${totalIssues} validation issue(s).`));
         } else {
-          console.log(`[${timestamp}] ✓ No template validation issues found.`);
+          console.log(green(`[${timestamp}] ✓ No template validation issues found.`));
         }
       }
       return report;
@@ -237,7 +238,7 @@ export function checkProject(cli, args = []) {
     const initialReport = executeCheck();
 
     if (!fs.existsSync(srcPath)) {
-      console.error(`❌ Source directory does not exist: ${srcPath}`);
+      console.error(red(`❌ Source directory does not exist: ${srcPath}`));
       return initialReport;
     }
 
@@ -246,14 +247,14 @@ export function checkProject(cli, args = []) {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         const fileMsg = filename ? ` in ${filename}` : '';
-        console.log(`\n[${getTimestamp()}] 📄 Change detected${fileMsg}. Re-checking templates...`);
+        console.log(`\n${cyan(`[${getTimestamp()}] 📄 Change detected${fileMsg}. Re-checking templates...`)}`);
         executeCheck();
       }, 100);
     });
 
 
     const cleanup = () => {
-      console.log('\nStopping template check watcher...');
+      console.log(`\n${gray('Stopping template check watcher...')}`);
       if (watcher) watcher.close();
       if (!cli || !cli._noExit) {
         process.exit(0);
@@ -284,7 +285,7 @@ export function checkProject(cli, args = []) {
 
   const totalIssues = report.warningCount + report.errorCount;
   if (totalIssues > 0) {
-    console.error(`\nFound ${totalIssues} validation issue(s).`);
+    console.error(`\n${red(`Found ${totalIssues} validation issue(s).`)}`);
     process.exitCode = 1;
     if (!cli || !cli._noExit) {
       process.exit(1);
@@ -292,7 +293,7 @@ export function checkProject(cli, args = []) {
     return report;
   }
 
-  console.log('✓ No template validation issues found.');
+  console.log(green('✓ No template validation issues found.'));
   process.exitCode = 0;
   if (!cli || !cli._noExit) {
     process.exit(0);

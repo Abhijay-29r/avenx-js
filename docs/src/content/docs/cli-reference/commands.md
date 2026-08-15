@@ -21,7 +21,22 @@ The following flags can be passed globally to `avenx` commands:
 | :--- | :--- | :--- | :--- |
 | `--dry-run` | `-d` | Previews file creation, modification, or deletion actions without modifying disk. | `generate`, `destroy` |
 | `--force` | `-f` | Forces command execution by bypassing uncommitted Git working tree status checks. | `init`, `generate`, `destroy`, `build` |
+| `--no-color` | | Disables colored terminal output. | Global |
 | `--version` | `-v` | Displays the installed version of the Avenx-JS CLI package. | Global |
+
+### Colored Output
+
+CLI output is color-coded to make results easier to scan: successful actions are green, warnings (including compiler warnings such as `AVX_W03`) are yellow, errors are red, and headings are bold.
+
+Colors are emitted only when the terminal can render them. They are disabled automatically when output is piped or redirected, when running in a non-TTY environment such as CI, and when `TERM=dumb`. They can also be controlled explicitly:
+
+| Control | Effect |
+| :--- | :--- |
+| `--no-color` | Disables colors for a single command. |
+| `NO_COLOR=1` | Disables colors for the environment ([no-color.org](https://no-color.org)). |
+| `FORCE_COLOR=1` | Forces colors on even without a TTY. |
+
+Machine-readable output is never colored: `avenx check --json` always emits clean JSON diagnostics regardless of these settings.
 
 ---
 
