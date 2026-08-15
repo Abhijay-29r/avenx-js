@@ -47,10 +47,10 @@ export function formatRequestLog(method, url, statusCode, durationMs, date = new
 
 /**
  * Attaches an HTTP request logging listener to a response object.
- * @param {import('http').IncomingMessage} req
- * @param {import('http').ServerResponse} res
- * @param {function(string): void} [logger] - Custom logger function.
- * @returns {() => void} Completion logger handler.
+ * @param {object} req
+ * @param {object} res
+ * @param {Function} [logger] - Custom logger function.
+ * @returns {Function} Completion logger handler.
  */
 export function attachRequestLogger(req, res, logger = console.log) {
   const startTime = performance.now();
@@ -569,10 +569,10 @@ export function watchProject(cli) {
 
 /**
  * Listens on the requested port, incrementing it when the address is occupied.
- * @param {import('http').Server} server
+ * @param {object} server
  * @param {number|string} requestedPort
  * @param {string} host
- * @param {(port: number) => void} onListening
+ * @param {Function} onListening
  */
 export function listenWithPortFallback(server, requestedPort, host, onListening) {
   let port = Number(requestedPort);

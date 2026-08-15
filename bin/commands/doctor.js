@@ -70,7 +70,7 @@ function collectUnknownKeys(obj, allowed, prefix = '') {
 
 /**
  * Prefer an explicit app/framework root over findProjectRoot skipping avenx-core.
- * @param {import('../cli.js').AvenxCLI} cli
+ * @param {object} cli
  * @returns {string}
  */
 function resolveDoctorRoot(cli) {
@@ -84,7 +84,7 @@ function resolveDoctorRoot(cli) {
 
 /**
  * Runs environment and project health diagnostics.
- * @param {import('../cli.js').AvenxCLI} cli
+ * @param {object} cli
  */
 export function runDoctor(cli) {
   const root = resolveDoctorRoot(cli);
