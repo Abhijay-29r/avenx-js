@@ -324,7 +324,7 @@ function parseHTML(htmlStr) {
       const attrs = {};
       if (firstSpace !== -1) {
         const attrStr = cleanTagContent.substring(firstSpace + 1);
-        const attrRegex = /([\w\d@:-]+)=(?:"([^"]*)"|'([^']*)')/g;
+        const attrRegex = /([a-zA-Z0-9_@:\-\[\]]+)=(?:"([^"]*)"|'([^']*)')/g;
         let attrMatch;
         while ((attrMatch = attrRegex.exec(attrStr)) !== null) {
           attrs[attrMatch[1]] = attrMatch[2] !== undefined ? attrMatch[2] : attrMatch[3];
@@ -601,6 +601,58 @@ async function runTests() {
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.strictEqual(listItems[1].style.display, '', 'Item 2 should become visible after mutation');
     assert.ok(listItems[1].classList.contains('active-item'), 'Item 2 should get class active-item after mutation');
+
+    // 6. Dynamic Attribute Name Binding (:[attrName]="attrValue") Runtime Tests
+    console.log('  Testing dynamic attribute name binding (:[attrName]="attrValue")...');
+    class DynAttrComponent extends AvenxComponent {
+      constructor() {
+        super({
+          dynamicKey: 'aria-expanded',
+          dynamicVal: 'true',
+          secKey: 'data-test',
+          secVal: 'initial',
+        });
+      }
+      render() {
+        return `
+          <button :[dynamicKey]="dynamicVal" :[secKey]="secVal">Submit</button>
+        `;
+      }
+    }
+
+    const dynComp = new DynAttrComponent();
+    const dynTarget = createMockElementNode('div');
+    dynComp.mount(dynTarget);
+    dynComp.update();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const btnEl = dynTarget.querySelector('button');
+    assert.ok(btnEl, 'Button element should be rendered');
+    assert.strictEqual(btnEl.getAttribute('aria-expanded'), 'true', 'aria-expanded should be bound initially');
+    assert.strictEqual(btnEl.getAttribute('data-test'), 'initial', 'data-test should be bound initially');
+
+    // Mutate attribute value
+    dynComp.state.dynamicVal = 'false';
+    dynComp.state.secVal = 'updated';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.strictEqual(btnEl.getAttribute('aria-expanded'), 'false', 'aria-expanded value should update');
+    assert.strictEqual(btnEl.getAttribute('data-test'), 'updated', 'data-test value should update');
+
+    // Mutate attribute name (change aria-expanded to aria-pressed, data-test to data-state)
+    dynComp.state.dynamicKey = 'aria-pressed';
+    dynComp.state.dynamicVal = 'true';
+    dynComp.state.secKey = 'data-state';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.strictEqual(btnEl.hasAttribute('aria-expanded'), false, 'Previous attribute aria-expanded should be cleanly removed');
+    assert.strictEqual(btnEl.getAttribute('aria-pressed'), 'true', 'New attribute aria-pressed should be added');
+    assert.strictEqual(btnEl.hasAttribute('data-test'), false, 'Previous attribute data-test should be cleanly removed');
+    assert.strictEqual(btnEl.getAttribute('data-state'), 'updated', 'New attribute data-state should be added');
+
+    // Mutate dynamic attribute name to null (removal test)
+    dynComp.state.dynamicKey = null;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.strictEqual(btnEl.hasAttribute('aria-pressed'), false, 'Attribute aria-pressed should be removed when key evaluates to null');
 
     console.log('  ✅ Custom Directives unit tests successfully passed!');
   } catch (error) {
