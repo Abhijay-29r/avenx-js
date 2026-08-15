@@ -38,16 +38,19 @@ jobs:
           path: target-dev-docs
 
       - name: Deploy documentation to target repository
+        env:
+          TARGET_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GH_PAT || secrets.DEPLOY_TOKEN }}
         run: |
           mkdir -p dev-docs
-          rsync -av --delete --exclude='.git' ./dev-docs/ ./target-dev-docs/
+          rsync -av --delete --exclude='.git*' --exclude='.github*' ./dev-docs/ ./target-dev-docs/
           cd target-dev-docs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${TARGET_TOKEN}@github.com/avenx-js/dev-docs.git"
           git add -A
           if git diff --staged --quiet; then
             echo "No changes in dev-docs. Skipping commit and push."
           else
             git commit -m "chore: update generated development docs"
-            git push
+            git push origin HEAD
           fi

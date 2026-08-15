@@ -41,18 +41,21 @@ jobs:
           path: target-test-cov
 
       - name: Deploy coverage report to target repository
+        env:
+          TARGET_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GH_PAT || secrets.DEPLOY_TOKEN }}
         run: |
           mkdir -p coverage
-          rsync -av --delete --exclude='.git' ./coverage/ ./target-test-cov/
+          rsync -av --delete --exclude='.git*' --exclude='.github*' ./coverage/ ./target-test-cov/
           cd target-test-cov
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${TARGET_TOKEN}@github.com/avenx-js/test-cov.git"
           git add -A
           if git diff --staged --quiet; then
             echo "No changes in test coverage report. Skipping commit and push."
           else
             git commit -m "chore: update test coverage report"
-            git push
+            git push origin HEAD
           fi
 
   benchmarks:
@@ -85,16 +88,19 @@ jobs:
           path: target-bench-results
 
       - name: Deploy benchmark results to target repository
+        env:
+          TARGET_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GH_PAT || secrets.DEPLOY_TOKEN }}
         run: |
           mkdir -p bench-results
-          rsync -av --delete --exclude='.git' ./bench-results/ ./target-bench-results/
+          rsync -av --delete --exclude='.git*' --exclude='.github*' ./bench-results/ ./target-bench-results/
           cd target-bench-results
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${TARGET_TOKEN}@github.com/avenx-js/bench-results.git"
           git add -A
           if git diff --staged --quiet; then
             echo "No changes in benchmark results. Skipping commit and push."
           else
             git commit -m "chore: update benchmark results"
-            git push
+            git push origin HEAD
           fi
