@@ -1,6 +1,10 @@
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import http from 'http';
 import { EventEmitter } from 'events';
-import { listenWithPortFallback } from '../../bin/commands/serve.js';
+import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger } from '../../bin/commands/serve.js';
+import { setColorEnabled } from '../../bin/colors.js';
 import { AvenxCLI } from '../../bin/cli.js';
 
 class OccupiedPortServer extends EventEmitter {
@@ -77,12 +81,109 @@ async function testCliServeParsing() {
   assert.deepStrictEqual(lastCall, { port: 8080, host: 'localhost' });
 }
 
-try {
-  runTests();
-  await testCliServeParsing();
-  console.log('Dev server port fallback and CLI serve sanitization tests passed!');
-} catch (error) {
-  console.error('Dev server tests failed!');
-  console.error(error);
-  process.exit(1);
+function testRequestLoggerFormatting() {
+  setColorEnabled(false);
+  const testDate = new Date();
+  testDate.setHours(14, 23, 5);
+
+  const log200 = formatRequestLog('GET', '/src/main.app.js', 200, 2.4, testDate);
+  assert.strictEqual(log200, '[14:23:05] GET /src/main.app.js - 200 (2.4ms)');
+
+  const testDate404 = new Date(testDate);
+  testDate404.setHours(14, 23, 6);
+  const log404 = formatRequestLog('GET', '/favicon.ico', 404, 1.1, testDate404);
+  assert.strictEqual(log404, '[14:23:06] GET /favicon.ico - 404 (1.1ms)');
+
+  setColorEnabled(true);
+  const status200 = formatStatusCode(200);
+  assert.ok(status200.includes('\x1b[32m200\x1b[39m'), '200 should be green in ANSI');
+
+  const status304 = formatStatusCode(304);
+  assert.ok(status304.includes('\x1b[33m304\x1b[39m'), '304 should be yellow in ANSI');
+
+  const status404 = formatStatusCode(404);
+  assert.ok(status404.includes('\x1b[31m404\x1b[39m'), '404 should be red in ANSI');
+
+  const status500 = formatStatusCode(500);
+  assert.ok(status500.includes('\x1b[31m500\x1b[39m'), '500 should be red in ANSI');
 }
+
+function testAttachRequestLogger() {
+  setColorEnabled(false);
+  const logs = [];
+  const mockReq = { method: 'GET', url: '/src/main.app.js' };
+  const mockRes = new EventEmitter();
+  mockRes.statusCode = 200;
+
+  attachRequestLogger(mockReq, mockRes, (log) => logs.push(log));
+
+  mockRes.emit('finish');
+  assert.strictEqual(logs.length, 1);
+  assert.ok(logs[0].includes('GET /src/main.app.js - 200'));
+
+  // Ensure double emit finish does not duplicate log
+  mockRes.emit('finish');
+  assert.strictEqual(logs.length, 1);
+}
+
+async function testHttpDevServerRequestLogging() {
+  setColorEnabled(false);
+  const logs = [];
+
+  const server = http.createServer((req, res) => {
+    attachRequestLogger(req, res, (msg) => logs.push(msg));
+    if (req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html></html>');
+    } else {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+
+  try {
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+
+    // Send HTTP GET / request (200)
+    await new Promise((resolve, reject) => {
+      http.get(`http://127.0.0.1:${port}/`, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      }).on('error', reject);
+    });
+
+    // Send HTTP GET /favicon.ico request (404)
+    await new Promise((resolve, reject) => {
+      http.get(`http://127.0.0.1:${port}/favicon.ico`, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      }).on('error', reject);
+    });
+
+    assert.ok(logs.some((l) => l.includes('GET / - 200')), 'Should log GET / - 200');
+    assert.ok(logs.some((l) => l.includes('GET /favicon.ico - 404')), 'Should log GET /favicon.ico - 404');
+  } finally {
+    server.close();
+  }
+}
+
+async function main() {
+  try {
+    testRequestLoggerFormatting();
+    testAttachRequestLogger();
+    await testHttpDevServerRequestLogging();
+    runTests();
+    await testCliServeParsing();
+    console.log('Dev server port fallback, request logger formatting, HTTP request logging, and CLI serve sanitization tests passed!');
+  } catch (error) {
+    console.error('Dev server tests failed!');
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
