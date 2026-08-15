@@ -35,4 +35,96 @@ Next.js is a full-stack framework with file-based routing (`app/` or `pages/`), 
 
 ## 4. Server vs Client Decoupling & Route Guards
 
-*This section will document decoupling full-stack API routes into external REST servers and replacing Next middleware with `AvenxGuard` classes.*
+Next.js can handle both frontend and backend code in the same application using API routes, Server Actions, and middleware. Avenx-JS is client-side, so backend logic should be moved to a separate API server.
+
+### 4.1 Decoupling the Backend
+
+Next.js API routes and Server Actions can be moved to a separate backend such as Express, Fastify, or NestJS.
+
+```text
+Browser
+  |
+  v
+Avenx-JS SPA
+  |
+  | REST API
+  v
+Backend Server
+  |
+  v
+Database / Services
+```
+
+Avenx-JS handles the client-side application, while API requests are sent to the separate backend server.
+
+### 4.2 Replacing Next.js Middleware
+
+Next.js middleware can be used to check authentication before allowing access to a route.
+
+**Before — Next.js Middleware**
+
+```js
+// middleware.ts
+import { NextResponse } from 'next/server';
+
+export function middleware(request) {
+  const token = request.cookies.get('token');
+
+  if (!token && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+}
+```
+
+With Avenx-JS, the same check can be handled by an `AvenxGuard`.
+
+**After — Avenx-JS Route Guard**
+
+```js
+// src/guards/auth.guard.js
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export default class AuthGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      return '#/login';
+    }
+
+    return true;
+  }
+}
+```
+
+The `canActivate(to, from)` method runs before navigation. Returning `true` allows the navigation, while returning `false` cancels it. Returning a route such as `#/login` redirects the user.
+
+### 4.3 Registering the Guard
+
+The guard can be added to a route in the router configuration.
+
+```js
+// src/main.app.js
+import AuthGuard from './guards/auth.guard.js';
+
+app.initRouter({
+  '#/login': 'Login',
+  '#/dashboard': {
+    page: 'Dashboard',
+    guards: [AuthGuard],
+  },
+});
+```
+
+When the user tries to open `#/dashboard`, the guard runs before the route is entered. The guard can also perform asynchronous checks.
+
+### 4.4 Environment Variables and Static Assets
+
+Next.js uses the `NEXT_PUBLIC_` prefix for environment variables that are exposed to the browser. When migrating to Avenx-JS, use the environment configuration of the client application instead.
+
+Only values that are safe to expose in the browser should be included in client-side configuration. Secrets and private API keys should remain on the backend.
+
+Static files such as images and icons can be placed in the `public/` directory.
+
+For more information, see the [Router Guards](../api-reference/router-guard) and [Migration Overview](./overview) documentation.
+
