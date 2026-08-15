@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'node:readline';
 import { execSync } from 'child_process';
+import { red, yellow, gray } from './colors.js';
 
 /**
  * Helper to parse input names into PascalCase and kebab-case.
@@ -34,7 +35,7 @@ export function checkGitStatus() {
       return true;
     }
 
-    console.warn('⚠️ You have unstaged changes in your repository.');
+    console.warn(yellow('⚠️ You have unstaged changes in your repository.'));
 
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
       return true;
@@ -52,7 +53,7 @@ export function checkGitStatus() {
         if (answer.trim().toLowerCase() === 'y') {
           resolve(true);
         } else {
-          console.log('Operation cancelled.');
+          console.log(gray('Operation cancelled.'));
           resolve(false);
         }
       });
@@ -88,7 +89,7 @@ export function promptQuestion(query, defaultValue, validator = null) {
             rl.close();
             resolve(trimmed);
           } else {
-            console.log(`\x1b[31m❌ ${valid}\x1b[0m`);
+            console.log(red(`❌ ${valid}`));
             ask();
           }
         } else {
@@ -130,7 +131,7 @@ export function readTemplate(baseDir, config, frameworkDir, subfolder, filename)
  * @param {string} message
  */
 export function fail(message) {
-  console.error(`\x1b[31m❌ Error: ${message}\x1b[0m`);
+  console.error(red(`❌ Error: ${message}`));
   process.exitCode = 1;
 }
 

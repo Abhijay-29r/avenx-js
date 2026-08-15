@@ -3,6 +3,7 @@ import path from 'path';
 import http from 'http';
 import { exec } from 'child_process';
 import { buildProject } from './build.js';
+import { cyan, green, yellow } from '../colors.js';
 
 /**
  * Opens the browser to the specified URL.
@@ -481,7 +482,7 @@ export function watchProject(cli) {
     if (filename) {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        console.log(`\n📄 Change detected: ${filename}. Rebuilding...`);
+        console.log(`\n${cyan(`📄 Change detected: ${filename}. Rebuilding...`)}`);
         buildProject(cli);
 
         if (cli.liveReloadClients) {
@@ -512,7 +513,7 @@ export function listenWithPortFallback(server, requestedPort, host, onListening)
 
     const occupiedPort = port;
     port += 1;
-    console.warn(`\nPort ${occupiedPort} is already in use. Trying ${port} instead.`);
+    console.warn(`\n${yellow(`Port ${occupiedPort} is already in use. Trying ${port} instead.`)}`);
     server.listen(port, host);
   });
 
@@ -616,9 +617,9 @@ export function serveProject(cli, port, host = 'localhost') {
 
   listenWithPortFallback(server, port, host, (activePort) => {
     const url = `http://${host}:${activePort}`;
-    console.log(`\n🚀 Dev-Server running at ${url}`);
+    console.log(`\n${green(`🚀 Dev-Server running at ${url}`)}`);
     if (cli.config.server.liveReload) {
-      console.log(`👀 Watching for changes in ${cli.config.srcDir}/...\n`);
+      console.log(cyan(`👀 Watching for changes in ${cli.config.srcDir}/...\n`));
     }
     openBrowser(url);
   });

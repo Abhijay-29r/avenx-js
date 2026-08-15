@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { AvenxCLI } from './cli.js';
+import { red } from './colors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +25,9 @@ function compareVersions(current, required) {
 
 if (!compareVersions(current, MIN_NODE_VERSION)) {
   console.error(
-    `Avenx requires Node.js ${MIN_NODE_VERSION.join('.')} or later.\n` + `Current version: ${process.versions.node}`,
+    red(
+      `Avenx requires Node.js ${MIN_NODE_VERSION.join('.')} or later.\n` + `Current version: ${process.versions.node}`,
+    ),
   );
   process.exit(1);
 }
