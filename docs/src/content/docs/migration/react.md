@@ -29,7 +29,131 @@ React components are JavaScript functions returning JSX elements, where state up
 
 ## 3. State and Reactivity
 
-*This section will document `<state />` tag usage, Proxy state mutations, JSON attribute coercion, and `<computed />` properties.*
+React keeps state in `useState` hooks and updates it through setter functions (`setCount(c => c + 1)`); every update re-runs the component function. Avenx-JS instead declares state declaratively in a single `<state />` tag and mutates it **directly** — `state.count++` — because the state object is a reactive `Proxy` that schedules a re-render for you. There are no setters, no `setState`, and no component re-runs; the template simply re-evaluates against the mutated proxy. See the [Reactive State](/core-concepts/reactivity) guide for the full model, and the [Migration Overview](/migration/overview) for where this fits in the paradigm map.
+
+### Declaring State
+
+A React component can hold many independent `useState` hooks. In Avenx-JS, all of them collapse into **one** `<state />` tag per component — each attribute is one state property.
+
+#### Before — Multiple React `useState` Hooks
+
+```jsx
+import { useState } from 'react';
+
+export function SearchPanel() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  // ...
+}
+```
+
+#### After — One Avenx `<state />` Tag
+
+```html
+<!-- src/components/search-panel/search-panel.component.js -->
+<state query="" results="[]" loading="false" />
+
+<!-- state.query, state.results, state.loading are all reactive -->
+```
+
+:::caution
+**Single `<state />` rule.** Only the **first** `<state />` tag in a component is parsed — declaring a second one silently drops the secondary state. Keep every property on the one tag, or merge into an object.
+:::
+
+### JSON Attribute Coercion
+
+Attribute values on `<state />` are always strings unless you tell the compiler otherwise. **Arrays and objects must be written as valid JSON, wrapped in single quotes** so the double-quoted JSON survives HTML attribute parsing.
+
+```html
+<state items='[{"id": 1, "name": "Item A", "price": 10}]' user='{"name": "Ada", "role": "admin"}' />
+```
+
+- Object keys and string values use **double quotes** (`"name": "Item A"`), not single quotes.
+- The whole JSON payload is wrapped in **single quotes** on the attribute (`items='...'`).
+- Primitives stay plain: `count="0"`, `title="Hello"`, `enabled="true"` are coerced to number, string, and boolean respectively.
+
+### Mutating State
+
+React forbids direct mutation and requires a new reference (`[...items, newItem]`) so the re-render has something to diff. Avenx's Proxy observes the mutation itself, so you write the natural imperative form.
+
+#### Before — React Setter with Immutable Update
+
+```jsx
+import { useState } from 'react';
+
+const [items, setItems] = useState([{ id: 1, name: 'Item A', price: 10 }]);
+
+const addItem = () => {
+  setItems([...items, { id: 3, name: 'Item C', price: 15 }]);
+};
+```
+
+#### After — Direct Proxy Mutation
+
+```html
+<!-- Avenx-JS -->
+<state items='[{"id": 1, "name": "Item A", "price": 10}]' />
+
+<action name="addItem">
+  state.items.push({ id: 3, name: 'Item C', price: 15 });
+</action>
+```
+
+`state.items.push(...)` mutates the array in place; the Proxy trap notices and schedules the update. The same applies to objects (`state.user.role = 'admin'`) and to the `++` / `--` operators on primitives (`state.count++`).
+
+### Derived Values with `<computed />`
+
+React derives values with `useMemo` and a dependency array, then re-runs the memo when a listed dep changes. Avenx's `<computed />` tag caches a getter and re-evaluates it automatically when any state property it reads changes — no dependency array to maintain, and no stale closure risk because the expression reads `state` directly.
+
+#### Before — React `useMemo` with Dependencies
+
+```jsx
+import { useState, useMemo } from 'react';
+
+const [items, setItems] = useState([{ id: 1, name: 'Item A', price: 10 }]);
+const [discount, setDiscount] = useState(5);
+
+const total = useMemo(
+  () => items.reduce((sum, item) => sum + item.price, 0) - discount,
+  [items, discount]
+);
+```
+
+#### After — Avenx `<computed />` Tag
+
+```html
+<!-- Avenx-JS -->
+<state items='[{"id": 1, "name": "Item A", "price": 10}]' discount="5" />
+<computed name="total" value="state.items.reduce((sum, item) => sum + item.price, 0) - state.discount" />
+
+<p>Total: ${{ total }}</p>
+```
+
+The computed reads `state.items` and `state.discount` during its first evaluation, so the dependency graph is built automatically. Change either and `total` updates everywhere it is rendered. See the [Computed Properties](/core-concepts/computed) guide for caching and the `AVX_R04` circular-dependency guard.
+
+### Batching
+
+React batches state updates within event handlers; Avenx batches **every** mutation through a microtask scheduler. Assign several properties in one action and the DOM patches once, after the microtask flushes:
+
+```javascript
+<action name="updateUser">
+  state.name = 'John';
+  state.role = 'admin';
+  // Both assignments are queued; the template renders ONCE.
+</action>
+```
+
+> [!TIP]
+> Because the flush is async, reading DOM measurements immediately after mutating `state` returns pre-update values. Use the `nextTick` utility to run code after the scheduler finishes — see [Microtask Scheduler & `nextTick`](/core-concepts/reactivity#microtask-scheduler--nexttick-utility).
+
+### Key Conceptual Differences & Pitfalls
+
+- **Immutable vs mutable**: React requires new references; Avenx allows direct mutation (`push`, `++`, property assignment) because the Proxy observes it.
+- **Single `<state />` tag**: extra tags are silently ignored — merge everything into one.
+- **JSON syntax for structured values**: arrays/objects in `<state>` attributes need double-quoted JSON inside single-quoted attributes (`items='[{"id": 1}]'`).
+- **No setters or hooks**: `useState`/`setCount`/`useMemo` have no Avenx equivalent — the template is already reactive, so mutation alone re-renders.
+- **Batching is automatic**: multiple mutations flush in one microtask; use `nextTick` if you must observe the DOM right after a mutation.
 
 ---
 
