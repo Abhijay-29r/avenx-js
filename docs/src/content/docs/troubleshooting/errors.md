@@ -81,6 +81,83 @@ console.warn(formatMessage(AvenxErrorCodes.SANDBOX_VIOLATION, 'disallowed eval()
 // -> "[AVX_R15] Sandbox security violation: disallowed eval() call"
 ```
 
+## Global Error & Warning Interception (`errorHandler` & `warnHandler`)
+
+For centralized error logging and telemetry integration (such as Sentry, LogRocket, or Datadog), Avenx-JS provides root-level application hooks to intercept all uncaught component errors and framework warnings.
+
+### 1. Global Error Handler (`errorHandler` & `app.onError`)
+
+The `errorHandler` callback captures uncaught errors thrown inside component lifecycle hooks (`onMount`, `onUpdate`, `onUnmount`), event listeners (`@click`), template expressions, and route transition guards.
+
+You can configure it in the `AvenxApp` constructor options or via `app.onError(callback)`:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+
+const app = new AvenxApp({
+  target: '#app',
+
+  // Global Error Callback
+  errorHandler(error, instance, info) {
+    console.error(`[Avenx Uncaught Error] in component <${instance?.constructor?.name}> during ${info}:`, error);
+
+    // Telemetry Integration Example (Sentry / Datadog)
+    if (window.Sentry) {
+      Sentry.captureException(error, {
+        tags: {
+          component: instance?.constructor?.name || 'Unknown',
+          lifecycleHook: info,
+        },
+      });
+    }
+  },
+});
+
+// Alternative method registration:
+app.onError((error, instance, info) => {
+  console.log('Additional telemetry listener for origin:', info);
+});
+```
+
+#### Callback Signature
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `error` | `Error` \| `AvenxError` | The caught error instance containing `code`, `message`, and stack trace. |
+| `instance` | `AvenxComponent` \| `null` | The component instance where the error occurred. |
+| `info` | `string` | Origin context string (`'onMount'`, `'onUpdate'`, `'onUnmount'`, `'eventHandler'`, `'render'`). |
+
+### 2. Global Warning Handler (`warnHandler`)
+
+Framework warnings (codes `AVX_W01` to `AVX_W32`) warn developers about potential memory leaks, duplicate list keys, missing preprocessors, or unhandled default props.
+
+Intercept framework warnings at runtime using `warnHandler`:
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+
+  // Global Warning Callback
+  warnHandler(message, instance) {
+    console.warn(`[Avenx Warning] from <${instance?.constructor?.name || 'Core'}>: ${message}`);
+
+    // Log warnings to monitoring dashboard
+    if (window.LogRocket) {
+      LogRocket.log(`[Warning] ${message}`);
+    }
+  },
+});
+```
+
+#### Callback Signature
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `string` | The formatted warning string including warning code (e.g. `[AVX_W20] RENDER_LIST_DUPLICATE_KEY`). |
+| `instance` | `AvenxComponent` \| `null` | The component instance emitting the warning. |
+
+---
+
 ## Compiler Codes (`AVX_C*`)
 
 | Code        | Default Message                                                                             | Cause & Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
