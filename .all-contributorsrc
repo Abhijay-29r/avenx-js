@@ -886,6 +886,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "Tyr1onX",
+      "name": "栖白",
+      "avatar_url": "https://avatars.githubusercontent.com/u/212495395?v=4",
+      "profile": "https://tyr1onx.github.io/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
