@@ -1357,91 +1357,65 @@ Using a fallback expression ensures every item can produce a valid key, even whe
 **Warning Message**
 
 ```text
-[Avenx Validation Warning] Duplicate key "{0}" detected in list expression "{1}". Appending index suffix to prevent node reuse conflict.
+[AVX_W20] Duplicate key "{0}" detected in list expression "{1}". Appending index suffix to prevent node reuse conflict.
 ```
 
-**Cause:** This warning is emitted at runtime by the `ListManager` reconciliation engine when two or more items rendered from the same list evaluate to the exact same key value. Avenx-JS relies on unique keys to track, reorder, and update DOM nodes efficiently during reactive updates. When duplicate keys exist, the renderer cannot uniquely distinguish between list elements.
+**Cause:** This warning is emitted at runtime by the `ListManager` reconciliation engine when two or more items rendered within a `<@for>` loop block evaluate to identical key values. Avenx-JS relies on unique keys to track, reorder, patch, and reuse DOM elements efficiently across reactive state updates. When key collisions occur, the reconciler cannot unambiguously match existing DOM nodes to updated list items.
 
-**Impact:** Duplicate keys break Virtual DOM list reconciliation and degrade application performance:
+**Impact:** Duplicate keys degrade rendering performance and can introduce UI bugs:
 
-- **Performance Overhead:** To prevent execution crashes, Avenx-JS executes a fallback index-suffixing algorithm (`key_0`, `key_1`). This bypasses optimal DOM element recycling, causing unnecessary DOM element creation and destruction cycles on list updates.
-- **State Mismatches & UI Glitches:** Re-using DOM elements with duplicate keys can result in component state leakage, incorrect form input focus, broken CSS animation transitions, or stale content remaining in rendered list items.
+- **Performance Overhead:** To prevent execution crashes, Avenx-JS applies a fallback index-suffixing algorithm (`key_0`, `key_1`). This bypasses optimal DOM element recycling, causing unnecessary DOM element creation and destruction cycles on list updates.
+- **State Mismatches & Visual Glitches:** Re-using DOM elements with duplicate keys can lead to component state leakage, loss of form input focus, CSS animation glitches, or stale content remaining in rendered list items.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure every item in your list supplies a property that is guaranteed to be unique across all items (such as a database `id` or UUID).
-2. Avoid using non-unique attributes like `user.role`, `item.category`, or static string literals as key expressions.
-3. If list items lack a native unique identifier, construct a composite key or combine the item property with the loop index (e.g. `item.category + '-' + index`).
-4. Verify that source data in `state` does not contain duplicate entries with identical IDs.
+1. Use a property that is guaranteed to be unique across all list items (such as a database `id`, UUID, or unique slug).
+2. Avoid using non-unique attributes like `item.category`, `item.type`, or static strings as key expressions.
+3. If list items lack a native unique identifier, construct a composite key (e.g. `item.category + '-' + index`) or combine item properties with the loop index.
+4. Ensure source data in `state` does not contain duplicate entries with identical IDs.
 
 **Incorrect**
 
-Using duplicate keys in `<@for>` loop tag syntax:
-
 ```html
-<state users="[
-  { id: 101, role: 'admin', name: 'Alice' },
-  { id: 102, role: 'admin', name: 'Bob' }
+<state items="[
+  { id: 1, category: 'books', title: 'JavaScript Guide' },
+  { id: 2, category: 'books', title: 'CSS Mastery' }
 ]" />
 
-<!-- ❌ Non-unique key: Both items evaluate to role 'admin' -->
-<@for item="user" in="state.users" key="user.role">
-  <div class="user-card">{{ user.name }} ({{ user.role }})</div>
+<!-- ❌ Non-unique key: Multiple items share the category 'books' -->
+<@for item in state.items key="item.category">
+  <div>{{ item.title }}</div>
 </@for>
 ```
 
-Using duplicate keys in `data-ax-for` directive syntax:
-
-```html
-<!-- ❌ Duplicate ID in source state array -->
-<li
-  data-ax-for="user in state.users"
-  data-ax-key="user.id"
->
-  {{ user.name }}
-</li>
-```
+*Because multiple items evaluate to `category: 'books'`, `ListManager` detects duplicate keys and emits **AVX_W20**.*
 
 **Correct**
 
-Using unique `id` properties in `<@for>` loop tag syntax:
-
 ```html
-<state users="[
-  { id: 101, role: 'admin', name: 'Alice' },
-  { id: 102, role: 'admin', name: 'Bob' }
+<state items="[
+  { id: 1, category: 'books', title: 'JavaScript Guide' },
+  { id: 2, category: 'books', title: 'CSS Mastery' }
 ]" />
 
-<!-- ✅ Unique key: Every user has a distinct id -->
-<@for item="user" in="state.users" key="user.id">
-  <div class="user-card">{{ user.name }} ({{ user.role }})</div>
+<!-- ✅ Unique key: Every item has a distinct id -->
+<@for item in state.items key="item.id">
+  <div>{{ item.title }}</div>
 </@for>
-```
-
-Using unique `id` properties in `data-ax-for` directive syntax:
-
-```html
-<!-- ✅ Unique key expression for each item -->
-<li
-  data-ax-for="user in state.users"
-  data-ax-key="user.id"
->
-  {{ user.name }}
-</li>
 ```
 
 **Defensive Example**
 
-When items do not possess guaranteed unique IDs, construct a composite key or use a safe fallback:
+When list items lack unique ID properties, construct a composite key or combine properties with the loop index:
 
 ```html
-<!-- ✅ Composite key fallback using loop index -->
-<@for item="user" in="state.users" key="user.id ? user.id : 'user-' + index">
-  <div class="user-card">{{ user.name }}</div>
+<!-- ✅ Composite key using item property and index -->
+<@for item in state.items key="item.category + '-' + index">
+  <div>{{ item.title }}</div>
 </@for>
 ```
 
-> **Note:** When duplicate keys are detected, Avenx-JS automatically appends an index suffix (e.g. `key_0`, `key_1`) so rendering can complete without throwing an error. However, this fallback degrades DOM reconciliation performance and should be resolved by assigning unique keys.
+> **Note:** Although Avenx-JS gracefully recovers from duplicate keys by appending index suffixes (e.g. `key_0`, `key_1`), resolving this warning ensures optimal DOM reconciliation performance and prevents UI bugs.
 
 ### AVX_W21 — DIRECTIVE_HTML_EVALUATION_FAILED
 
