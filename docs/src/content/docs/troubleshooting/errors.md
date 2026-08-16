@@ -20,13 +20,45 @@ new AvenxError(code, ...args)
 | `code`    | `string` | One of the `AvenxErrorCodes` identifiers (e.g. `'AVX_R01'`). Selects which message template is used. |
 | `...args` | `any[]`  | Values substituted into the message template's `{0}`, `{1}`, etc. placeholders, in order.            |
 
-### Public Properties
+### Public Properties & Metadata Schema
 
-| Property  | Type     | Description                                                                                                                  |
-| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `code`    | `string` | The raw error code passed to the constructor (e.g. `'AVX_R01'`).                                                             |
+| Property | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The raw error code passed to the constructor (e.g. `'AVX_R01'`). |
 | `message` | `string` | The fully formatted message, prefixed with the code, e.g. `[AVX_R01] Mount target selector "#app" was not found in the DOM.` |
-| `name`    | `string` | Always `'AvenxError'`. Useful for distinguishing it from other `Error` subclasses in a `catch` block.                        |
+| `name` | `string` | Always `'AvenxError'` (or `'CompilerError'` for build errors). |
+| `details` | `object` | Diagnostic metadata object containing extra context (e.g. failed expression or props). |
+| `componentName` | `string \| null` | Name of the component class or file where the exception originated. |
+| `sourceLine` | `number \| null` | Line number in the component template or script where the error occurred. |
+
+### JSON Serialization (`.toJSON()`)
+
+Every `AvenxError` instance exposes a `.toJSON()` method that converts the error into a plain JavaScript object for structured JSON loggers (such as Datadog, Sentry, or Pino) or REST API error responses:
+
+```js
+import { AvenxError, AvenxErrorCodes } from 'avenx-js';
+
+try {
+  // Component logic or evaluation
+} catch (err) {
+  if (err instanceof AvenxError) {
+    // Serialize error into a plain object
+    const payload = err.toJSON();
+    console.error('Structured Error Payload:', JSON.stringify(payload, null, 2));
+    /*
+    {
+      "name": "AvenxError",
+      "code": "AVX_R08",
+      "message": "[AVX_R08] Failed to render interpolation expression \"state.user.name\".",
+      "componentName": "UserProfile",
+      "sourceLine": 42,
+      "details": { "expression": "state.user.name" },
+      "stack": "AvenxError: ..."
+    }
+    */
+  }
+}
+```
 
 ### Importing
 
