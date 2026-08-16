@@ -58,6 +58,7 @@ try {
     assert.strictEqual(defaults.templatesDir, '.avenxtemplates');
     assert.strictEqual(defaults.server.port, 3000);
     assert.strictEqual(defaults.server.liveReload, true);
+    assert.deepStrictEqual(defaults.server.headers, {});
 
     console.log('  Testing valid custom config merge...');
     writeTestConfig({
@@ -72,6 +73,15 @@ try {
     assert.strictEqual(customConfig.server.port, 8080);
     assert.strictEqual(customConfig.server.host, 'localhost');
     assert.strictEqual(customConfig.server.liveReload, false);
+
+    writeTestConfig({
+      server: {
+        headers: { 'Access-Control-Allow-Origin': '*', 'X-Avenx-Test': 'enabled' },
+      },
+    });
+    const headersConfig = loadConfig();
+    assert.strictEqual(headersConfig.server.headers['Access-Control-Allow-Origin'], '*');
+    assert.strictEqual(headersConfig.server.headers['X-Avenx-Test'], 'enabled');
 
     console.log('  Testing invalid config schema validations...');
     writeTestConfig({ srcDir: '' });
@@ -103,6 +113,12 @@ try {
 
     writeTestConfig({ server: { liveReload: 'false' } });
     assertThrows(() => loadConfig(), 'server.liveReload must be a boolean');
+
+    writeTestConfig({ server: { headers: [] } });
+    assertThrows(() => loadConfig(), 'server.headers must be an object');
+
+    writeTestConfig({ server: { headers: null } });
+    assertThrows(() => loadConfig(), 'server.headers must be an object');
 
     writeTestConfig({ voidTags: 'not-an-array' });
     assertThrows(() => loadConfig(), 'voidTags must be an array of non-empty strings');

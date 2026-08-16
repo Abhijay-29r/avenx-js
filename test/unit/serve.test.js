@@ -1,7 +1,7 @@
 import assert from 'assert';
 import http from 'http';
 import { EventEmitter } from 'events';
-import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger } from '../../bin/commands/serve.js';
+import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger, applyCustomHeaders } from '../../bin/commands/serve.js';
 import { setColorEnabled } from '../../bin/colors.js';
 import { AvenxCLI } from '../../bin/cli.js';
 
@@ -127,9 +127,14 @@ function testAttachRequestLogger() {
 async function testHttpDevServerRequestLogging() {
   setColorEnabled(false);
   const logs = [];
+  const customHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'X-Avenx-Test': 'enabled',
+  };
 
   const server = http.createServer((req, res) => {
     attachRequestLogger(req, res, (msg) => logs.push(msg));
+    applyCustomHeaders(res, customHeaders);
     if (req.url === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<html></html>');
@@ -144,23 +149,29 @@ async function testHttpDevServerRequestLogging() {
     const port = server.address().port;
 
     // Send HTTP GET / request (200)
-    await new Promise((resolve, reject) => {
+    const rootHeaders = await new Promise((resolve, reject) => {
       http.get(`http://127.0.0.1:${port}/`, (res) => {
+        const headers = res.headers;
         res.resume();
-        res.on('end', resolve);
+        res.on('end', () => resolve(headers));
       }).on('error', reject);
     });
 
     // Send HTTP GET /favicon.ico request (404)
-    await new Promise((resolve, reject) => {
+    const notFoundHeaders = await new Promise((resolve, reject) => {
       http.get(`http://127.0.0.1:${port}/favicon.ico`, (res) => {
+        const headers = res.headers;
         res.resume();
-        res.on('end', resolve);
+        res.on('end', () => resolve(headers));
       }).on('error', reject);
     });
 
     assert.ok(logs.some((l) => l.includes('GET / - 200')), 'Should log GET / - 200');
     assert.ok(logs.some((l) => l.includes('GET /favicon.ico - 404')), 'Should log GET /favicon.ico - 404');
+    assert.strictEqual(rootHeaders['access-control-allow-origin'], '*');
+    assert.strictEqual(rootHeaders['x-avenx-test'], 'enabled');
+    assert.strictEqual(notFoundHeaders['access-control-allow-origin'], '*');
+    assert.strictEqual(notFoundHeaders['x-avenx-test'], 'enabled');
   } finally {
     server.close();
   }
