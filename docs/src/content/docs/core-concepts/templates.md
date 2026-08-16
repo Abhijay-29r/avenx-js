@@ -400,3 +400,69 @@ This includes nested SVG elements such as `<rect>`, `<circle>`, `<path>`, and ot
   <path d="M50 150 L100 50 L150 150 Z" fill="#FACC15" />
 </svg>
 ```
+
+---
+
+## 11. Static Subtree Optimization & Reconciliation Markers (`data-ax-static`, `data-ax-skip`, `data-ax-key`)
+
+To achieve maximum rendering performance and eliminate Virtual DOM overhead, the Avenx-JS compiler performs static template analysis during component compilation. It decorates template subtrees with internal reconciliation attributes that instruct `DomPatcher` and `ListManager` to bypass unnecessary DOM diffing.
+
+### 1. Static Subtree Marker (`data-ax-static="true"`)
+
+During component parsing (`ComponentParser.optimizeStaticSubtrees()`), Avenx-JS walks the HTML template tree and identifies subtrees that contain no dynamic interpolations (`{{ }}` or `{{{ }}}`), directives (`data-ax-*`), or nested components. The root node of each static subtree is automatically decorated with `data-ax-static="true"`.
+
+During reactive state updates, when `DomPatcher` encounters an element with `data-ax-static="true"`, it immediately bypasses attribute patching and child node diffing for that entire subtree:
+
+```javascript
+// Inside DomPatcher.#patchNode
+if (!isPatchRoot && oldNode.nodeType === Node.ELEMENT_NODE && oldNode.hasAttribute('data-ax-static')) {
+  return; // Skip diffing for static subtree!
+}
+```
+
+#### Compiled Output Example
+
+**Source SFC Template:**
+
+```html
+<div class="user-card">
+  <!-- Static Subtree: No interpolations or directives -->
+  <header class="card-header">
+    <h3>User Profile</h3>
+    <p>Account Overview & Settings</p>
+  </header>
+
+  <!-- Dynamic Content -->
+  <div class="card-body">
+    <p>Welcome, {{ state.username }}</p>
+  </div>
+</div>
+```
+
+**Compiled Template Output:**
+
+```html
+<div class="user-card">
+  <header class="card-header" data-ax-static="true">
+    <h3>User Profile</h3>
+    <p>Account Overview & Settings</p>
+  </header>
+
+  <div class="card-body">
+    <p>Welcome, {{ state.username }}</p>
+  </div>
+</div>
+```
+
+Because `<header>` is tagged with `data-ax-static="true"`, any update to `state.username` re-diffs only `<div class="card-body">`, while `<header>` and its children are skipped entirely during DOM patching.
+
+### 2. Directive Bypass Marker (`data-ax-skip="true"`)
+
+Directives like `data-ax-html` or custom element directives can instruct `DomPatcher` to skip recursive child node diffing (`skipChildren = true`). This prevents `DomPatcher` from overwriting imperatively managed DOM structures or custom inner HTML trees.
+
+### 3. Reconciliation Key Marker (`data-ax-key` / `key`)
+
+During `<@for>` list rendering, `ListManager` assigns or reads `data-ax-key="value"` to track element identities across reactive updates:
+
+- **Node Reuse & Reordering**: During list reconciliations, `DomPatcher` matches elements by `data-ax-key`. Reordered array items are moved in the DOM rather than unmounted and re-created.
+- **Node Isolation**: Ensures component state and input focus inside list items are preserved cleanly during array mutations.
