@@ -61,8 +61,9 @@ export function registerInMainApp(cli, className, folderName) {
  * @param {string} name
  * @param {boolean} [dryRun]
  * @param {boolean} [force]
+ * @param {string|null} [templateName]
  */
-export function generateBridge(cli, name, dryRun = false, force = false) {
+export function generateBridge(cli, name, dryRun = false, force = false, templateName = null) {
   if (!name) {
     fail('Please provide a bridge name (e.g., avenx g bridge auth)');
     return;
@@ -94,7 +95,7 @@ export function generateBridge(cli, name, dryRun = false, force = false) {
     fs.mkdirSync(globalDir, { recursive: true });
   }
 
-  const template = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'bridge', 'bridge.js.template');
+  const template = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'bridge', 'bridge.js.template', templateName);
 
   fs.writeFileSync(bridgePath, template.replace(/{{ name }}/g, capitalizedName));
 
@@ -108,8 +109,9 @@ export function generateBridge(cli, name, dryRun = false, force = false) {
  * @param {string} name
  * @param {boolean} [dryRun]
  * @param {boolean} [force]
+ * @param {string|null} [templateName]
  */
-export function generateGuard(cli, name, dryRun = false, force = false) {
+export function generateGuard(cli, name, dryRun = false, force = false, templateName = null) {
   if (!name) {
     fail('Please provide a guard name (e.g., avenx g guard auth)');
     return;
@@ -141,7 +143,7 @@ export function generateGuard(cli, name, dryRun = false, force = false) {
     fs.mkdirSync(guardDir, { recursive: true });
   }
 
-  const template = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'guard', 'guard.js.template');
+  const template = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'guard', 'guard.js.template', templateName);
 
   fs.writeFileSync(guardPath, template.replace(/{{ name }}/g, capitalizedName));
 
@@ -155,8 +157,9 @@ export function generateGuard(cli, name, dryRun = false, force = false) {
  * @param {string} name
  * @param {boolean} [dryRun]
  * @param {boolean} [force]
+ * @param {string|null} [templateName]
  */
-export function generatePage(cli, name, dryRun = false, force = false) {
+export function generatePage(cli, name, dryRun = false, force = false, templateName = null) {
   if (!name) {
     fail('Please provide a page name (e.g., avenx g page home)');
     return;
@@ -188,8 +191,8 @@ export function generatePage(cli, name, dryRun = false, force = false) {
     fs.mkdirSync(pageDir, { recursive: true });
   }
 
-  const jsTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'page', 'page.js.template');
-  const cssTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'page', 'page.css.template');
+  const jsTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'page', 'page.js.template', templateName);
+  const cssTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'page', 'page.css.template', templateName);
 
   fs.writeFileSync(jsPath, jsTemplate.replace(/{{ name }}/g, capitalizedName));
   fs.writeFileSync(cssPath, cssTemplate);
@@ -204,8 +207,9 @@ export function generatePage(cli, name, dryRun = false, force = false) {
  * @param {string} name
  * @param {boolean} [dryRun]
  * @param {boolean} [force]
+ * @param {string|null} [templateName]
  */
-export function generateComponent(cli, name, dryRun = false, force = false) {
+export function generateComponent(cli, name, dryRun = false, force = false, templateName = null) {
   if (!name) {
     fail('Please provide a component name (e.g., avenx g my-component)');
     return;
@@ -236,8 +240,8 @@ export function generateComponent(cli, name, dryRun = false, force = false) {
 
   fs.mkdirSync(compDir, { recursive: true });
 
-  const jsTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'component', 'component.js.template');
-  const cssTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'component', 'component.css.template');
+  const jsTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'component', 'component.js.template', templateName);
+  const cssTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'component', 'component.css.template', templateName);
 
   fs.writeFileSync(
     path.join(compDir, `${lowerName}.component.js`),

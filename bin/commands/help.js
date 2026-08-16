@@ -29,6 +29,7 @@ ${bold(cyan('Commands:'))}
 
 ${bold(cyan('Options:'))}
   ${green('--dry-run, -d')}             ${gray('Preview actions without writing or deleting any files')}
+  ${green('--template, -t <name>')}     ${gray('Use a custom scaffold template for code generation')}
   ${green('--json, -j')}                ${gray('Output check/lint validation diagnostics in JSON format')}
   ${green('--watch, -w')}               ${gray('Watch project component files for continuous template linting')}
   ${green('--no-color')}                ${gray('Disable colored output (the NO_COLOR variable is honored too)')}

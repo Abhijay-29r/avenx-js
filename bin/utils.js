@@ -103,23 +103,53 @@ export function promptQuestion(query, defaultValue, validator = null) {
 }
 
 /**
- * Reads a template, checking the local .avenxtemplates/ folder first.
+ * Reads a template, checking custom template overrides in templatesDir and templates/ folder first.
  * @param {string} baseDir
  * @param {object} config
  * @param {string} frameworkDir
  * @param {string} subfolder
  * @param {string} filename
+ * @param {string|null} [templateName]
  * @returns {string}
  */
-export function readTemplate(baseDir, config, frameworkDir, subfolder, filename) {
-  const localStructuredPath = path.join(baseDir, config.templatesDir, subfolder, filename);
-  if (fs.existsSync(localStructuredPath)) {
-    return fs.readFileSync(localStructuredPath, 'utf-8');
+export function readTemplate(baseDir, config, frameworkDir, subfolder, filename, templateName = null) {
+  const dirs = [config?.templatesDir || '.avenxtemplates', 'templates'].filter(
+    (dir, idx, self) => dir && self.indexOf(dir) === idx
+  );
+
+  if (templateName) {
+    const ext = path.extname(filename);
+    const basename = filename.replace(/\.template$/, '');
+
+    for (const dir of dirs) {
+      const candidatePaths = [
+        path.join(baseDir, dir, subfolder, templateName, filename),
+        path.join(baseDir, dir, subfolder, `${templateName}.${filename}`),
+        path.join(baseDir, dir, subfolder, `${basename}.${templateName}.template`),
+        path.join(baseDir, dir, templateName, filename),
+        path.join(baseDir, dir, `${templateName}.${filename}`),
+        path.join(baseDir, dir, `${templateName}.${subfolder}${ext}.template`),
+        path.join(baseDir, dir, `${templateName}${ext}.template`),
+      ];
+
+      for (const candidatePath of candidatePaths) {
+        if (fs.existsSync(candidatePath)) {
+          return fs.readFileSync(candidatePath, 'utf-8');
+        }
+      }
+    }
   }
 
-  const localFlatPath = path.join(baseDir, config.templatesDir, filename);
-  if (fs.existsSync(localFlatPath)) {
-    return fs.readFileSync(localFlatPath, 'utf-8');
+  for (const dir of dirs) {
+    const localStructuredPath = path.join(baseDir, dir, subfolder, filename);
+    if (fs.existsSync(localStructuredPath)) {
+      return fs.readFileSync(localStructuredPath, 'utf-8');
+    }
+
+    const localFlatPath = path.join(baseDir, dir, filename);
+    if (fs.existsSync(localFlatPath)) {
+      return fs.readFileSync(localFlatPath, 'utf-8');
+    }
   }
 
   const globalPath = path.join(frameworkDir, 'templates', subfolder, filename);
