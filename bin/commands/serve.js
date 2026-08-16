@@ -78,6 +78,17 @@ export function attachRequestLogger(req, res, logger = console.log) {
 }
 
 /**
+ * Applies configured custom headers to an HTTP response.
+ * @param {object} res - Node HTTP response object.
+ * @param {object} [headers] - Header name/value pairs from server.headers.
+ */
+export function applyCustomHeaders(res, headers = {}) {
+  for (const [name, value] of Object.entries(headers || {})) {
+    res.setHeader(name, value);
+  }
+}
+
+/**
  * Opens the browser to the specified URL.
  * @param {string} url
  */
@@ -608,6 +619,7 @@ export function serveProject(cli, port, host = 'localhost') {
 
   const server = http.createServer((req, res) => {
     attachRequestLogger(req, res);
+    applyCustomHeaders(res, cli.config.server.headers);
     if (cli.config.server.liveReload && req.url === '/__avenx_live_reload__') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
