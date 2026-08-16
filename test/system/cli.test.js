@@ -591,6 +591,84 @@ async function runTest() {
 
     console.log('✅ Custom project-level templates tests passed!');
 
+    console.log('🧪 Testing avenx generate page and component with --template / -t flags...');
+
+    // Test 1: Page generation with --template flag using templates/ folder
+    const customTemplatesDir = path.join(TEST_DIR, 'templates');
+    const crudPageDir = path.join(customTemplatesDir, 'page', 'crud');
+    fs.mkdirSync(crudPageDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(crudPageDir, 'page.js.template'),
+      '// CRUD PAGE TEMPLATE FOR {{ name }}\nexport class {{ name }}Page extends AvenxPage {}',
+    );
+    fs.writeFileSync(path.join(crudPageDir, 'page.css.template'), '/* CRUD PAGE CSS */');
+
+    execSync(`node ${BIN_PATH} generate page UserProfile --template crud`, { cwd: TEST_DIR });
+
+    const templateUserProfileJs = fs.readFileSync(
+      path.join(TEST_DIR, 'src/pages/user-profile.page.js'),
+      'utf-8',
+    );
+    const templateUserProfileCss = fs.readFileSync(
+      path.join(TEST_DIR, 'src/pages/user-profile.page.css'),
+      'utf-8',
+    );
+
+    assert.ok(
+      templateUserProfileJs.includes('// CRUD PAGE TEMPLATE FOR UserProfile'),
+      'Should use custom CRUD page template from templates/ folder',
+    );
+    assert.ok(
+      templateUserProfileJs.includes('class UserProfilePage extends AvenxPage'),
+      'Should replace template variables correctly in custom page template',
+    );
+    assert.strictEqual(templateUserProfileCss.trim(), '/* CRUD PAGE CSS */', 'Should use custom CRUD page CSS template');
+
+    // Test 2: Component generation with -t short flag using .avenxtemplates folder
+    const modalCompDir = path.join(localTemplatesDir, 'component', 'modal');
+    fs.mkdirSync(modalCompDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(modalCompDir, 'component.js.template'),
+      '// MODAL COMPONENT TEMPLATE FOR {{ name }}\nexport class {{ name }}Modal extends AvenxComponent {}',
+    );
+    fs.writeFileSync(path.join(modalCompDir, 'component.css.template'), '/* MODAL COMPONENT CSS */');
+
+    execSync(`node ${BIN_PATH} g component Dialog -t modal`, { cwd: TEST_DIR });
+
+    const templateDialogJs = fs.readFileSync(
+      path.join(TEST_DIR, 'src/components/dialog/dialog.component.js'),
+      'utf-8',
+    );
+    const templateDialogCss = fs.readFileSync(
+      path.join(TEST_DIR, 'src/components/dialog/dialog.component.css'),
+      'utf-8',
+    );
+
+    assert.ok(
+      templateDialogJs.includes('// MODAL COMPONENT TEMPLATE FOR Dialog'),
+      'Should use custom Modal component template via -t flag from .avenxtemplates',
+    );
+    assert.ok(
+      templateDialogJs.includes('class DialogModal extends AvenxComponent'),
+      'Should replace template variables correctly in custom modal template',
+    );
+    assert.strictEqual(templateDialogCss.trim(), '/* MODAL COMPONENT CSS */', 'Should use custom modal CSS template');
+
+    // Test 3: Inline flag syntax --template=crud and -t=modal
+    execSync(`node ${BIN_PATH} generate page Settings --template=crud`, { cwd: TEST_DIR });
+    const templateSettingsJs = fs.readFileSync(
+      path.join(TEST_DIR, 'src/pages/settings.page.js'),
+      'utf-8',
+    );
+    assert.ok(
+      templateSettingsJs.includes('// CRUD PAGE TEMPLATE FOR Settings'),
+      'Should support inline --template=crud syntax',
+    );
+
+    console.log('✅ --template / -t flag tests passed!');
+
     console.log('🧪 Testing avenx generate component from a subdirectory...');
 
     // Create nested directory to simulate a subdirectory

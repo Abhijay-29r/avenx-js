@@ -53,14 +53,31 @@ export class AvenxCLI {
   async run(command, args = []) {
     const dryRun = args.includes('--dry-run') || args.includes('-d');
     const force = args.includes('--force') || args.includes('-f');
+
+    let templateName = null;
+    const templateIndex = args.findIndex((arg) => arg === '--template' || arg === '-t');
+    if (templateIndex !== -1 && templateIndex + 1 < args.length) {
+      templateName = args[templateIndex + 1];
+    } else {
+      const templateInline = args.find((arg) => arg.startsWith('--template=') || arg.startsWith('-t='));
+      if (templateInline) {
+        templateName = templateInline.split('=').slice(1).join('=');
+      }
+    }
+
     const filteredArgs = args.filter(
-      (arg) =>
+      (arg, idx) =>
         arg !== '--dry-run' &&
         arg !== '-d' &&
         arg !== '--force' &&
         arg !== '-f' &&
         arg !== '--no-color' &&
-        arg !== '--no-colors',
+        arg !== '--no-colors' &&
+        arg !== '--template' &&
+        arg !== '-t' &&
+        !(templateIndex !== -1 && idx === templateIndex + 1) &&
+        !arg.startsWith('--template=') &&
+        !arg.startsWith('-t='),
     );
     const type = filteredArgs[0];
     const name = filteredArgs[1];
@@ -85,16 +102,16 @@ export class AvenxCLI {
           }
         }
         if (type === 'bridge') {
-          generateBridge(this, name, dryRun, force);
+          generateBridge(this, name, dryRun, force, templateName);
         } else if (type === 'guard') {
-          generateGuard(this, name, dryRun, force);
+          generateGuard(this, name, dryRun, force, templateName);
         } else if (type === 'page' || type === 'p') {
-          generatePage(this, name, dryRun, force);
+          generatePage(this, name, dryRun, force, templateName);
         } else if (type === 'component' || type === 'c') {
-          generateComponent(this, name, dryRun, force);
+          generateComponent(this, name, dryRun, force, templateName);
         } else {
           // Default to component if type is not specified (e.g., `avenx g MyButton`)
-          generateComponent(this, type, dryRun, force);
+          generateComponent(this, type, dryRun, force, templateName);
         }
         break;
       case 'destroy':
