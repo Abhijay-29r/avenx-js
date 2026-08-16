@@ -150,6 +150,96 @@ resource.teardown();
 
 ---
 
+## Declarative Suspense & Error Boundaries (`<@suspense>` & `<@errorBoundary>`)
+
+Avenx-JS provides built-in declarative template tags to handle asynchronous loading and error states without writing boilerplate `if (loading) ... else if (error) ...` conditionals in JavaScript.
+
+### 1. The `<@suspense>` Container Tag
+
+The `<@suspense>` tag wraps async component templates and displays a placeholder fallback UI while any contained `<resource>` is in the `'pending'` state:
+
+```html
+<@suspense>
+  <@fallback>
+    <div class="loading-spinner">Loading users...</div>
+  </@fallback>
+
+  <div class="content">
+    <@for user in users>
+      <p>{{ user.name }}</p>
+    </@for>
+  </div>
+</@suspense>
+```
+
+- **`<@fallback>` Slot**: Mandatory child tag inside `<@suspense>`. Its contents are rendered immediately whenever a resource inside `<@suspense>` throws a pending Promise or has `status === 'pending'`.
+- **Automatic Swap**: Once the resource resolves, Avenx-JS automatically swaps out the fallback markup and renders the resolved template content.
+
+### 2. The `<@errorBoundary>` Container Tag
+
+The `<@errorBoundary>` tag catches unhandled rejections or errors thrown during rendering or resource fetching:
+
+```html
+<@errorBoundary>
+  <@fallback as="err">
+    <div class="error-banner">
+      <h3>Failed to load resource</h3>
+      <p>{{ err.message }}</p>
+    </div>
+  </@fallback>
+
+  <!-- Component content or resource that might reject -->
+  <MyAsyncComponent />
+</@errorBoundary>
+```
+
+- **`<@fallback as="alias">` Slot**: Accepts the `as` attribute (e.g. `as="err"` or `as="error"`), which binds the caught `Error` instance to a local template variable.
+- **Error Isolation**: Prevents rendering errors in child components or API rejections from crashing the rest of the application interface.
+
+### 3. Combining `<resource>`, `<@errorBoundary>`, and `<@suspense>`
+
+Combining all three primitives provides a complete, robust async data fetching architecture:
+
+```html
+<!-- src/components/dashboard-feed.component.js -->
+<resource name="feedData">
+  return fetch(`/api/feed?user=${state.userId}`).then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch feed`);
+    return res.json();
+  });
+</resource>
+
+<@errorBoundary>
+  <@fallback as="err">
+    <div class="card error-card">
+      <h4>Unable to load feed</h4>
+      <p>{{ err.message }}</p>
+      <button @click="state.userId = state.userId">Try Again</button>
+    </div>
+  </@fallback>
+
+  <@suspense>
+    <@fallback>
+      <div class="card loading-card">
+        <span class="spinner"></span> Loading your personal feed...
+      </div>
+    </@fallback>
+
+    <div class="feed-list">
+      <h3>Welcome back, {{ feedData.user?.name }}</h3>
+      <@for post in feedData.posts>
+        <article class="post-item">
+          <h4>{{ post.title }}</h4>
+          <p>{{ post.body }}</p>
+        </article>
+      </@for>
+    </div>
+  </@suspense>
+</@errorBoundary>
+```
+
+---
+
 ## Reactive Re-fetching & Render Lifecycle
 
 `Resource` integrates directly with Avenx-JS reactivity (`AvenxWatcher`) and component update scheduler:
