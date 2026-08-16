@@ -403,6 +403,7 @@ async function runTests() {
     testImmediateWatcher();
     testWatcherTeardown();
     testWatcherPauseResume();
+    testArrayOfGettersWatcher();
     testComponentWatchAPI();
     testFunctionBasedComputedProperty();
     testDynamicDependencyPruning();
@@ -415,6 +416,60 @@ async function runTests() {
     console.error(error);
     process.exit(1);
   }
+}
+
+/**
+ * Tests AvenxWatcher with an array of getter functions (multi-source watch).
+ */
+function testArrayOfGettersWatcher() {
+  console.log('🧪 Testing AvenxWatcher array of getters (multi-source)...');
+
+  const state = new StateFactory().create({
+    a: 10,
+    b: 'hello',
+    c: true,
+  });
+
+  let callbackCount = 0;
+  let lastNewValue = null;
+  let lastOldValue = null;
+
+  const watcher = new AvenxWatcher(
+    [() => state.a, () => state.b],
+    (newVals, oldVals) => {
+      callbackCount++;
+      lastNewValue = newVals;
+      lastOldValue = oldVals;
+    },
+  );
+
+  // Initial value should be array [10, 'hello']
+  assert.deepStrictEqual(watcher.value, [10, 'hello']);
+  assert.strictEqual(callbackCount, 0);
+
+  // Mutating first dependency
+  state.a = 20;
+  assert.strictEqual(callbackCount, 1);
+  assert.deepStrictEqual(lastNewValue, [20, 'hello']);
+  assert.deepStrictEqual(lastOldValue, [10, 'hello']);
+
+  // Mutating second dependency
+  state.b = 'world';
+  assert.strictEqual(callbackCount, 2);
+  assert.deepStrictEqual(lastNewValue, [20, 'world']);
+  assert.deepStrictEqual(lastOldValue, [20, 'hello']);
+
+  // Mutating untracked property should NOT trigger callback
+  state.c = false;
+  assert.strictEqual(callbackCount, 2);
+
+  // Teardown should unbind all tracked dependencies
+  watcher.teardown();
+  state.a = 30;
+  state.b = 'avenx';
+  assert.strictEqual(callbackCount, 2);
+
+  console.log('  ✅ Array of getters AvenxWatcher tests passed!');
 }
 
 /**
