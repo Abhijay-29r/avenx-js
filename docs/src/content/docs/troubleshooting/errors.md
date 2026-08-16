@@ -1764,46 +1764,53 @@ This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 **Warning Message**
 
 ```text
-Failed to parse avenx.config.json at "{0}": {1}
+[AVX_W25] Failed to parse avenx.config.json at "{0}": {1}
 ```
 
-**Cause:** This warning is emitted during project build or compilation when Avenx-JS attempts to load and parse `avenx.config.json` at the root of your project, but the JSON configuration file is malformed (e.g. invalid JSON syntax, trailing commas, missing quotes) or contains unparseable values. When config parsing fails, Avenx-JS catches the exception, logs warning **AVX_W25**, and gracefully falls back to default compiler settings.
+**Cause:** This warning is emitted during project build or compilation when Avenx-JS attempts to load and parse `avenx.config.json` at the root of your project, but the configuration file contains unknown top-level keys, invalid property types, or malformed options. It is also triggered if the file contains invalid JSON syntax (such as missing quotes or trailing commas). When configuration loading or validation fails, Avenx-JS catches the error, logs warning **AVX_W25**, and gracefully falls back to default compiler settings.
 
 This typically happens for a few common reasons:
 
+- Unknown top-level configuration options or typos in key names (e.g., `"src_directory"` instead of `"srcDir"`).
+- Invalid property data types (e.g., specifying a string `"3000"` for `server.port` instead of a number `3000`, or a non-boolean for `server.liveReload`).
 - Syntax errors in `avenx.config.json` such as trailing commas, single quotes instead of double quotes, or missing closing braces.
-- Invalid data types or malformed configuration schemas.
-- File encoding issues or partial writes during build tooling execution.
+- Unrecognized properties inside nested configuration blocks like `server`, `style`, `debug`, `logging`, or `hooks`.
 
 **Resolution:** To resolve this warning:
 
 1. Validate the syntax of `avenx.config.json` using a JSON validator or IDE formatting tool.
 2. Ensure standard double quotes (`"`) are used around all keys and string values.
 3. Remove any trailing commas after the last key-value pair in JSON objects or arrays.
-4. Verify configuration schema keys (e.g. `preprocessors`, `bundleBudget`, `voidTags`) match the expected framework options.
+4. Verify that configuration schema keys match expected framework options (e.g. `srcDir`, `distDir`, `templatesDir`, `server`, `style`, `debug`, `logging`, `voidTags`, `warnings`, `treeShakeComponents`, `preprocessors`, `alias`, `hooks`).
+5. Ensure all property values match their expected data types (e.g., `server.port` must be a number between `0` and `65535`).
 
 **Incorrect**
 
 ```json
-// Malformed JSON: single quotes and trailing comma -> Triggers AVX_W25
 {
-  'srcDir': 'src',
-  'bundleBudget': 500,
+  "src_directory": "src",
+  "server": {
+    "port": "3000"
+  }
 }
 ```
+
+*In this example, `"src_directory"` is an unknown configuration key (typo for `"srcDir"`), and `"port"` is given as a string instead of a number, triggering **AVX_W25**.*
 
 **Correct**
 
 ```json
 {
   "srcDir": "src",
-  "build": {
-    "bundleBudget": {
-      "javascript": 500,
-      "css": 100
-    }
+  "distDir": "dist",
+  "server": {
+    "port": 3000,
+    "host": "localhost",
+    "liveReload": true
   },
-  "voidTags": ["my-custom-tag"]
+  "style": {
+    "preprocessor": "none"
+  }
 }
 ```
 
