@@ -441,11 +441,11 @@ For complete design control, combine component-scoped styles with global design 
 
 ## 7. CSS Preprocessors (Sass, SCSS, PostCSS, Less)
 
-Avenx-JS has built-in integration support for modern CSS preprocessors such as Sass, SCSS, PostCSS, and Less.
+Avenx-JS provides built-in integration support for modern CSS preprocessors, including Sass (`.sass`), SCSS (`.scss`), Less (`.less`), and PostCSS. You can write nested preprocessor rules, custom mixins, and variables directly inside your `.component.css` or Single-File Component style blocks.
 
-### Enabling a Preprocessor
+### 1. Configuration in `avenx.config.json`
 
-To configure a preprocessor, add the `style` settings configuration block in your `avenx.config.json` configuration file:
+To enable CSS preprocessing, set the `style.preprocessor` option in your project's `avenx.config.json`:
 
 ```json
 {
@@ -455,20 +455,83 @@ To configure a preprocessor, add the `style` settings configuration block in you
 }
 ```
 
-Available preprocessor options are:
-- `scss` (SCSS syntax via Dart Sass)
-- `sass` (Indented Sass syntax via Dart Sass)
-- `postcss` (PostCSS processing)
-- `less` (Less processing)
+Supported preprocessor values:
 
-### How It Works
+| Option | Preprocessor Engine | Supported Syntax |
+| --- | --- | --- |
+| `"scss"` | Dart Sass (`sass`) | Standard SCSS syntax with brackets and semicolons |
+| `"sass"` | Dart Sass (`sass`) | Indented Sass syntax |
+| `"less"` | Less (`less`) | Less syntax |
+| `"postcss"` | PostCSS (`postcss`) | PostCSS plugins and syntax transformations |
 
-When a preprocessor is enabled:
-1. **Compilation**: The compiler automatically passes all global style inputs inside `<@global>` and scoped styling inside `<@css>` blocks through the corresponding preprocessor module.
-2. **Global Variables & Scope**: Scoped styling blocks are wrapped in a temporary parent class wrapper during preprocessing so that local variables and nesting (e.g. `& span`) resolve correctly relative to any variables or mixins defined inside `<@global>`.
-3. **Fallback Behavior**
+### 2. Installing Peer Dependencies
 
-If the configured preprocessor package is not installed, Avenx-JS falls back to raw CSS processing and emits the `AVX_W24` (`COMPILER_PREPROCESSOR_MISSING`) warning.
+Avenx-JS does not bundle heavy preprocessor engines by default. To use a preprocessor, install the matching package as a development dependency in your project:
+
+#### Sass / SCSS
+
+```bash
+npm install -D sass
+```
+
+#### Less
+
+```bash
+npm install -D less
+```
+
+#### PostCSS
+
+```bash
+npm install -D postcss postcss-cli
+```
+
+### 3. Preprocessor Pipeline & Scoping Interaction
+
+Preprocessing happens at build time inside the `StyleProcessor` compiler module prior to Avenx-JS scope hashing:
+
+1. **Extraction**: `StyleProcessor` extracts global stylesheets (`<@global>`) and component-scoped blocks (`<@css>`).
+2. **Preprocessing**: The raw stylesheet code is passed to the configured preprocessor engine (e.g. `sass.compileString()`). Preprocessor variables (`$primary-color`), `@mixin` directives, `@include` statements, and parent selector references (`&`) are evaluated and compiled into standard CSS.
+3. **Scope Hashing**: `StyleProcessor` parses the preprocessed CSS output, generates unique component class scope hashes (e.g. `.avenx-a1b2c3d4`), and scopes native custom properties and `@def` tokens.
+
+### 4. SCSS Example inside Component Styles
+
+```scss
+<@global>
+    $brand-primary: #6366f1;
+
+    @mixin card-shadow {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+</@global>
+
+<@css>
+    card {
+        padding: 1.5rem;
+        background: #ffffff;
+        @include card-shadow;
+
+        & .card-title {
+            color: $brand-primary;
+            font-size: 1.25rem;
+        }
+
+        &:hover {
+            border-color: darken($brand-primary, 10%);
+        }
+    }
+</@css>
+```
+
+### 5. Graceful Fallback & Warning Codes
+
+Avenx-JS is designed to fail gracefully if preprocessor tools are misconfigured or missing:
+
+- **Missing Peer Package (`AVX_W24`)**: If `style.preprocessor` is set to `"scss"` but the `sass` npm package is not installed in `node_modules`, Avenx-JS logs warning **`AVX_W24` (`COMPILER_PREPROCESSOR_MISSING`)** and falls back to processing the raw stylesheet as vanilla CSS without crashing the build.
+- **Preprocessor Compilation Error (`AVX_W31`)**: If SCSS/Less compilation fails due to a syntax error or missing mixin, Avenx-JS catches the exception, logs warning **`AVX_W31` (`COMPILER_PREPROCESSOR_FAILED`)** with the error details, and uses raw CSS as fallback.
+
+> [!TIP]
+> If your project uses vanilla CSS, omit the `style.preprocessor` field or set it explicitly to `"none"` to prevent preprocessor checks.
 
 ---
 
