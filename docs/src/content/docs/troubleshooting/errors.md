@@ -2054,3 +2054,66 @@ Use `class` or `data-*` attributes for repeated elements:
 | `[AVX_R15]` | SANDBOX_VIOLATION: A sandbox security violation occurred.                               | **Cause:** Template or runtime expressions attempted to access restricted properties such as `__proto__`, `constructor`, or `prototype`, or unauthorized global variables. This restriction prevents prototype pollution, template injection, and unauthorized global scope access.<br />**Resolution:** Restrict expressions to authorized variables only. Avoid accessing or modifying prototype-related properties and unauthorized globals. If necessary, wrap values securely before exposing them to expressions.      |
 | `[AVX_R16]` | Cannot reassign component state directly.                                               | **Cause:** Assigning a new object to `this.state`, such as `this.state = { count: 1 }`, replaces the reactive Proxy and breaks change detection.<br />**Resolution:** Mutate properties on the existing state object instead, such as `this.state.count = 1`, or update several properties with `Object.assign(this.state, { count: 1 })`.                                                                                                                                                                                   |
 | `[AVX_R17]` | BRIDGE_CONSTRUCTION_FAILED: Failed to construct bridge "{name}". {error}                      | **Cause:** An error occurred while constructing a registered bridge. This can happen when the bridge class's constructor throws an exception, when required dependencies are missing, or when the bridge definition is malformed.<br />**Resolution:** Check the bridge class constructor for errors. Ensure all dependencies are properly imported and initialized before the bridge is registered. Verify the bridge definition follows the expected structure (extends `AvenxBridge` or conforms to the bridge interface).
+
+### AVX_R04 / AVX_E01 — COMPUTED_CIRCULAR_DEPENDENCY
+
+**Error Message**
+
+```text
+[AVX_R04] Circular dependency detected in computed property "{0}".
+```
+
+**Cause:** This error is thrown at runtime when a computed property evaluation creates a circular dependency chain. In Avenx-JS, computed properties automatically track their reactive dependencies during getter execution. If Computed Property A reads Computed Property B, and Computed Property B directly or indirectly references Computed Property A (or if a computed getter references its own name), the framework detects an infinite recursion loop, halts evaluation, and throws **AVX_R04** (also referenced as **AVX_E01**).
+
+This typically happens for a few common reasons:
+
+- **Direct Self-Reference**: A computed property expression references its own property name (e.g. `<computed name="total" value="total + 10" />`).
+- **Mutual Circular Dependency**: Two computed properties depend on each other (e.g. `computedA` reads `computedB`, while `computedB` reads `computedA`).
+- **Indirect Cycle**: A multi-step computed chain loops back to an earlier property (`A -> B -> C -> A`).
+
+**Resolution:** To resolve this error:
+
+1. Inspect computed property getters to ensure expressions only depend on raw `state` properties or upstream computed properties.
+2. Refactor computed property definitions so data flows unidirectionally (Acyclic Dependency Graph).
+3. If two values depend on each other, combine the calculation into a single computed property or handle the state update inside an `<action>` callback instead of a computed property.
+
+**Incorrect**
+
+Self-referencing computed property:
+
+```html
+<state firstName="Alice" lastName="Smith" />
+
+<!-- ❌ Self-referencing: fullName reads fullName -->
+<computed name="fullName" value="fullName + ' (' + firstName + ')'" />
+```
+
+Mutual circular dependency:
+
+```html
+<state count="5" />
+
+<!-- ❌ Circular chain: double depends on triple, triple depends on double -->
+<computed name="double" value="triple / 1.5" />
+<computed name="triple" value="double * 1.5" />
+```
+
+**Correct**
+
+Unidirectional computed dependency:
+
+```html
+<state firstName="Alice" lastName="Smith" />
+
+<!-- ✅ Single-direction data flow: derives from raw state -->
+<computed name="fullName" value="firstName + ' ' + lastName" />
+<computed name="displayName" value="fullName + ' (User)'" />
+```
+
+```html
+<state count="5" />
+
+<!-- ✅ Both computed properties derive unidirectionally from state.count -->
+<computed name="double" value="count * 2" />
+<computed name="triple" value="count * 3" />
+```
