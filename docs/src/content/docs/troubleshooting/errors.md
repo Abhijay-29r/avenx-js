@@ -1054,72 +1054,78 @@ Keeping externally-managed DOM separate from Avenx-managed slot regions prevents
 
 **Warning Message**
 
-```
-Injected key "{0}" not found in any ancestor component.
+```text
+[AVX_W15] Injected key "{0}" not found in any ancestor component.
 ```
 
-**Cause:** This warning is emitted at runtime when a component's `inject` option requests a key that no ancestor component provides via the `provide` option. Avenx-JS walks up the DOM tree from the component to find a matching provider; if none is found, the injected property resolves to `undefined` and this warning is issued.
+**Cause:** This warning is emitted at runtime when a child component attempts to access an injected property defined via its `inject` option, but no ancestor component in the DOM component hierarchy exposes a matching key via the `provide` option. When an injected property is accessed, Avenx-JS performs a bottom-up traversal of the component tree searching for a parent component providing that key. If the traversal reaches the root component without finding a provider, Avenx-JS logs warning **AVX_W15** and evaluates the property to `undefined`.
 
-The Provide/Inject API enables parent components to share data or methods with all descendants in the tree without passing them through every intermediate component via props. A provider component declares values using `provide`, and any descendant retrieves them using `inject`.
+The Provide/Inject API allows parent components to act as dependency providers for their entire subtree without prop-drilling values through intermediate components.
+
+This typically happens for a few common reasons:
+
+- Forgetting to declare `provide` in a root page or parent component.
+- Typos in the key name between `provide` and `inject` (e.g. `provide: { appTheme: 'dark' }` but `inject: ['theme']`).
+- Attempting to inject a key from a sibling or child component instead of an ancestor in the parent chain.
+- Instantiating a component standalone outside of its expected parent container tree.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure an ancestor component declares the requested key in its `provide` option.
-2. Verify the component hierarchy — the provider must be an ancestor in the DOM tree (sibling and child components are not searched).
-3. If the injected value is optional, guard against `undefined` at the point of use with a fallback value.
+1. Ensure an ancestor component in the component hierarchy declares the requested key using `provide`.
+2. Double-check key spelling to ensure exact string matching between `provide` and `inject`.
+3. Verify the component relationship — `provide` keys are only searchable up the direct parent component hierarchy (sibling components cannot inject from each other).
+4. Provide a defensive default fallback value in the injecting component when keys are optional.
 
 **Incorrect**
 
-```js
-// ChildComponent
+```javascript
+// ChildComponent.component.js
+// ❌ Error: No ancestor component in the tree calls provide for 'theme'
 export default {
   inject: ['theme'],
   template: `<p>Theme: {{ theme }}</p>`,
 };
 ```
 
-No ancestor provides a `theme` key, so accessing `theme` triggers AVX_W15 and returns `undefined`.
+*Since no parent component provides the `'theme'` key, accessing `theme` triggers **AVX_W15** and resolves to `undefined`.*
 
 **Correct**
 
-```js
-// ParentComponent
+```javascript
+// AppLayout.component.js (Parent / Ancestor Component)
 export default {
   provide: {
     theme: 'dark',
   },
-  // ...
+  template: `<main><ChildComponent /></main>`,
 };
 ```
 
-```js
-// ChildComponent
+```javascript
+// ChildComponent.component.js (Descendant Component)
 export default {
   inject: ['theme'],
   template: `<p>Theme: {{ theme }}</p>`,
 };
 ```
 
-The `provide` option accepts an object mapping keys to values, or an array of keys to expose from the component's `state`, `props`, `computed`, or `actions`. The `inject` option accepts an array of keys (local key matches provide key) or an object mapping local property names to provide keys:
+*The parent component declares `theme: 'dark'` in its `provide` block, allowing all child components in its subtree to inject `theme` without warnings.*
 
-```js
-export default {
-  inject: { currentTheme: 'theme' },
-  template: `<p>Theme: {{ currentTheme }}</p>`,
-};
-```
+**Defensive Example with Fallback Default**
 
-**Defensive Example**
+When an injected key is optional or may be rendered outside of a provider boundary, specify a safe fallback default value:
 
-```js
-// ChildComponent — handle optional injection with a default value
+```javascript
+// ChildComponent.component.js
 export default {
   inject: { currentTheme: 'theme' },
   computed: {
     safeTheme() {
+      // Fall back to 'light' if no ancestor provides 'theme' (returns undefined and logs AVX_W15)
       return this.currentTheme || 'light';
     },
   },
+  template: `<div class="card" data-theme="{{ safeTheme }}">Content</div>`,
 };
 ```
 
