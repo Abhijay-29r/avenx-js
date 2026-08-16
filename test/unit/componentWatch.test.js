@@ -216,6 +216,50 @@ function testWatcherTeardown() {
   console.log('  ✅ Watcher cleaned up successfully on component unmount.');
 }
 
+/**
+ * Test 7: Watch an array of sources (multi-source watching).
+ */
+function testWatchArrayOfSources() {
+  console.log('🧪 Testing $watch with an array of sources...');
+  const comp = new WatchTestComponent();
+
+  let watchCount = 0;
+  let lastNew = null;
+  let lastOld = null;
+
+  // Watch an array combining a getter function and a key string path
+  comp.$watch(
+    [() => comp.state.count, 'user.name'],
+    (newVals, oldVals) => {
+      watchCount++;
+      lastNew = newVals;
+      lastOld = oldVals;
+    },
+  );
+
+  assert.strictEqual(watchCount, 0);
+
+  // Mutate first source in array (count)
+  comp.state.count = 5;
+  assert.strictEqual(watchCount, 1);
+  assert.deepStrictEqual(lastNew, [5, 'Alice']);
+  assert.deepStrictEqual(lastOld, [0, 'Alice']);
+
+  // Mutate second source in array (user.name)
+  comp.state.user.name = 'Bob';
+  assert.strictEqual(watchCount, 2);
+  assert.deepStrictEqual(lastNew, [5, 'Bob']);
+  assert.deepStrictEqual(lastOld, [5, 'Alice']);
+
+  // Unmount cleanup test for array watcher
+  comp.unmount();
+  comp.state.count = 10;
+  comp.state.user.name = 'Charlie';
+  assert.strictEqual(watchCount, 2, 'Watchers should be cleaned up on unmount');
+
+  console.log('  ✅ Array of sources watcher triggered and cleaned up successfully.');
+}
+
 function runTests() {
   try {
     testWatchKeyString();
@@ -224,6 +268,7 @@ function runTests() {
     testWatchImmediate();
     testWatchDeep();
     testWatcherTeardown();
+    testWatchArrayOfSources();
     console.log('✅ All $watch API tests passed!');
   } catch (error) {
     console.error('❌ $watch API tests failed!');
