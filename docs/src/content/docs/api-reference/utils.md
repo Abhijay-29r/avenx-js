@@ -95,6 +95,65 @@ logger.warn(formatMessage(AvenxErrorCodes.COMPONENT_INJECT_KEY_NOT_FOUND, 'theme
 
 Unlike constructing `new AvenxError(code, ...args)`, `formatMessage` never throws—it only builds the text for `logger.warn`, telemetry, or custom UI.
 
+## 4c. `AvenxError` Class & Metadata Schema
+
+All runtime and compilation exceptions thrown by the framework extend `AvenxError`. Beyond standard `Error` properties (`name`, `message`, `stack`), `AvenxError` encapsulates structured diagnostic metadata and supports JSON serialization.
+
+### Constructor & Attributes
+
+```javascript
+import { AvenxError, AvenxErrorCodes } from 'avenx-core/runtime';
+
+const err = new AvenxError(code, ...args);
+```
+
+#### Property Schema
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The framework error code (e.g. `'AVX_R08'`). |
+| `message` | `string` | The formatted message including the `[code]` prefix. |
+| `name` | `string` | Always `'AvenxError'` (or `'CompilerError'` for build errors). |
+| `details` | `object` | Contextual diagnostic details object (e.g., expression text or failed props). |
+| `componentName` | `string \| null` | Name of the component where the exception occurred. |
+| `sourceLine` | `number \| null` | Line number in the component template or script where the error originated. |
+
+### Method Specification
+
+#### `.toJSON()`
+
+Serializes the `AvenxError` instance into a plain JavaScript object for structured JSON logging (e.g. Pino, Datadog, Sentry, or REST API error responses).
+
+**Return Signature:**
+
+```typescript
+interface AvenxErrorJSON {
+  name: string;
+  code: string;
+  message: string;
+  componentName: string | null;
+  sourceLine: number | null;
+  details: Record<string, any>;
+  stack?: string;
+}
+```
+
+#### Example
+
+```javascript
+import { AvenxError, AvenxErrorCodes } from 'avenx-core/runtime';
+
+const error = new AvenxError(AvenxErrorCodes.RENDER_INTERPOLATION_FAILED, 'state.profile.email');
+error.componentName = 'UserProfileCard';
+error.sourceLine = 24;
+error.details = { expression: 'state.profile.email', cause: 'TypeError: Cannot read properties of null' };
+
+// Convert error to a plain JSON object for telemetry pipelines
+const serializedError = error.toJSON();
+
+console.log(JSON.stringify(serializedError, null, 2));
+```
+
 ## 5. Reactivity API Reference
 
 Avenx-JS exposes APIs for programmatically creating reactive state objects and observing reactive values.

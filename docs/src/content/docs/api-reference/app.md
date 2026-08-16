@@ -15,8 +15,52 @@ const app = new AvenxApp({ target: '#app' });
 | --------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `config.target` | `string` | A valid DOM selector (e.g., `'#app'`) pointing to the root element. Throws exception `[AVX_R01]` if not found. |
 | `config.enableProfiling` | `boolean` | Enables browser Performance Timeline marks and measures for component lifecycle work. Default: `false`. |
-| `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. When the limit is exceeded, the least recently used cached page is removed. Default: `5`. |
-| `config.logging` | `object` | Configuration applied to the shared runtime `logger` on startup. Accepts the same options as `AvenxLogger` (`level`, `silent`, `formatter`, `transports`). See [AvenxLogger](/api-reference/utils/#avenxlogger). |
+| `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. Default: `5`. |
+| `config.logging` | `object` | Configuration applied to the shared runtime `logger` on startup. Accepts `level`, `silent`, `formatter`, `transports`, and `warnHandler`. |
+| `config.errorHandler` | `function` | Global error handler callback: `(error: Error, instance: AvenxComponent, info: string) => void`. |
+| `config.warnHandler` | `function` | Global warning handler callback: `(message: string, instance: AvenxComponent) => void`. |
+
+### `errorHandler`
+
+Pass a global `errorHandler` function in the `AvenxApp` configuration to capture uncaught runtime exceptions, lifecycle failures, and unhandled template errors across all components:
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  errorHandler(error, instance, info) {
+    console.error(`[Global Error] in ${instance?.constructor?.name || 'App'} during ${info}:`, error);
+
+    // Send telemetry to external monitoring services (e.g. Sentry, LogRocket, Datadog)
+    if (window.Sentry) {
+      Sentry.captureException(error, {
+        extra: { component: instance?.constructor?.name, lifecyclePhase: info },
+      });
+    }
+  },
+});
+```
+
+- **Callback Signature**: `(error: Error, instance: AvenxComponent, info: string) => void`
+- **`error`**: The thrown `Error` or `AvenxError` instance.
+- **`instance`**: The component instance where the exception originated (or `null` if thrown at application root).
+- **`info`**: A string describing the execution context (e.g. `'onMount'`, `'onUpdate'`, `'eventHandler'`, `'render'`).
+
+### `warnHandler`
+
+Pass a global `warnHandler` function in the `AvenxApp` configuration (or `logging.warnHandler`) to intercept framework warning codes (e.g. `AVX_W01` to `AVX_W32`):
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  warnHandler(message, instance) {
+    console.warn(`[Avenx Warning] from ${instance?.constructor?.name || 'Core'}: ${message}`);
+  },
+});
+```
+
+- **Callback Signature**: `(message: string, instance: AvenxComponent) => void`
+- **`message`**: The formatted warning message string containing the `[AVX_W*]` warning code.
+- **`instance`**: The component instance associated with the warning.
 
 ### `enableProfiling`
 

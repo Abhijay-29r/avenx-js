@@ -9,9 +9,71 @@ The base class from which all standard UI components inherit. It manages reactiv
 
 - `this.state` (Proxy): The reactive state instance for local properties. Changing state triggers updates automatically.
 - `this.props` (Proxy): The reactive attributes passed by parent tags. Modifications from parents trigger updates.
+- `this.$element` (`Element | null`): Getter for the component's root DOM element (also aliased as `this.el`). Returns `null` pre-mount and post-unmount, and returns the mounted DOM element during `onMount`, `onBeforeUpdate`, `onUpdate`, and event handlers.
 - `this.$refs` (`Record<string, Element>`): Map of direct DOM element references marked with the [`data-ax-ref="refName"`](/core-concepts/directives#built-in-element-reference-directive-data-ax-ref) directive within the component template.
 - `this.provide` / `provide()`: Defines state, properties, or methods to provide to descendant components.
 - `static inject` / `this.inject`: Defines ancestor properties to inject and make available locally on `this`.
+
+### `this.$element` & `this.el` (Root DOM Accessor)
+
+The `this.$element` property (and its alias `this.el`) provides direct access to the component's root HTML element in the DOM:
+
+```typescript
+interface AvenxComponent {
+  /**
+   * Getter returning the root DOM Element of the component instance,
+   * or null if the component is unmounted / not yet attached.
+   */
+  readonly $element: Element | null;
+  readonly el: Element | null;
+}
+```
+
+#### Lifecycle Availability Matrix
+
+| Lifecycle Hook | `$element` / `el` Return Value | Context / Availability Notes |
+| :--- | :--- | :--- |
+| `constructor` | `null` | Component instance instantiated; template is not yet compiled or attached. |
+| `onBeforeMount()` | `null` | Reactive state and actions initialized, but root element is **not** yet attached to the DOM. |
+| `onMount()` | `Element` ✅ | Component element is fully mounted and attached to document DOM. Safe for DOM manipulation. |
+| `onBeforeUpdate()` | `Element` ✅ | Component is mounted; runs right before DOM patching applies state/props changes. |
+| `onUpdate()` | `Element` ✅ | Component is mounted; DOM patch update has completed. |
+| `onDeactivate()` | `Element` ✅ | Component remains in KeepAlive cache; element is still valid. |
+| `onActivate()` | `Element` ✅ | Cached page restored; root element attached in DOM. |
+| `onUnmount()` | `Element` (pre-removal) → `null` (post) | Accessible during hook execution for resource teardown; set to `null` after removal. |
+
+#### Integrating Third-Party DOM Libraries
+
+When integrating external JavaScript libraries that require direct DOM node references (such as Chart.js, D3, Leaflet, or Tippy.js), access `this.$element` or `this.el` inside `onMount()`:
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export default class ChartWidget extends AvenxComponent {
+  onMount() {
+    // Guaranteed to return the mounted root DOM element
+    const container = this.$element;
+    if (!container) return;
+
+    const canvas = container.querySelector('canvas.chart-canvas');
+    this.chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar'],
+        datasets: [{ data: [12, 19, 3] }],
+      },
+    });
+  }
+
+  onUnmount() {
+    // Destroy chart instance to prevent memory leaks
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
+  }
+}
+```
 
 ### `this.$refs` Reference Map
 

@@ -9,16 +9,53 @@ Avenx-JS provides a clean HTML-based template engine that supports text interpol
 
 ## 1. Interpolation & HTML Escaping
 
-- **Escaped Text (`{{ expression }}`)**: Values are automatically passed through an HTML escaper to prevent Cross-Site Scripting (XSS).
+Avenx-JS template expressions provide two interpolation modes:
+
+- **Escaped Text (`{{ expression }}`)**: Values are automatically passed through an HTML escaper (`HtmlEscaper`) to convert special characters (`<`, `>`, `&`, `"`, `'`) into entities, preventing Cross-Site Scripting (XSS).
 
 ```html
 <p>Hello {{ state.username }}</p>
 ```
 
-- **Raw HTML (`{{{ expression }}}`)**: Allows inserting unescaped HTML. Use this with caution.
+- **Unescaped Raw HTML (`{{{ expression }}}`)**: Allows inserting raw, unescaped HTML nodes directly into the DOM tree.
 
 ```html
 <div>{{{ state.rawHtml }}}</div>
+```
+
+### Escaped (`{{ }}`) vs. Unescaped (`{{{ }}}`) Comparison
+
+| Syntax | Output Handling | Example Input | Rendered DOM Output |
+| :--- | :--- | :--- | :--- |
+| `{{ expr }}` | Automatically HTML-escaped | `<script>alert(1)</script>` | `&lt;script&gt;alert(1)&lt;/script&gt;` |
+| `{{{ expr }}}` | Raw HTML interpolation | `<strong>Bold Text</strong>` | `<strong>Bold Text</strong>` |
+
+> [!CAUTION]
+> **Cross-Site Scripting (XSS) Security Warning:** Rendering untrusted user input using `{{{ ... }}}` introduces severe Cross-Site Scripting (XSS) vulnerabilities. Never pass raw user inputs, URL parameters, or unvalidated form fields directly to triple-curly expressions.
+
+### Safe Raw HTML Rendering with `Sanitizer`
+
+Before rendering user-generated HTML content with `{{{ ... }}}`, use the built-in `Sanitizer` class from `avenx-core/runtime` to strip dangerous elements (like `<script>`, `<iframe>`, or inline `onerror` handlers):
+
+```javascript
+import { AvenxComponent, Sanitizer } from 'avenx-core/runtime';
+
+export default class ForumPost extends AvenxComponent {
+  onMount() {
+    const sanitizer = new Sanitizer();
+    
+    // Sanitize untrusted post content before assigning to state
+    const untrustedContent = this.props.rawPostContent;
+    this.state.safeContent = sanitizer.sanitize(untrustedContent);
+  }
+}
+```
+
+```html
+<!-- Renders clean, sanitized HTML safely -->
+<article class="post-body">
+  {{{ state.safeContent }}}
+</article>
 ```
 
 ## Dynamic HTML Content (`data-ax-html`)
@@ -400,3 +437,69 @@ This includes nested SVG elements such as `<rect>`, `<circle>`, `<path>`, and ot
   <path d="M50 150 L100 50 L150 150 Z" fill="#FACC15" />
 </svg>
 ```
+
+---
+
+## 11. Static Subtree Optimization & Reconciliation Markers (`data-ax-static`, `data-ax-skip`, `data-ax-key`)
+
+To achieve maximum rendering performance and eliminate Virtual DOM overhead, the Avenx-JS compiler performs static template analysis during component compilation. It decorates template subtrees with internal reconciliation attributes that instruct `DomPatcher` and `ListManager` to bypass unnecessary DOM diffing.
+
+### 1. Static Subtree Marker (`data-ax-static="true"`)
+
+During component parsing (`ComponentParser.optimizeStaticSubtrees()`), Avenx-JS walks the HTML template tree and identifies subtrees that contain no dynamic interpolations (`{{ }}` or `{{{ }}}`), directives (`data-ax-*`), or nested components. The root node of each static subtree is automatically decorated with `data-ax-static="true"`.
+
+During reactive state updates, when `DomPatcher` encounters an element with `data-ax-static="true"`, it immediately bypasses attribute patching and child node diffing for that entire subtree:
+
+```javascript
+// Inside DomPatcher.#patchNode
+if (!isPatchRoot && oldNode.nodeType === Node.ELEMENT_NODE && oldNode.hasAttribute('data-ax-static')) {
+  return; // Skip diffing for static subtree!
+}
+```
+
+#### Compiled Output Example
+
+**Source SFC Template:**
+
+```html
+<div class="user-card">
+  <!-- Static Subtree: No interpolations or directives -->
+  <header class="card-header">
+    <h3>User Profile</h3>
+    <p>Account Overview & Settings</p>
+  </header>
+
+  <!-- Dynamic Content -->
+  <div class="card-body">
+    <p>Welcome, {{ state.username }}</p>
+  </div>
+</div>
+```
+
+**Compiled Template Output:**
+
+```html
+<div class="user-card">
+  <header class="card-header" data-ax-static="true">
+    <h3>User Profile</h3>
+    <p>Account Overview & Settings</p>
+  </header>
+
+  <div class="card-body">
+    <p>Welcome, {{ state.username }}</p>
+  </div>
+</div>
+```
+
+Because `<header>` is tagged with `data-ax-static="true"`, any update to `state.username` re-diffs only `<div class="card-body">`, while `<header>` and its children are skipped entirely during DOM patching.
+
+### 2. Directive Bypass Marker (`data-ax-skip="true"`)
+
+Directives like `data-ax-html` or custom element directives can instruct `DomPatcher` to skip recursive child node diffing (`skipChildren = true`). This prevents `DomPatcher` from overwriting imperatively managed DOM structures or custom inner HTML trees.
+
+### 3. Reconciliation Key Marker (`data-ax-key` / `key`)
+
+During `<@for>` list rendering, `ListManager` assigns or reads `data-ax-key="value"` to track element identities across reactive updates:
+
+- **Node Reuse & Reordering**: During list reconciliations, `DomPatcher` matches elements by `data-ax-key`. Reordered array items are moved in the DOM rather than unmounted and re-created.
+- **Node Isolation**: Ensures component state and input focus inside list items are preserved cleanly during array mutations.

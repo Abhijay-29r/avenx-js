@@ -20,13 +20,45 @@ new AvenxError(code, ...args)
 | `code`    | `string` | One of the `AvenxErrorCodes` identifiers (e.g. `'AVX_R01'`). Selects which message template is used. |
 | `...args` | `any[]`  | Values substituted into the message template's `{0}`, `{1}`, etc. placeholders, in order.            |
 
-### Public Properties
+### Public Properties & Metadata Schema
 
-| Property  | Type     | Description                                                                                                                  |
-| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `code`    | `string` | The raw error code passed to the constructor (e.g. `'AVX_R01'`).                                                             |
+| Property | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The raw error code passed to the constructor (e.g. `'AVX_R01'`). |
 | `message` | `string` | The fully formatted message, prefixed with the code, e.g. `[AVX_R01] Mount target selector "#app" was not found in the DOM.` |
-| `name`    | `string` | Always `'AvenxError'`. Useful for distinguishing it from other `Error` subclasses in a `catch` block.                        |
+| `name` | `string` | Always `'AvenxError'` (or `'CompilerError'` for build errors). |
+| `details` | `object` | Diagnostic metadata object containing extra context (e.g. failed expression or props). |
+| `componentName` | `string \| null` | Name of the component class or file where the exception originated. |
+| `sourceLine` | `number \| null` | Line number in the component template or script where the error occurred. |
+
+### JSON Serialization (`.toJSON()`)
+
+Every `AvenxError` instance exposes a `.toJSON()` method that converts the error into a plain JavaScript object for structured JSON loggers (such as Datadog, Sentry, or Pino) or REST API error responses:
+
+```js
+import { AvenxError, AvenxErrorCodes } from 'avenx-js';
+
+try {
+  // Component logic or evaluation
+} catch (err) {
+  if (err instanceof AvenxError) {
+    // Serialize error into a plain object
+    const payload = err.toJSON();
+    console.error('Structured Error Payload:', JSON.stringify(payload, null, 2));
+    /*
+    {
+      "name": "AvenxError",
+      "code": "AVX_R08",
+      "message": "[AVX_R08] Failed to render interpolation expression \"state.user.name\".",
+      "componentName": "UserProfile",
+      "sourceLine": 42,
+      "details": { "expression": "state.user.name" },
+      "stack": "AvenxError: ..."
+    }
+    */
+  }
+}
+```
 
 ### Importing
 
@@ -80,6 +112,83 @@ import { formatMessage, AvenxErrorCodes } from 'avenx-js';
 console.warn(formatMessage(AvenxErrorCodes.SANDBOX_VIOLATION, 'disallowed eval() call'));
 // -> "[AVX_R15] Sandbox security violation: disallowed eval() call"
 ```
+
+## Global Error & Warning Interception (`errorHandler` & `warnHandler`)
+
+For centralized error logging and telemetry integration (such as Sentry, LogRocket, or Datadog), Avenx-JS provides root-level application hooks to intercept all uncaught component errors and framework warnings.
+
+### 1. Global Error Handler (`errorHandler` & `app.onError`)
+
+The `errorHandler` callback captures uncaught errors thrown inside component lifecycle hooks (`onMount`, `onUpdate`, `onUnmount`), event listeners (`@click`), template expressions, and route transition guards.
+
+You can configure it in the `AvenxApp` constructor options or via `app.onError(callback)`:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+
+const app = new AvenxApp({
+  target: '#app',
+
+  // Global Error Callback
+  errorHandler(error, instance, info) {
+    console.error(`[Avenx Uncaught Error] in component <${instance?.constructor?.name}> during ${info}:`, error);
+
+    // Telemetry Integration Example (Sentry / Datadog)
+    if (window.Sentry) {
+      Sentry.captureException(error, {
+        tags: {
+          component: instance?.constructor?.name || 'Unknown',
+          lifecycleHook: info,
+        },
+      });
+    }
+  },
+});
+
+// Alternative method registration:
+app.onError((error, instance, info) => {
+  console.log('Additional telemetry listener for origin:', info);
+});
+```
+
+#### Callback Signature
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `error` | `Error` \| `AvenxError` | The caught error instance containing `code`, `message`, and stack trace. |
+| `instance` | `AvenxComponent` \| `null` | The component instance where the error occurred. |
+| `info` | `string` | Origin context string (`'onMount'`, `'onUpdate'`, `'onUnmount'`, `'eventHandler'`, `'render'`). |
+
+### 2. Global Warning Handler (`warnHandler`)
+
+Framework warnings (codes `AVX_W01` to `AVX_W32`) warn developers about potential memory leaks, duplicate list keys, missing preprocessors, or unhandled default props.
+
+Intercept framework warnings at runtime using `warnHandler`:
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+
+  // Global Warning Callback
+  warnHandler(message, instance) {
+    console.warn(`[Avenx Warning] from <${instance?.constructor?.name || 'Core'}>: ${message}`);
+
+    // Log warnings to monitoring dashboard
+    if (window.LogRocket) {
+      LogRocket.log(`[Warning] ${message}`);
+    }
+  },
+});
+```
+
+#### Callback Signature
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `string` | The formatted warning string including warning code (e.g. `[AVX_W20] RENDER_LIST_DUPLICATE_KEY`). |
+| `instance` | `AvenxComponent` \| `null` | The component instance emitting the warning. |
+
+---
 
 ## Compiler Codes (`AVX_C*`)
 
@@ -1054,72 +1163,78 @@ Keeping externally-managed DOM separate from Avenx-managed slot regions prevents
 
 **Warning Message**
 
-```
-Injected key "{0}" not found in any ancestor component.
+```text
+[AVX_W15] Injected key "{0}" not found in any ancestor component.
 ```
 
-**Cause:** This warning is emitted at runtime when a component's `inject` option requests a key that no ancestor component provides via the `provide` option. Avenx-JS walks up the DOM tree from the component to find a matching provider; if none is found, the injected property resolves to `undefined` and this warning is issued.
+**Cause:** This warning is emitted at runtime when a child component attempts to access an injected property defined via its `inject` option, but no ancestor component in the DOM component hierarchy exposes a matching key via the `provide` option. When an injected property is accessed, Avenx-JS performs a bottom-up traversal of the component tree searching for a parent component providing that key. If the traversal reaches the root component without finding a provider, Avenx-JS logs warning **AVX_W15** and evaluates the property to `undefined`.
 
-The Provide/Inject API enables parent components to share data or methods with all descendants in the tree without passing them through every intermediate component via props. A provider component declares values using `provide`, and any descendant retrieves them using `inject`.
+The Provide/Inject API allows parent components to act as dependency providers for their entire subtree without prop-drilling values through intermediate components.
+
+This typically happens for a few common reasons:
+
+- Forgetting to declare `provide` in a root page or parent component.
+- Typos in the key name between `provide` and `inject` (e.g. `provide: { appTheme: 'dark' }` but `inject: ['theme']`).
+- Attempting to inject a key from a sibling or child component instead of an ancestor in the parent chain.
+- Instantiating a component standalone outside of its expected parent container tree.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure an ancestor component declares the requested key in its `provide` option.
-2. Verify the component hierarchy — the provider must be an ancestor in the DOM tree (sibling and child components are not searched).
-3. If the injected value is optional, guard against `undefined` at the point of use with a fallback value.
+1. Ensure an ancestor component in the component hierarchy declares the requested key using `provide`.
+2. Double-check key spelling to ensure exact string matching between `provide` and `inject`.
+3. Verify the component relationship — `provide` keys are only searchable up the direct parent component hierarchy (sibling components cannot inject from each other).
+4. Provide a defensive default fallback value in the injecting component when keys are optional.
 
 **Incorrect**
 
-```js
-// ChildComponent
+```javascript
+// ChildComponent.component.js
+// ❌ Error: No ancestor component in the tree calls provide for 'theme'
 export default {
   inject: ['theme'],
   template: `<p>Theme: {{ theme }}</p>`,
 };
 ```
 
-No ancestor provides a `theme` key, so accessing `theme` triggers AVX_W15 and returns `undefined`.
+*Since no parent component provides the `'theme'` key, accessing `theme` triggers **AVX_W15** and resolves to `undefined`.*
 
 **Correct**
 
-```js
-// ParentComponent
+```javascript
+// AppLayout.component.js (Parent / Ancestor Component)
 export default {
   provide: {
     theme: 'dark',
   },
-  // ...
+  template: `<main><ChildComponent /></main>`,
 };
 ```
 
-```js
-// ChildComponent
+```javascript
+// ChildComponent.component.js (Descendant Component)
 export default {
   inject: ['theme'],
   template: `<p>Theme: {{ theme }}</p>`,
 };
 ```
 
-The `provide` option accepts an object mapping keys to values, or an array of keys to expose from the component's `state`, `props`, `computed`, or `actions`. The `inject` option accepts an array of keys (local key matches provide key) or an object mapping local property names to provide keys:
+*The parent component declares `theme: 'dark'` in its `provide` block, allowing all child components in its subtree to inject `theme` without warnings.*
 
-```js
-export default {
-  inject: { currentTheme: 'theme' },
-  template: `<p>Theme: {{ currentTheme }}</p>`,
-};
-```
+**Defensive Example with Fallback Default**
 
-**Defensive Example**
+When an injected key is optional or may be rendered outside of a provider boundary, specify a safe fallback default value:
 
-```js
-// ChildComponent — handle optional injection with a default value
+```javascript
+// ChildComponent.component.js
 export default {
   inject: { currentTheme: 'theme' },
   computed: {
     safeTheme() {
+      // Fall back to 'light' if no ancestor provides 'theme' (returns undefined and logs AVX_W15)
       return this.currentTheme || 'light';
     },
   },
+  template: `<div class="card" data-theme="{{ safeTheme }}">Content</div>`,
 };
 ```
 
@@ -1357,91 +1472,65 @@ Using a fallback expression ensures every item can produce a valid key, even whe
 **Warning Message**
 
 ```text
-[Avenx Validation Warning] Duplicate key "{0}" detected in list expression "{1}". Appending index suffix to prevent node reuse conflict.
+[AVX_W20] Duplicate key "{0}" detected in list expression "{1}". Appending index suffix to prevent node reuse conflict.
 ```
 
-**Cause:** This warning is emitted at runtime by the `ListManager` reconciliation engine when two or more items rendered from the same list evaluate to the exact same key value. Avenx-JS relies on unique keys to track, reorder, and update DOM nodes efficiently during reactive updates. When duplicate keys exist, the renderer cannot uniquely distinguish between list elements.
+**Cause:** This warning is emitted at runtime by the `ListManager` reconciliation engine when two or more items rendered within a `<@for>` loop block evaluate to identical key values. Avenx-JS relies on unique keys to track, reorder, patch, and reuse DOM elements efficiently across reactive state updates. When key collisions occur, the reconciler cannot unambiguously match existing DOM nodes to updated list items.
 
-**Impact:** Duplicate keys break Virtual DOM list reconciliation and degrade application performance:
+**Impact:** Duplicate keys degrade rendering performance and can introduce UI bugs:
 
-- **Performance Overhead:** To prevent execution crashes, Avenx-JS executes a fallback index-suffixing algorithm (`key_0`, `key_1`). This bypasses optimal DOM element recycling, causing unnecessary DOM element creation and destruction cycles on list updates.
-- **State Mismatches & UI Glitches:** Re-using DOM elements with duplicate keys can result in component state leakage, incorrect form input focus, broken CSS animation transitions, or stale content remaining in rendered list items.
+- **Performance Overhead:** To prevent execution crashes, Avenx-JS applies a fallback index-suffixing algorithm (`key_0`, `key_1`). This bypasses optimal DOM element recycling, causing unnecessary DOM element creation and destruction cycles on list updates.
+- **State Mismatches & Visual Glitches:** Re-using DOM elements with duplicate keys can lead to component state leakage, loss of form input focus, CSS animation glitches, or stale content remaining in rendered list items.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure every item in your list supplies a property that is guaranteed to be unique across all items (such as a database `id` or UUID).
-2. Avoid using non-unique attributes like `user.role`, `item.category`, or static string literals as key expressions.
-3. If list items lack a native unique identifier, construct a composite key or combine the item property with the loop index (e.g. `item.category + '-' + index`).
-4. Verify that source data in `state` does not contain duplicate entries with identical IDs.
+1. Use a property that is guaranteed to be unique across all list items (such as a database `id`, UUID, or unique slug).
+2. Avoid using non-unique attributes like `item.category`, `item.type`, or static strings as key expressions.
+3. If list items lack a native unique identifier, construct a composite key (e.g. `item.category + '-' + index`) or combine item properties with the loop index.
+4. Ensure source data in `state` does not contain duplicate entries with identical IDs.
 
 **Incorrect**
 
-Using duplicate keys in `<@for>` loop tag syntax:
-
 ```html
-<state users="[
-  { id: 101, role: 'admin', name: 'Alice' },
-  { id: 102, role: 'admin', name: 'Bob' }
+<state items="[
+  { id: 1, category: 'books', title: 'JavaScript Guide' },
+  { id: 2, category: 'books', title: 'CSS Mastery' }
 ]" />
 
-<!-- ❌ Non-unique key: Both items evaluate to role 'admin' -->
-<@for item="user" in="state.users" key="user.role">
-  <div class="user-card">{{ user.name }} ({{ user.role }})</div>
+<!-- ❌ Non-unique key: Multiple items share the category 'books' -->
+<@for item in state.items key="item.category">
+  <div>{{ item.title }}</div>
 </@for>
 ```
 
-Using duplicate keys in `data-ax-for` directive syntax:
-
-```html
-<!-- ❌ Duplicate ID in source state array -->
-<li
-  data-ax-for="user in state.users"
-  data-ax-key="user.id"
->
-  {{ user.name }}
-</li>
-```
+*Because multiple items evaluate to `category: 'books'`, `ListManager` detects duplicate keys and emits **AVX_W20**.*
 
 **Correct**
 
-Using unique `id` properties in `<@for>` loop tag syntax:
-
 ```html
-<state users="[
-  { id: 101, role: 'admin', name: 'Alice' },
-  { id: 102, role: 'admin', name: 'Bob' }
+<state items="[
+  { id: 1, category: 'books', title: 'JavaScript Guide' },
+  { id: 2, category: 'books', title: 'CSS Mastery' }
 ]" />
 
-<!-- ✅ Unique key: Every user has a distinct id -->
-<@for item="user" in="state.users" key="user.id">
-  <div class="user-card">{{ user.name }} ({{ user.role }})</div>
+<!-- ✅ Unique key: Every item has a distinct id -->
+<@for item in state.items key="item.id">
+  <div>{{ item.title }}</div>
 </@for>
-```
-
-Using unique `id` properties in `data-ax-for` directive syntax:
-
-```html
-<!-- ✅ Unique key expression for each item -->
-<li
-  data-ax-for="user in state.users"
-  data-ax-key="user.id"
->
-  {{ user.name }}
-</li>
 ```
 
 **Defensive Example**
 
-When items do not possess guaranteed unique IDs, construct a composite key or use a safe fallback:
+When list items lack unique ID properties, construct a composite key or combine properties with the loop index:
 
 ```html
-<!-- ✅ Composite key fallback using loop index -->
-<@for item="user" in="state.users" key="user.id ? user.id : 'user-' + index">
-  <div class="user-card">{{ user.name }}</div>
+<!-- ✅ Composite key using item property and index -->
+<@for item in state.items key="item.category + '-' + index">
+  <div>{{ item.title }}</div>
 </@for>
 ```
 
-> **Note:** When duplicate keys are detected, Avenx-JS automatically appends an index suffix (e.g. `key_0`, `key_1`) so rendering can complete without throwing an error. However, this fallback degrades DOM reconciliation performance and should be resolved by assigning unique keys.
+> **Note:** Although Avenx-JS gracefully recovers from duplicate keys by appending index suffixes (e.g. `key_0`, `key_1`), resolving this warning ensures optimal DOM reconciliation performance and prevents UI bugs.
 
 ### AVX_W21 — DIRECTIVE_HTML_EVALUATION_FAILED
 
@@ -1764,46 +1853,53 @@ This avoids the warning and ensures stylesheets are processed as vanilla CSS.
 **Warning Message**
 
 ```text
-Failed to parse avenx.config.json at "{0}": {1}
+[AVX_W25] Failed to parse avenx.config.json at "{0}": {1}
 ```
 
-**Cause:** This warning is emitted during project build or compilation when Avenx-JS attempts to load and parse `avenx.config.json` at the root of your project, but the JSON configuration file is malformed (e.g. invalid JSON syntax, trailing commas, missing quotes) or contains unparseable values. When config parsing fails, Avenx-JS catches the exception, logs warning **AVX_W25**, and gracefully falls back to default compiler settings.
+**Cause:** This warning is emitted during project build or compilation when Avenx-JS attempts to load and parse `avenx.config.json` at the root of your project, but the configuration file contains unknown top-level keys, invalid property types, or malformed options. It is also triggered if the file contains invalid JSON syntax (such as missing quotes or trailing commas). When configuration loading or validation fails, Avenx-JS catches the error, logs warning **AVX_W25**, and gracefully falls back to default compiler settings.
 
 This typically happens for a few common reasons:
 
+- Unknown top-level configuration options or typos in key names (e.g., `"src_directory"` instead of `"srcDir"`).
+- Invalid property data types (e.g., specifying a string `"3000"` for `server.port` instead of a number `3000`, or a non-boolean for `server.liveReload`).
 - Syntax errors in `avenx.config.json` such as trailing commas, single quotes instead of double quotes, or missing closing braces.
-- Invalid data types or malformed configuration schemas.
-- File encoding issues or partial writes during build tooling execution.
+- Unrecognized properties inside nested configuration blocks like `server`, `style`, `debug`, `logging`, or `hooks`.
 
 **Resolution:** To resolve this warning:
 
 1. Validate the syntax of `avenx.config.json` using a JSON validator or IDE formatting tool.
 2. Ensure standard double quotes (`"`) are used around all keys and string values.
 3. Remove any trailing commas after the last key-value pair in JSON objects or arrays.
-4. Verify configuration schema keys (e.g. `preprocessors`, `bundleBudget`, `voidTags`) match the expected framework options.
+4. Verify that configuration schema keys match expected framework options (e.g. `srcDir`, `distDir`, `templatesDir`, `server`, `style`, `debug`, `logging`, `voidTags`, `warnings`, `treeShakeComponents`, `preprocessors`, `alias`, `hooks`).
+5. Ensure all property values match their expected data types (e.g., `server.port` must be a number between `0` and `65535`).
 
 **Incorrect**
 
 ```json
-// Malformed JSON: single quotes and trailing comma -> Triggers AVX_W25
 {
-  'srcDir': 'src',
-  'bundleBudget': 500,
+  "src_directory": "src",
+  "server": {
+    "port": "3000"
+  }
 }
 ```
+
+*In this example, `"src_directory"` is an unknown configuration key (typo for `"srcDir"`), and `"port"` is given as a string instead of a number, triggering **AVX_W25**.*
 
 **Correct**
 
 ```json
 {
   "srcDir": "src",
-  "build": {
-    "bundleBudget": {
-      "javascript": 500,
-      "css": 100
-    }
+  "distDir": "dist",
+  "server": {
+    "port": 3000,
+    "host": "localhost",
+    "liveReload": true
   },
-  "voidTags": ["my-custom-tag"]
+  "style": {
+    "preprocessor": "none"
+  }
 }
 ```
 
@@ -2067,3 +2163,66 @@ Use `class` or `data-*` attributes for repeated elements:
 | `[AVX_R15]` | SANDBOX_VIOLATION: A sandbox security violation occurred.                               | **Cause:** Template or runtime expressions attempted to access restricted properties such as `__proto__`, `constructor`, or `prototype`, or unauthorized global variables. This restriction prevents prototype pollution, template injection, and unauthorized global scope access.<br />**Resolution:** Restrict expressions to authorized variables only. Avoid accessing or modifying prototype-related properties and unauthorized globals. If necessary, wrap values securely before exposing them to expressions.      |
 | `[AVX_R16]` | Cannot reassign component state directly.                                               | **Cause:** Assigning a new object to `this.state`, such as `this.state = { count: 1 }`, replaces the reactive Proxy and breaks change detection.<br />**Resolution:** Mutate properties on the existing state object instead, such as `this.state.count = 1`, or update several properties with `Object.assign(this.state, { count: 1 })`.                                                                                                                                                                                   |
 | `[AVX_R17]` | BRIDGE_CONSTRUCTION_FAILED: Failed to construct bridge "{name}". {error}                      | **Cause:** An error occurred while constructing a registered bridge. This can happen when the bridge class's constructor throws an exception, when required dependencies are missing, or when the bridge definition is malformed.<br />**Resolution:** Check the bridge class constructor for errors. Ensure all dependencies are properly imported and initialized before the bridge is registered. Verify the bridge definition follows the expected structure (extends `AvenxBridge` or conforms to the bridge interface).
+
+### AVX_R04 / AVX_E01 — COMPUTED_CIRCULAR_DEPENDENCY
+
+**Error Message**
+
+```text
+[AVX_R04] Circular dependency detected in computed property "{0}".
+```
+
+**Cause:** This error is thrown at runtime when a computed property evaluation creates a circular dependency chain. In Avenx-JS, computed properties automatically track their reactive dependencies during getter execution. If Computed Property A reads Computed Property B, and Computed Property B directly or indirectly references Computed Property A (or if a computed getter references its own name), the framework detects an infinite recursion loop, halts evaluation, and throws **AVX_R04** (also referenced as **AVX_E01**).
+
+This typically happens for a few common reasons:
+
+- **Direct Self-Reference**: A computed property expression references its own property name (e.g. `<computed name="total" value="total + 10" />`).
+- **Mutual Circular Dependency**: Two computed properties depend on each other (e.g. `computedA` reads `computedB`, while `computedB` reads `computedA`).
+- **Indirect Cycle**: A multi-step computed chain loops back to an earlier property (`A -> B -> C -> A`).
+
+**Resolution:** To resolve this error:
+
+1. Inspect computed property getters to ensure expressions only depend on raw `state` properties or upstream computed properties.
+2. Refactor computed property definitions so data flows unidirectionally (Acyclic Dependency Graph).
+3. If two values depend on each other, combine the calculation into a single computed property or handle the state update inside an `<action>` callback instead of a computed property.
+
+**Incorrect**
+
+Self-referencing computed property:
+
+```html
+<state firstName="Alice" lastName="Smith" />
+
+<!-- ❌ Self-referencing: fullName reads fullName -->
+<computed name="fullName" value="fullName + ' (' + firstName + ')'" />
+```
+
+Mutual circular dependency:
+
+```html
+<state count="5" />
+
+<!-- ❌ Circular chain: double depends on triple, triple depends on double -->
+<computed name="double" value="triple / 1.5" />
+<computed name="triple" value="double * 1.5" />
+```
+
+**Correct**
+
+Unidirectional computed dependency:
+
+```html
+<state firstName="Alice" lastName="Smith" />
+
+<!-- ✅ Single-direction data flow: derives from raw state -->
+<computed name="fullName" value="firstName + ' ' + lastName" />
+<computed name="displayName" value="fullName + ' (User)'" />
+```
+
+```html
+<state count="5" />
+
+<!-- ✅ Both computed properties derive unidirectionally from state.count -->
+<computed name="double" value="count * 2" />
+<computed name="triple" value="count * 3" />
+```

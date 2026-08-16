@@ -59,16 +59,101 @@ constructor() {
 
 Methods containing shared business logic can be defined directly on the bridge class. These methods can read and modify the bridge's shared state using `this`.
 
-## Using Bridges in Components
+## Step-by-Step Tutorial: Global Authentication State
 
-Bridges are automatically loaded and registered by the compiler. They are exposed directly to component templates and actions under their capitalized name postfixed with `Bridge` (e.g. `AuthBridge`).
+Follow this step-by-step guide to implement a shared authentication store used across multiple components in your application.
+
+### Step 1: Create the Bridge File
+
+Create a file named `src/global/auth.bridge.js` (or use `npx avenx g bridge auth`):
+
+```javascript
+// src/global/auth.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class AuthBridge extends AvenxBridge {
+  constructor() {
+    super();
+
+    // Defined reactive state fields
+    this.isLoggedIn = false;
+    this.token = null;
+    this.user = {
+      name: 'Guest',
+      role: 'visitor',
+    };
+  }
+
+  // Action methods mutating shared state
+  login(userData, token) {
+    this.isLoggedIn = true;
+    this.token = token;
+    this.user = { ...userData };
+  }
+
+  logout() {
+    this.isLoggedIn = false;
+    this.token = null;
+    this.user = {
+      name: 'Guest',
+      role: 'visitor',
+    };
+  }
+}
+```
+
+### Step 2: Mutate Bridge State in a Component (`LoginForm.component.js`)
+
+In your login form component, reference `AuthBridge` directly inside `<action>` methods or template event handlers to mutate global state:
 
 ```html
-<p>Current User: {{ AuthBridge.user.name }}</p>
+<!-- src/components/login-form.component.js -->
+<state username="" password="" errorMessage="" />
 
-<action name="login"> AuthBridge.isLoggedIn = true; AuthBridge.user.name = "John Doe"; </action>
+<action name="handleSubmit">
+  if (!state.username || !state.password) {
+    state.errorMessage = 'Please provide username and password.';
+    return;
+  }
 
-<button @click="AuthBridge.logout()">Log Out</button>
+  // Perform login action and update global AuthBridge state
+  AuthBridge.login({ name: state.username, role: 'member' }, 'sample-jwt-token');
+  state.errorMessage = '';
+</action>
+
+<div class="login-box">
+  <h2>Login</h2>
+  <p class="error" data-ax-show="state.errorMessage">{{ state.errorMessage }}</p>
+
+  <input type="text" data-ax-bind="state.username" placeholder="Username" />
+  <input type="password" data-ax-bind="state.password" placeholder="Password" />
+
+  <button @click="handleSubmit()">Log In</button>
+</div>
+```
+
+### Step 3: Consume Shared State in Another Component (`Navbar.component.js`)
+
+In your navigation header or user profile component, read `AuthBridge` state properties. Any change to `AuthBridge` automatically triggers a re-render in `Navbar`:
+
+```html
+<!-- src/components/navbar.component.js -->
+<nav class="navbar">
+  <div class="brand">Avenx App</div>
+
+  <div class="user-section">
+    <!-- Rendered when user is logged out -->
+    <div data-ax-show="!AuthBridge.isLoggedIn">
+      <span>Welcome, Guest</span>
+    </div>
+
+    <!-- Rendered when user is logged in -->
+    <div data-ax-show="AuthBridge.isLoggedIn">
+      <span>Hello, <strong>{{ AuthBridge.user.name }}</strong> ({{ AuthBridge.user.role }})</span>
+      <button @click="AuthBridge.logout()">Log Out</button>
+    </div>
+  </div>
+</nav>
 ```
 
 ## Plain Object Bridges
@@ -287,14 +372,52 @@ export default class CartBridge extends AvenxBridge {
 <p>Subtotal: {{ CartBridge.subtotal }}</p>
 ```
 
-## Multi-Component Reactivity Flow
+## Cross-Component Synchronization & Reactivity Flow
 
-1. The compiler discovers `*.bridge.js` files and registers each bridge on the app (typically as `NameBridge`).
-2. A component template or action reads `SomeBridge.property` — the runtime tracks that dependency.
-3. Another component (or the bridge itself) mutates `SomeBridge.property`.
-4. Only components that depend on the changed paths schedule updates; unrelated trees are left alone.
+Avenx-JS uses transparent Proxy-based tracking for bridge state. When a component reads a property on a bridge (in its template or computed getter), Avenx-JS automatically registers that component as a subscriber to that exact state path.
 
-You can also register bridges manually in tests or custom bootstraps:
+### Architectural Diagram
+
+```mermaid
+graph TD
+    subgraph UI Component Layer
+        C1[LoginForm Component] -- "1. Mutates State: AuthBridge.login()" --> B
+        B -- "3. Triggers Re-render" --> C2[Navbar Component]
+        B -- "3. Triggers Re-render" --> C3[UserProfile Component]
+    end
+
+    subgraph Shared Reactive Layer
+        B[AuthBridge Proxy State] -- "2. Notifies Dependents via StateFactory" --> R[Avenx Microtask Reconciler]
+        R --> C2
+        R --> C3
+    end
+```
+
+### Execution Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ComponentA as LoginForm Component
+    participant Bridge as AuthBridge (Proxy)
+    participant Reconciler as Microtask Scheduler
+    participant ComponentB as Navbar Component
+
+    ComponentA->>Bridge: AuthBridge.login({ name: 'Alice' }, 'jwt-token')
+    Note over Bridge: Mutates `isLoggedIn` & `user` properties
+    Bridge->>Reconciler: Triggers Proxy setter -> Enqueues microtask
+    Reconciler->>ComponentB: Schedules async re-render for subscribers
+    ComponentB->>ComponentB: Patches DOM: Hello, Alice!
+```
+
+### Flow Breakdown
+
+1. **Auto Discovery & Registration**: The compiler discovers `*.bridge.js` files and registers each bridge on the application (typically capitalized with `Bridge` suffix, e.g. `AuthBridge`).
+2. **Dependency Tracking**: During template rendering, reading `AuthBridge.user.name` registers the component as an active listener for changes to `AuthBridge.user`.
+3. **Reactive State Mutation**: When another component (e.g. `LoginForm`) calls `AuthBridge.login()`, the Proxy setter catches the mutation.
+4. **Targeted Asynchronous Flush**: The Avenx microtask scheduler queues a single update. Only components observing the mutated properties re-render; unrelated components are skipped.
+
+Manual registration for custom testing or manual setup:
 
 ```javascript
 import { AvenxApp } from 'avenx-core/runtime';
@@ -303,6 +426,64 @@ import AuthBridge from './global/auth.bridge.js';
 const app = new AvenxApp({ target: '#app' });
 app.registerBridge('AuthBridge', new AuthBridge());
 ```
+
+## Lifecycle, Subscriptions & Teardown
+
+Bridges registered on the application instance remain active for the full lifetime of the app. However, if a bridge opens external subscriptions (such as WebSockets, `setInterval` timers, or `window` / `document` event listeners), you must manage cleanup to prevent memory leaks and dangling handlers.
+
+### Handling Subscriptions and Cleanup
+
+Implement a dedicated `destroy()` or `teardown()` method in your bridge to remove active listeners and reset state:
+
+```javascript
+// src/global/notification.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class NotificationBridge extends AvenxBridge {
+  constructor() {
+    super();
+    this.messages = [];
+    this.unreadCount = 0;
+
+    // Attach external storage listener for cross-tab sync
+    this.handleStorageChange = this.handleStorageChange.bind(this);
+    window.addEventListener('storage', this.handleStorageChange);
+
+    // Setup periodic polling interval
+    this.pollTimer = setInterval(() => this.fetchUnreadCount(), 30000);
+  }
+
+  handleStorageChange(event) {
+    if (event.key === 'app_notifications') {
+      this.messages = JSON.parse(event.newValue || '[]');
+      this.unreadCount = this.messages.length;
+    }
+  }
+
+  async fetchUnreadCount() {
+    // Polling logic...
+  }
+
+  /**
+   * Cleans up timers, external event listeners, and resets state.
+   */
+  destroy() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    window.removeEventListener('storage', this.handleStorageChange);
+    this.messages = [];
+    this.unreadCount = 0;
+  }
+}
+```
+
+### Best Practices for Long-Lived Applications
+
+- **Reset State on Logout**: Always clear tokens, user profiles, and sensitive state when a session ends (`AuthBridge.logout()`).
+- **Clean Up Timers and Event Listeners**: Always store timer IDs and bound handler references so they can be removed in `destroy()`.
+- **Drop Unmounted References**: In test harnesses or sandboxed sub-apps, unregister or drop bridge references so instances can be garbage collected.
 
 ## Best Practices
 
@@ -320,14 +501,6 @@ Mutate the specific property that changed (`AuthBridge.user.name = 'Ada'`) when 
 - Do not store derived UI flags that every layout shell reads if only one widget needs them.
 - Split large domains into multiple bridges (`AuthBridge`, `CartBridge`, `ThemeBridge`) rather than one mega-store.
 - In tests, use `AvenxMock.createMockBridge()` and `sandbox.waitForUpdate()` so you assert after a single batched flush.
-
-### Teardown and long-lived SPAs
-
-Bridges registered for the app lifetime normally stay alive until the page unloads. If you create temporary bridges in a sandbox or a feature that unmounts:
-
-- Drop references from your own registries so the instance can be garbage-collected.
-- Clear timers, websocket listeners, or `document` listeners that bridge methods attached.
-- Prefer resetting state (`logout()`, `clear()`) over leaving stale tokens or cart lines in memory between user sessions.
 
 ## TypeScript Guidelines
 
