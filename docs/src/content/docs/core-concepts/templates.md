@@ -9,16 +9,53 @@ Avenx-JS provides a clean HTML-based template engine that supports text interpol
 
 ## 1. Interpolation & HTML Escaping
 
-- **Escaped Text (`{{ expression }}`)**: Values are automatically passed through an HTML escaper to prevent Cross-Site Scripting (XSS).
+Avenx-JS template expressions provide two interpolation modes:
+
+- **Escaped Text (`{{ expression }}`)**: Values are automatically passed through an HTML escaper (`HtmlEscaper`) to convert special characters (`<`, `>`, `&`, `"`, `'`) into entities, preventing Cross-Site Scripting (XSS).
 
 ```html
 <p>Hello {{ state.username }}</p>
 ```
 
-- **Raw HTML (`{{{ expression }}}`)**: Allows inserting unescaped HTML. Use this with caution.
+- **Unescaped Raw HTML (`{{{ expression }}}`)**: Allows inserting raw, unescaped HTML nodes directly into the DOM tree.
 
 ```html
 <div>{{{ state.rawHtml }}}</div>
+```
+
+### Escaped (`{{ }}`) vs. Unescaped (`{{{ }}}`) Comparison
+
+| Syntax | Output Handling | Example Input | Rendered DOM Output |
+| :--- | :--- | :--- | :--- |
+| `{{ expr }}` | Automatically HTML-escaped | `<script>alert(1)</script>` | `&lt;script&gt;alert(1)&lt;/script&gt;` |
+| `{{{ expr }}}` | Raw HTML interpolation | `<strong>Bold Text</strong>` | `<strong>Bold Text</strong>` |
+
+> [!CAUTION]
+> **Cross-Site Scripting (XSS) Security Warning:** Rendering untrusted user input using `{{{ ... }}}` introduces severe Cross-Site Scripting (XSS) vulnerabilities. Never pass raw user inputs, URL parameters, or unvalidated form fields directly to triple-curly expressions.
+
+### Safe Raw HTML Rendering with `Sanitizer`
+
+Before rendering user-generated HTML content with `{{{ ... }}}`, use the built-in `Sanitizer` class from `avenx-core/runtime` to strip dangerous elements (like `<script>`, `<iframe>`, or inline `onerror` handlers):
+
+```javascript
+import { AvenxComponent, Sanitizer } from 'avenx-core/runtime';
+
+export default class ForumPost extends AvenxComponent {
+  onMount() {
+    const sanitizer = new Sanitizer();
+    
+    // Sanitize untrusted post content before assigning to state
+    const untrustedContent = this.props.rawPostContent;
+    this.state.safeContent = sanitizer.sanitize(untrustedContent);
+  }
+}
+```
+
+```html
+<!-- Renders clean, sanitized HTML safely -->
+<article class="post-body">
+  {{{ state.safeContent }}}
+</article>
 ```
 
 ## Dynamic HTML Content (`data-ax-html`)
