@@ -149,6 +149,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/rohithssj"><img src="https://avatars.githubusercontent.com/u/231696317?v=4?s=100" width="100px;" alt="Durga Rohith"/><br /><sub><b>Durga Rohith</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=rohithssj" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/WaghuleAsmita"><img src="https://avatars.githubusercontent.com/u/230667543?v=4?s=100" width="100px;" alt="Asmita Waghule"/><br /><sub><b>Asmita Waghule</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=WaghuleAsmita" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/madhaviporte"><img src="https://avatars.githubusercontent.com/u/157514020?v=4?s=100" width="100px;" alt="Madhavi Porte"/><br /><sub><b>Madhavi Porte</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=madhaviporte" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://tyr1onx.github.io/"><img src="https://avatars.githubusercontent.com/u/212495395?v=4?s=100" width="100px;" alt="栖白"/><br /><sub><b>栖白</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Tyr1onX" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
