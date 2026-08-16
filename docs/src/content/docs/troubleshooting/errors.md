@@ -113,6 +113,196 @@ console.warn(formatMessage(AvenxErrorCodes.SANDBOX_VIOLATION, 'disallowed eval()
 // -> "[AVX_R15] Sandbox security violation: disallowed eval() call"
 ```
 
+---
+
+## Compiler Error Class Hierarchy
+
+The Avenx compiler uses a hierarchy of specialized error classes defined in `lib/compiler/errors/`. All compiler error classes inherit from `CompilerError`, which itself extends `AvenxError` (the base framework error class). This specialized hierarchy allows build tools, Vite plugins, and custom CLI scripts to catch and inspect compilation issues with domain-specific diagnostic properties.
+
+### Class Hierarchy Diagram
+
+```text
+AvenxError (Base framework runtime error)
+ └── CompilerError (Base class for compiler diagnostics)
+      ├── TemplateValidationError (Template syntax, parsing, and static validation)
+      ├── StyleCompilerError (CSS preprocessors, styling, and scoping)
+      └── BuildError (Build pipeline, directory, config, and bundle budgets)
+```
+
+### Class Overview
+
+- **`CompilerError`**: Base error class for all compiler-related errors and warnings in Avenx-JS. It inherits from `AvenxError` to maintain compatibility with standard error handling across the framework.
+- **`TemplateValidationError`**: Specialized error class for template syntax, HTML parsing, structural directives (such as `<@for>`), tag matching, and static validation warnings or errors (e.g., `AVX_W02`, `AVX_W03`, `AVX_W04`, `AVX_W05`, `AVX_W06`, `AVX_W28`, `AVX_W30`).
+- **`StyleCompilerError`**: Specialized error class for CSS preprocessor processing, missing style dependencies, preprocessor failures, and CSS scoping errors (e.g., `AVX_W24`, `AVX_W31`).
+- **`BuildError`**: Specialized error class for build pipeline, missing `src` or output `dist` directories, component class name collisions, invalid configuration files, and bundle budget errors (e.g., `AVX_C01`, `AVX_C02`, `AVX_C03`, `AVX_W01`, `AVX_W25`).
+
+---
+
+### Constructor Signatures & Properties
+
+#### `CompilerError`
+
+```javascript
+new CompilerError(code, message, details)
+```
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The AvenxErrorCode identifier (e.g. `'AVX_C02'`). |
+| `message` | `string \| ...args` | Arguments formatted into the template message. |
+| `details` | `object` *(optional)* | Diagnostic metadata object containing extra context. |
+
+#### `TemplateValidationError`
+
+```javascript
+new TemplateValidationError(code, message, sourceLine)
+```
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The template error or warning code (e.g. `'AVX_W02'`, `'AVX_W03'`, `'AVX_W04'`). |
+| `message` | `string \| ...args` | Arguments formatted within the template message. |
+| `sourceLine` | `number \| null` *(optional)* | The line number in the component template or script where the error occurred. |
+
+#### `StyleCompilerError`
+
+```javascript
+new StyleCompilerError(code, message, cssFilePath)
+```
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The style compiler error or warning code (e.g. `'AVX_W24'`, `'AVX_W31'`). |
+| `message` | `string \| ...args` | Arguments formatted within the template message (e.g. preprocessor type or cause). |
+| `cssFilePath` | `string \| null` *(optional)* | The stylesheet or component path where the CSS error occurred. |
+
+#### `BuildError`
+
+```javascript
+new BuildError(code, message, buildContext)
+```
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | The build error or warning code (e.g. `'AVX_C01'`, `'AVX_C02'`, `'AVX_C03'`, `'AVX_W01'`, `'AVX_W25'`). |
+| `message` | `string \| ...args` | Arguments formatted within the template message. |
+| `buildContext` | `object \| string \| null` *(optional)* | Context metadata object or string detailing build stage or file paths. |
+
+---
+
+### Public Properties Reference
+
+| Property | Type | Class Source | Description |
+| --- | --- | --- | --- |
+| `code` | `string` | `AvenxError` | The raw error code passed to the constructor (e.g. `'AVX_C03'`). |
+| `name` | `string` | Subclass | Custom name identifier (`'CompilerError'`, `'TemplateValidationError'`, `'StyleCompilerError'`, `'BuildError'`). |
+| `message` | `string` | `AvenxError` | Fully formatted error message, prefixed with `[code]`. |
+| `sourceLine` | `number \| null` | `TemplateValidationError` / `AvenxError` | Line number in the component template or script where the error occurred. |
+| `cssFilePath` | `string \| null` | `StyleCompilerError` | File path of the stylesheet involved in preprocessor or styling failures. |
+| `buildContext` | `object \| string \| null` | `BuildError` | Contextual object or string detailing build directory, config, or duplicate component files. |
+| `details` | `object` | `AvenxError` | Diagnostic metadata object containing extra context (e.g., failed expression or props). |
+| `componentName` | `string \| null` | `AvenxError` | Name of the component class or file where the exception originated. |
+| `stack` | `string` | `Error` | V8 call stack string. |
+
+---
+
+### Programmatic Catching & Build Pipeline Integration
+
+Build tools, Vite plugins, or custom CLI scripts can catch and inspect compiler errors programmatically using `instanceof` checks to format rich diagnostics or error overlays.
+
+#### Importing Compiler Error Classes
+
+```javascript
+import {
+  CompilerError,
+  TemplateValidationError,
+  StyleCompilerError,
+  BuildError,
+} from 'avenx-js/compiler';
+```
+
+#### Example 1: Custom Build Runner & Pipeline Inspection
+
+```javascript
+import { AvenxCompiler } from 'avenx-js/compiler';
+import {
+  CompilerError,
+  TemplateValidationError,
+  StyleCompilerError,
+  BuildError,
+} from 'avenx-js/compiler';
+
+try {
+  const compiler = new AvenxCompiler({ rootDir: process.cwd() });
+  compiler.build();
+} catch (err) {
+  if (err instanceof TemplateValidationError) {
+    console.error(`[Template Validation Error] ${err.message}`);
+    if (err.sourceLine) {
+      console.error(`  --> Originating at template line: ${err.sourceLine}`);
+    }
+  } else if (err instanceof StyleCompilerError) {
+    console.error(`[Style Compiler Error] ${err.message}`);
+    if (err.cssFilePath) {
+      console.error(`  --> File: ${err.cssFilePath}`);
+    }
+  } else if (err instanceof BuildError) {
+    console.error(`[Build Pipeline Error] Code: ${err.code}`);
+    if (err.buildContext) {
+      console.error(`  Context:`, err.buildContext);
+    }
+  } else if (err instanceof CompilerError) {
+    console.error(`[General Compiler Error] [${err.code}]: ${err.message}`);
+  } else {
+    throw err;
+  }
+}
+```
+
+#### Example 2: Vite Plugin Integration
+
+```javascript
+import {
+  CompilerError,
+  TemplateValidationError,
+  StyleCompilerError,
+} from 'avenx-js/compiler';
+
+export function avenxVitePlugin() {
+  return {
+    name: 'vite-plugin-avenx',
+    async transform(code, id) {
+      if (!id.endsWith('.component.js')) return;
+
+      try {
+        return await compileComponent(code, id);
+      } catch (err) {
+        if (err instanceof TemplateValidationError) {
+          // Format as Vite build error with code line location
+          this.error({
+            message: err.message,
+            id: id,
+            line: err.sourceLine || 1,
+            column: 0,
+          });
+        } else if (err instanceof StyleCompilerError) {
+          this.error({
+            message: `CSS Compilation Error: ${err.message}`,
+            id: err.cssFilePath || id,
+          });
+        } else if (err instanceof CompilerError) {
+          this.error(`[${err.code}] ${err.message}`);
+        } else {
+          throw err;
+        }
+      }
+    },
+  };
+}
+```
+
+---
+
 ## Global Error & Warning Interception (`errorHandler` & `warnHandler`)
 
 For centralized error logging and telemetry integration (such as Sentry, LogRocket, or Datadog), Avenx-JS provides root-level application hooks to intercept all uncaught component errors and framework warnings.
