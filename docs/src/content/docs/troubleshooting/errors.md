@@ -2623,3 +2623,76 @@ Unidirectional computed dependency:
 <computed name="double" value="count * 2" />
 <computed name="triple" value="count * 3" />
 ```
+
+### AVX_R05 — COMPUTED_EVALUATION_FAILED
+
+**Error Message**
+
+```text
+[AVX_R05] Failed to evaluate computed property "{0}". Expression: "{1}". Error: {2}
+```
+
+**Cause:** This error is thrown at runtime when an unhandled JavaScript exception or type error occurs during the evaluation of a `<computed>` property's getter function. When `ComputedRegistry` evaluates the computed expression, any runtime error (such as reading a property of `null` or `undefined`, calling a non-existent function, or executing an invalid math operation) is caught, wrapped in **AVX_R05**, and thrown with details identifying the computed property name, expression string, and root cause error message.
+
+This typically happens for a few common reasons:
+
+- **Uninitialized or Null State Reference**: Accessing nested object properties (e.g. `user.profile.name`) when `user` or `profile` is `null` or `undefined` (such as before an async API fetch completes).
+- **Type Mismatch or Invalid Method Calls**: Calling array or string methods on non-array or non-string values (e.g. `items.filter(...)` when `items` is initialized to `null`).
+- **Referencing Undefined State Variables**: Referencing a state variable in a computed expression that was not declared in the component's `<state>` block or instance state.
+
+**Resolution:** To resolve this error:
+
+1. **Use Optional Chaining (`?.`)**: Protect nested property accesses against `null` or `undefined` values during initial component renders.
+2. **Provide Fallback Values**: Use logical OR (`||`) or nullish coalescing (`??`) operators to ensure computed getters always return a valid safe default.
+3. **Initialize Reactive State**: Ensure all reactive state variables referenced by computed properties are explicitly declared in the `<state>` tag with appropriate initial types (e.g. `items="[]"`, `user="null"`).
+
+**Incorrect**
+
+Accessing nested properties on an uninitialized state object:
+
+```html
+<state user="null" />
+
+<!-- ❌ Throws AVX_R05: Cannot read properties of null (reading 'firstName') -->
+<computed name="userFullName" value="user.firstName + ' ' + user.lastName" />
+```
+
+Calling array methods on an uninitialized state property:
+
+```html
+<state searchResults="null" />
+
+<!-- ❌ Throws AVX_R05: searchResults.filter is not a function -->
+<computed name="activeResults" value="searchResults.filter(item => item.active)" />
+```
+
+**Correct**
+
+Using optional chaining and fallback defaults:
+
+```html
+<state user="null" />
+
+<!-- ✅ Safe evaluation: returns fallback 'Guest' when user is null -->
+<computed name="userFullName" value="user ? (user.firstName + ' ' + user.lastName) : 'Guest'" />
+```
+
+Initializing state with empty collections:
+
+```html
+<state searchResults="[]" />
+
+<!-- ✅ Safe evaluation: empty array permits array methods without throwing -->
+<computed name="activeResults" value="searchResults ? searchResults.filter(item => item.active) : []" />
+```
+
+**Defensive Coding Example**
+
+```html
+<state profile="null" />
+
+<computed 
+  name="avatarUrl" 
+  value="profile?.avatar ?? '/images/default-avatar.png'" 
+/>
+```
