@@ -854,6 +854,76 @@ For a subtree to qualify as static and be successfully optimized, it must:
 
 Subtrees that meet these requirements are hoisted out of the render function and reused across updates without re-evaluation, improving performance for components with large amounts of unchanging markup.
 
+### AVX_W26 — COMPONENT_METHOD_RESERVED_KEY_COLLISION
+
+**Warning Message**
+
+```text
+Method name "{0}" in component "{1}" collides with a reserved lifecycle hook or instance method.
+```
+
+**Cause:** This warning is emitted during component compilation or runtime instantiation when a component declares an action, method, or property name that collides with reserved internal `AvenxComponent` prototype keys or lifecycle hook names (e.g. `mount`, `update`, `destroy`, `onMount`, `onUpdate`).
+
+Declaring a component action or property with a reserved name overrides the framework's internal component lifecycle methods or prototype functionality, leading to unexpected behavior, broken DOM patching, or unhandled recursion issues.
+
+**Reserved Component Prototype Keys & Lifecycle Hooks:**
+
+| Category | Reserved Keys | Description |
+| --- | --- | --- |
+| **Core Lifecycle Methods** | `mount`, `unmount`, `update`, `destroy`, `scheduleUpdate` | Framework internal methods controlling component mounting, unmounting, DOM diffing/patching, and update scheduling. |
+| **Lifecycle Hooks** | `onBeforeMount`, `onMount`, `onBeforeUpdate`, `onUpdate`, `onUnmount`, `onActivate`, `onDeactivate`, `onErrorCaptured` | Reserved framework lifecycle hook callback names. |
+| **Instance Properties & API Helpers** | `$parent`, `$refs`, `$slots`, `$route`, `$keepAlive`, `$nextTick`, `nextTick`, `setProps`, `clearKeepAliveCache`, `watch` | Reserved component instance properties and API methods. |
+
+**Resolution:** To resolve this warning:
+
+1. Rename custom component actions or methods to avoid names in the reserved list (e.g. rename `update` to `updateUserProfile`, or `destroy` to `handleDelete`).
+2. If you intended to hook into a framework lifecycle event (such as `onMount` or `onUpdate`), implement it as a standard lifecycle hook callback function rather than redefining it as a custom action method.
+
+**Incorrect**
+
+Defining custom actions with names matching reserved keys:
+
+```html
+<state user="Guest" />
+
+<!-- ❌ Collides with internal AvenxComponent.prototype.update -->
+<action name="update">
+  console.log("Updating user...");
+</action>
+
+<!-- ❌ Collides with internal AvenxComponent.prototype.destroy -->
+<action name="destroy">
+  console.log("Destroying component...");
+</action>
+
+<div>
+  <p>User: {{ user }}</p>
+  <button @click="update()">Update</button>
+</div>
+```
+
+**Correct**
+
+Renaming custom actions to distinct, non-reserved names:
+
+```html
+<state user="Guest" />
+
+<!-- ✅ Renamed to clear, non-colliding action names -->
+<action name="updateUser">
+  console.log("Updating user...");
+</action>
+
+<action name="handleDelete">
+  console.log("Deleting item...");
+</action>
+
+<div>
+  <p>User: {{ user }}</p>
+  <button @click="updateUser()">Update</button>
+</div>
+```
+
 ### AVX_W07 — PAGE_ALREADY_REGISTERED
 
 **Warning Message**
