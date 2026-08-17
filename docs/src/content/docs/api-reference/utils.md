@@ -1391,5 +1391,4 @@ async function measureCustomWorkflow() {
   console.log('Avenx Performance Measures:', measures);
 }
 ```
-```
 
