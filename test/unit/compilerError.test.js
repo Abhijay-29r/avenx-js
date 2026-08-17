@@ -8,6 +8,8 @@ import {
   formatCodeFrame,
   getLineAndColumn,
 } from '../../lib/compiler/errors/index.js';
+import ExpressionParser from '../../lib/compiler/expressionParser.js';
+import ComponentParser from '../../lib/compiler/ComponentParser.js';
 
 /**
  * Unit tests for specialized compiler error types.
@@ -108,6 +110,43 @@ function runTests() {
   assert.ok(locErr.frame.includes('   |         ^'));
   assert.ok(locErr.message.includes(locErr.frame), 'Error message should contain visual code frame');
 
+  // 11. ExpressionParser code frame warning test
+  const exprParser = new ExpressionParser({ warnings: { AVX_W28: 'error' } });
+  const multiStateSource = '<state count="0" />\n<state count="1" />';
+  assert.throws(
+    () => {
+      exprParser.parseState(multiStateSource);
+    },
+    (err) => {
+      return (
+        err instanceof CompilerError &&
+        err.frame &&
+        err.frame.includes(' 2 | <state count="1" />') &&
+        err.frame.includes('   | ^')
+      );
+    },
+    'ExpressionParser multiple state tags should include visual code frame with carets',
+  );
+
+  // 12. ComponentParser code frame warning test
+  const compParser = new ComponentParser();
+  compParser.config = { warnings: { AVX_W03: 'error' } };
+  const rawTemplate = '<div>\n  <span>{{ undeclaredVar }}</span>\n</div>';
+  assert.throws(
+    () => {
+      compParser.validateTemplate(rawTemplate, {}, {}, {}, {}, 'MyComp.component.js', 'MyComp');
+    },
+    (err) => {
+      return (
+        err instanceof CompilerError &&
+        err.frame &&
+        err.frame.includes(' 2 |   <span>{{ undeclaredVar }}</span>') &&
+        err.frame.includes('   |         ^^^^^^^^^^^^^')
+      );
+    },
+    'ComponentParser validateTemplate undeclared reference should include visual code frame with carets',
+  );
+
   console.log('  ✅ Specialized compiler error classes unit tests passed!');
 }
 
@@ -118,4 +157,5 @@ try {
   console.error(error);
   process.exit(1);
 }
+
 
