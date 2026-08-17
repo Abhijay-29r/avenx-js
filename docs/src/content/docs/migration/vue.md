@@ -421,4 +421,132 @@ If you genuinely need to run a side effect when a value changes, Avenx does offe
 
 ## 5. Global Stores & Pinia to Bridges
 
-*This section will document migrating Pinia stores to `AvenxBridge` classes.*
+Vue applications typically rely on **Pinia** (`defineStore`) or Vuex to share reactive state and business logic across components. In Avenx-JS, shared global state is managed through **Bridges**—class-based or plain object modules located in `src/global/*.bridge.js` that extend `AvenxBridge`.
+
+Avenx-JS automatically registers all bridges in `src/global/` and makes them directly accessible in **every component template and action** without requiring store providers, composition imports, or `useStore()` hooks. See the [Bridges](/core-concepts/bridges) guide for complete details and the [Migration Overview](/migration/overview) for paradigm comparisons.
+
+---
+
+### Generating Bridges via CLI
+
+You can generate a new bridge using the Avenx CLI command:
+
+```bash
+npx avenx g bridge auth
+```
+
+This creates a new `src/global/auth.bridge.js` scaffold extending `AvenxBridge`.
+
+---
+
+### Code Migration Example
+
+#### Before — Vue Pinia Store (`stores/auth.js` & `Component.vue`)
+
+```javascript
+// stores/auth.js
+import { defineStore } from 'pinia';
+
+export const useAuthStore = defineStore('auth', {
+  state: () => ({
+    isLoggedIn: false,
+    user: { name: 'Guest' }
+  }),
+  actions: {
+    login(username) {
+      this.isLoggedIn = true;
+      this.user.name = username;
+    },
+    logout() {
+      this.isLoggedIn = false;
+      this.user.name = 'Guest';
+    }
+  }
+});
+```
+
+```html
+<!-- UserNav.vue -->
+<script setup>
+import { useAuthStore } from '@/stores/auth';
+const auth = useAuthStore();
+</script>
+
+<template>
+  <div>
+    <p>Current User: {{ auth.user.name }}</p>
+    <button @click="auth.logout()">Log Out</button>
+  </div>
+</template>
+```
+
+#### After — Avenx.js Bridge Class (`src/global/auth.bridge.js` & Component Template)
+
+```javascript
+// src/global/auth.bridge.js
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class AuthBridge extends AvenxBridge {
+  constructor() {
+    super();
+    this.isLoggedIn = false;
+    this.user = { name: 'Guest' };
+  }
+
+  login(username) {
+    this.isLoggedIn = true;
+    this.user.name = username;
+  }
+
+  logout() {
+    this.isLoggedIn = false;
+    this.user.name = 'Guest';
+  }
+}
+```
+
+```html
+<!-- src/components/user-nav/user-nav.component.js -->
+<!-- Available automatically in any component template or action — no import needed! -->
+<div>
+  <p>Current User: {{ AuthBridge.user.name }}</p>
+  <button @click="AuthBridge.logout()">Log Out</button>
+</div>
+```
+
+---
+
+### Key Conceptual Differences & Migration Pitfalls
+
+#### 1. No Store Providers or `useStore()` Hooks
+
+In Vue, components must explicitly import store modules and invoke store composition functions (e.g. `const auth = useAuthStore()`).
+
+In Avenx-JS, the build system automatically inspects `src/global/*.bridge.js` at compile time and injects each bridge into the global template scope under its class or file name (`AuthBridge`). You never import bridges inside `.component.js` files or wrap root components in store providers.
+
+#### 2. Class Constructor & Inheriting `AvenxBridge`
+
+Class-based bridges must extend `AvenxBridge` from `avenx-core/runtime` and call `super()` inside the `constructor()`:
+
+```javascript
+import { AvenxBridge } from 'avenx-core/runtime';
+
+export default class CartBridge extends AvenxBridge {
+  constructor() {
+    super(); // ⚠️ Mandatory: initializes reactive bridge Proxy tracking
+    this.items = [];
+  }
+
+  addItem(item) {
+    this.items.push(item);
+  }
+}
+```
+
+#### 3. `export default` Compiler Requirement
+
+The Avenx compiler processes `.bridge.js` files starting at `export default`. Ensure your bridge class or object is the default export:
+
+:::caution
+Do **not** place standalone helper variable declarations above `export default` inside `.bridge.js` files, as the compiler parser extracts state and methods directly from the default export declaration.
+:::
