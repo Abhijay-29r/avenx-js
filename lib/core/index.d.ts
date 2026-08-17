@@ -667,6 +667,7 @@ export class ComputedRegistry {
 
 export class HtmlEscaper {
     escape(str: string): string;
+    unescape(str: string): string;
 }
 
 export class SafeHtml {
@@ -676,9 +677,12 @@ export class SafeHtml {
 }
 
 export function html(strings: string | TemplateStringsArray, ...values: any[]): SafeHtml;
+export function unescapeHtml(str: string): string;
 
 export class Sanitizer {
     sanitize(html: string): string;
+    static sanitizeUrl(url: string, allowedProtocols?: string[]): string;
+    static stripTags(html: string): string;
 }
 
 export interface AvenxLoggerOptions {
@@ -697,6 +701,7 @@ export class AvenxLogger {
     };
     constructor(config?: AvenxLoggerOptions);
     configure(config: AvenxLoggerOptions): void;
+    setLevel(level: string): void;
     shouldLog(level: string): boolean;
     write(level: string, ...args: any[]): void;
     trace(...args: any[]): void;
@@ -890,4 +895,20 @@ export class LruCache<T = any> {
     clear(): void;
     readonly size: number;
 }
+
+export interface InvalidComponentTagIssue {
+    tagName: string;
+    expectedName: string;
+    index: number;
+}
+
+export function componentNameFromFile(fileName: string): string;
+export function findRegisteredComponents(projectRoot: string, componentsDir?: string): Set<string>;
+export function extractLintableTemplate(source: string): string;
+export function findInvalidComponentTags(source: string, registeredComponents: Set<string>): InvalidComponentTagIssue[];
+export function findProjectRoot(filePath: string, fallbackRoot: string): string;
+
+export function profile<T = any>(enableProfiling: boolean, componentName: string, phase: string, fn: () => T): T;
+export function getComponentProfilingInfo(element: any): { enableProfiling: boolean; componentName: string };
+
 

@@ -23,12 +23,76 @@ A wrapper class designating that a string is verified and safe for raw output. E
 
 ## 3. `HtmlEscaper`
 
-Internal utility class providing character replacement mappings to prevent code injections:
+Utility class providing character replacement mappings to prevent code injections (XSS) by escaping HTML special characters, as well as reversing entity encoding.
 
 ```javascript
+import { HtmlEscaper, unescapeHtml } from 'avenx-core/runtime';
+
 const escaper = new HtmlEscaper();
+
+// Escaping
 escaper.escape('<h1>Text</h1>');
 // Returns: &lt;h1&gt;Text&lt;/h1&gt;
+
+// Unescaping
+escaper.unescape('&lt;h1&gt;Text&lt;/h1&gt;');
+// Returns: <h1>Text</h1>
+```
+
+### `unescapeHtml(str)`
+
+Reverses HTML entity encoding for strings containing entities like `&amp;`, `&lt;`, `&gt;`, `&quot;`, and `&#39;`, restoring raw characters. Available as a standalone exported function or via `HtmlEscaper.prototype.unescape()`.
+
+**Signature:**
+
+`unescapeHtml(str: string): string`
+
+**Parameters:**
+
+- `str` (any): The entity-encoded HTML string to decode (coerced to a string).
+
+**Returns:**
+
+- `string`: The unescaped string with decoded characters.
+
+**Supported Entity Mappings:**
+
+| HTML Entity | Decoded Character | Description |
+| --- | --- | --- |
+| `&amp;` | `&` | Ampersand |
+| `&lt;` | `<` | Less-than sign |
+| `&gt;` | `>` | Greater-than sign |
+| `&quot;` | `"` | Double quote |
+| `&#39;` | `'` | Single quote / apostrophe |
+
+**Common Use Cases:**
+
+- **Decoding stored database strings:** Reversing entity encoding from APIs or databases when plain text display is needed.
+- **Form input normalization:** Pre-populating form fields or textareas with unescaped text.
+- **Raw text template processing:** Decoding encoded text snippets prior to plain-text export or email generation.
+
+**Security Warning (XSS Risks):**
+
+> [!WARNING]
+> Never pass unescaped output from `unescapeHtml()` directly into `innerHTML`, unescaped template interpolations (`{{{ ... }}}`), or `SafeHtml` without first passing it through a sanitizer such as `Sanitizer.prototype.sanitize()`. Unescaping untrusted user input restores executable HTML markup (like `<script>` tags and inline event handlers), introducing cross-site scripting (XSS) vulnerabilities.
+
+**Example**
+
+```javascript
+import { unescapeHtml, Sanitizer } from 'avenx-core/runtime';
+
+const encodedData = '&lt;script&gt;alert("xss")&lt;/script&gt; &amp; Welcome!';
+const rawText = unescapeHtml(encodedData);
+
+console.log(rawText);
+// Output: '<script>alert("xss")</script> & Welcome!'
+
+// ALWAYS sanitize if inserting into DOM!
+const sanitizer = new Sanitizer();
+const safeMarkup = sanitizer.sanitize(rawText);
+
+console.log(safeMarkup);
+// Output: ' & Welcome!'
 ```
 
 ## 4. `Sanitizer`
@@ -73,6 +137,51 @@ const cleanHtml = sanitizer.sanitize(dirtyHtml);
 
 console.log(cleanHtml);
 // Output: <div>Hello  <a>World</a></div>
+```
+
+#### `Sanitizer.stripTags(html)`
+
+Strips all HTML tags, script elements, style tags, and comments from a string, returning unformatted plain text.
+
+**Signature:**
+
+`Sanitizer.stripTags(html: string): string`
+
+**Parameters:**
+
+- `html` (any): The raw content to strip (coerced to a string).
+
+**Returns:**
+
+- `string`: The extracted plain-text string with all HTML tag markup removed.
+
+**Common Use Cases:**
+
+- **Plain-text preview generation:** Creating article card summaries, post excerpts, or email snippet previews from rich HTML content.
+- **Search indexing:** Extracting searchable text content from HTML templates for indexing.
+- **Tooltip text formatting:** Clearing markup for native `title` attributes or plain-text tooltips.
+- **Meta tag description extraction:** Auto-generating SEO `<meta name="description">` content from body HTML markup.
+
+**Guidelines: `stripTags()` vs. `sanitize()`**
+
+- Use **`Sanitizer.stripTags(html)`** when you need unformatted plain text without any HTML markup (e.g. for previews, search indexes, or tooltips).
+- Use **`Sanitizer.prototype.sanitize(html)`** when you want to safely insert user-provided dynamic HTML into the DOM while retaining safe markup structure (such as bold, italics, links, and paragraphs) and filtering out dangerous scripts and attributes.
+
+| Method | Behavior | Primary Use Case | Output |
+| --- | --- | --- | --- |
+| `Sanitizer.stripTags(html)` | Removes **all** HTML tags, script/style content, and comments entirely. | Text summaries, previews, search indexing, meta descriptions. | Plain text |
+| `sanitizer.sanitize(html)` | Filters HTML against allowed tags and attributes policies to prevent XSS. | Rendering rich, user-generated HTML safely in the DOM. | Safe HTML markup |
+
+**Example**
+
+```javascript
+import { Sanitizer } from 'avenx-core/runtime';
+
+const richText = '<div><p>Hello <b>World</b>!</p><script>alert("xss")</script><!-- comment --></div>';
+const plainText = Sanitizer.stripTags(richText);
+
+console.log(plainText);
+// Output: "Hello World!"
 ```
 
 ## 4b. `formatMessage(code, ...args)`
@@ -459,133 +568,184 @@ const watcher = new AvenxWatcher(
 watcher.teardown();
 ```
 
-## AvenxLogger
+## 9. AvenxLogger
 
-The `AvenxLogger` class provides Avenx-JS's built-in logging system. It supports configurable log levels, custom formatting, and custom transports, making it suitable for both development and production environments.
+The `AvenxLogger` class provides Avenx-JS's built-in logging system. It supports configurable log levels, custom formatting, context tagging, and custom transports, making it suitable for both development and production environments.
 
-A shared logger instance is also exported from the runtime for convenient use throughout your application.
+A shared global logger instance (`logger`) and severity constants (`LogLevels`) are exported from `avenx-core/runtime`.
 
 ### Importing
 
-```js
-import { AvenxLogger, logger } from "avenx-core/runtime";
+```javascript
+import { AvenxLogger, logger, LogLevels, formatContextTag, defaultFormatter } from "avenx-core/runtime";
 ```
 
-- `AvenxLogger` creates a new logger instance with custom configuration.
-- `logger` is the default global logger instance provided by Avenx-JS.
+- `AvenxLogger`: Central logger class for instantiating custom loggers.
+- `logger`: The default shared global logger instance used across the framework runtime.
+- `LogLevels`: Enum-like object mapping severity level names to numeric priorities.
 
 ---
 
-## Constructor
+### Constructor & Configuration
 
-```js
+```javascript
 const logger = new AvenxLogger(config);
 ```
 
-### Configuration Options
+#### `LoggingConfig` Schema
 
 | Option | Type | Default | Description |
-| ------- | ---- | ------- | ----------- |
-| `level` | `string` | `"info"` | Minimum log level to output. |
-| `silent` | `boolean` | `false` | Disables all logging when enabled. |
-| `formatter` | `Function` | `defaultFormatter` | Formats log messages before they are passed to transports. |
-| `transports` | `Array` | `[consoleTransport]` | Collection of custom transport targets. |
+| --- | --- | --- | --- |
+| `level` | `string` | `"info"` | Minimum severity log level to output (`'trace'`, `'debug'`, `'info'`, `'warn'`, `'error'`, `'fatal'`, `'off'`, `'silent'`). |
+| `silent` | `boolean` | `false` | When `true`, suppresses all log outputs. |
+| `formatter` | `(level: string, args: any[]) => any[]` | `defaultFormatter` | Custom formatting function applied to log messages before dispatching to transports. |
+| `transports` | `Array<Object \| Function>` | `[consoleTransport]` | Collection of transport targets (e.g. `console`, file writer, or HTTP log stream). |
 
 ---
 
-## Log Levels
+### Log Levels & `LogLevels` Constants
 
-Supported log levels are listed below in ascending order of severity.
+Log levels in Avenx-JS are ordered by ascending severity priority. `LogLevels` maps level names to numeric priority values:
 
-| Level | Description |
-| ------- | ----------- |
-| `trace` | Detailed diagnostic information. |
-| `debug` | Development and debugging messages. |
-| `info` | General application information. |
-| `warn` | Warning messages. |
-| `error` | Error messages. |
-| `fatal` | Critical failures. |
-| `off` | Disables logging. |
-| `silent` | Alias for `off`. |
+```javascript
+import { LogLevels } from "avenx-core/runtime";
 
-The logger only outputs messages whose severity is greater than or equal to the configured log level.
-
----
-
-## Logging Methods
-
-Every logger instance provides the following methods.
-
-| Method | Description |
-| ------- | ----------- |
-| `trace(...args)` | Logs a trace message. |
-| `debug(...args)` | Logs a debug message. |
-| `info(...args)` | Logs an informational message. |
-| `log(...args)` | Alias for `info()`. |
-| `warn(...args)` | Logs a warning. |
-| `error(...args)` | Logs an error. |
-| `fatal(...args)` | Logs a fatal error. |
-
----
-
-## Using the Global Logger
-
-The runtime exports a shared logger instance that can be used anywhere in your application.
-
-```js
-import { logger } from "avenx-core/runtime";
-
-logger.info("Application started.");
-logger.warn("Cache miss.");
-logger.error("Failed to load configuration.");
+console.log(LogLevels);
+/*
+{
+  trace: 0,
+  debug: 1,
+  info: 2,
+  warn: 3,
+  error: 4,
+  fatal: 5,
+  off: 6,
+  silent: 6
+}
+*/
 ```
 
-This is the same instance that `AvenxApp` configures when you pass a `logging` option to its constructor, so `logger.configure()` calls and the `logging` option affect the same shared state:
+| Severity Level | Priority Value | Description |
+| --- | --- | --- |
+| `trace` | `0` | Highly verbose diagnostic and internal state tracing. |
+| `debug` | `1` | Development and debugging messages. |
+| `info` | `2` | Standard application operational events. |
+| `warn` | `3` | Warning messages for potential errors or non-fatal issues. |
+| `error` | `4` | Error messages for failed operations or caught exceptions. |
+| `fatal` | `5` | Critical unrecoverable application failures. |
+| `off` / `silent` | `6` | Disables all log outputs completely. |
 
-```js
+The logger outputs messages only when their severity priority is greater than or equal to the active configured level.
+
+---
+
+### Class Methods
+
+#### `setLevel(level)`
+
+Programmatically sets the minimum log severity level for the logger instance.
+
+- **Signature:** `setLevel(level: string): void`
+- **Parameters:** `level: string` — Target log level name (e.g. `'debug'`, `'warn'`, `'silent'`).
+- **Returns:** `void`
+
+```javascript
+import { logger } from "avenx-core/runtime";
+
+// Enable verbose debug logging during dev
+logger.setLevel('debug');
+
+// Suppress info/debug logs in production
+logger.setLevel('warn');
+```
+
+#### `configure(config)`
+
+Reconfigures one or more logger settings at runtime.
+
+- **Signature:** `configure(config: LoggingConfig): void`
+- **Parameters:** `config: LoggingConfig` — Object containing updated options (`level`, `silent`, `formatter`, `transports`).
+- **Returns:** `void`
+
+```javascript
+logger.configure({
+  level: 'error',
+  silent: false,
+});
+```
+
+If `level` is set to an invalid string, `configure()` logs a warning and falls back to `"info"`.
+
+#### `shouldLog(level)`
+
+Evaluates whether a message of the given severity level will be logged under the current configuration.
+
+- **Signature:** `shouldLog(level: string): boolean`
+- **Parameters:** `level: string` — Log level name to evaluate.
+- **Returns:** `boolean` — `true` if the level will be logged, otherwise `false`.
+
+```javascript
+if (logger.shouldLog('debug')) {
+  const detailedPayload = buildComplexDiagnosticData();
+  logger.debug('Diagnostic data:', detailedPayload);
+}
+```
+
+#### `write(level, ...args)`
+
+Writes a log statement through the configured formatter and dispatches it to all transports if `shouldLog(level)` is `true`.
+
+- **Signature:** `write(level: string, ...args: any[]): void`
+- **Parameters:**
+  - `level: string` — Severity level name.
+  - `...args: any[]` — Arguments to format and log.
+- **Returns:** `void`
+
+#### Logging Shortcut Methods
+
+Every `AvenxLogger` instance exposes convenience shortcut methods for each severity level:
+
+- `logger.trace(...args: any[]): void`
+- `logger.debug(...args: any[]): void`
+- `logger.info(...args: any[]): void`
+- `logger.log(...args: any[]): void` (Alias for `info()`)
+- `logger.warn(...args: any[]): void`
+- `logger.error(...args: any[]): void`
+- `logger.fatal(...args: any[]): void`
+
+---
+
+### Suppressing Framework Logs in Production
+
+To optimize performance and suppress verbose framework logging in production setups, you can configure the shared global `logger` or pass `logging` options during `AvenxApp` initialization:
+
+#### Option 1: Suppress via `logger.setLevel()` / `logger.configure()`
+
+```javascript
+import { logger } from "avenx-core/runtime";
+
+if (process.env.NODE_ENV === 'production') {
+  // Suppress info & debug logs; only log warnings and errors
+  logger.setLevel('warn');
+
+  // Or suppress ALL framework log output completely:
+  // logger.configure({ silent: true });
+}
+```
+
+#### Option 2: Suppress via `AvenxApp` Constructor
+
+```javascript
+import { AvenxApp } from "avenx-core/runtime";
+
 const app = new AvenxApp({
   target: "#app",
-  logging: { level: "debug" },
+  logging: {
+    level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
+    silent: process.env.NODE_ENV === 'test', // Completely quiet during automated tests
+  },
 });
 ```
-
-Note that this is unrelated to the `logging` option in `avenx.config.json`, which only controls the CLI's own build-time output, not this runtime logger.
-
----
-
-## Creating a Custom Logger
-
-Create a separate logger instance with its own configuration.
-
-```js
-import { AvenxLogger } from "avenx-core/runtime";
-
-const logger = new AvenxLogger({
-  level: "debug"
-});
-
-logger.debug("Debug logging enabled.");
-```
-
----
-
-## Updating Logger Configuration
-
-Logger instances can be reconfigured at runtime.
-
-```js
-import { logger } from "avenx-core/runtime";
-
-logger.configure({
-  level: "trace"
-});
-
-logger.trace("Verbose logging is now enabled.");
-```
-
-You can update one or more configuration options at any time using `configure()`.
-
-If `level` is set to a value that isn't one of the supported log levels, `configure()` logs a warning and falls back to `"info"`.
 
 ---
 
@@ -758,5 +918,477 @@ userCache.set('user:104', { name: 'Diana', role: 'manager' });
 
 console.log(userCache.has('user:102')); // false
 console.log(userCache.has('user:101')); // true
+```
+
+---
+
+## 11. Component Tag Naming Linter Utilities
+
+Avenx-JS provides framework tooling functions in `avenx-core/runtime` (or `lib/core/tooling/componentTagNaming.js`) to audit single-file component (SFC) templates and enforce PascalCase component tag conventions (e.g. `<UserCard />` instead of `<user-card />` or `<userCard />`).
+
+These utilities enable custom build scripts, pre-commit hooks, and ESLint plugins (such as Avenx's built-in ESLint component tag rule) to analyze component markup without executing full compilation.
+
+### `extractLintableTemplate(source)`
+
+Isolates HTML template markup from an Avenx SFC component source string by masking non-template metadata blocks (`<state>`, `<computed>`, `<action>`, `<resource>`, and HTML comments).
+
+**Signature:**
+
+`extractLintableTemplate(source: string): string`
+
+**Parameters:**
+
+- `source` (`string`): The raw single-file component (`.component.js`) file contents.
+
+**Returns:**
+
+- `string`: A masked template string where non-template blocks are replaced with whitespace while strictly preserving line numbers (`\n` and `\r\n`).
+
+**Line Offset Preservation:**
+
+To accurately report diagnostic lint warnings or errors back to IDEs and CLI logs, `extractLintableTemplate` replaces non-line-break characters in metadata blocks (`<state>`, `<action>`, etc.) with blank spaces. Because character indexes and line counts are preserved identically, error locations map directly back to the original source file line and column positions.
+
+### `findInvalidComponentTags(source, registeredComponents)`
+
+Analyzes an Avenx component source template against a set of canonical PascalCase registered component names and identifies tag references that do not adhere to PascalCase naming conventions.
+
+**Signature:**
+
+`findInvalidComponentTags(source: string, registeredComponents: Set<string>): Array<InvalidComponentTagIssue>`
+
+**Parameters:**
+
+- `source` (`string`): The raw component SFC source text.
+- `registeredComponents` (`Set<string>`): A set of canonical PascalCase component names (e.g. `new Set(['UserCard', 'Header'])`).
+
+**Returns:**
+
+An array of issue objects:
+
+```typescript
+interface InvalidComponentTagIssue {
+  tagName: string;      // The invalid tag found in the template (e.g. "user-card")
+  expectedName: string; // The canonical PascalCase component name (e.g. "UserCard")
+  index: number;        // 1-based character position in the source string
+}
+```
+
+### Practical Tooling Integration Examples
+
+#### Example 1: Custom Build Script / Linter
+
+```javascript
+import fs from 'fs';
+import {
+  findRegisteredComponents,
+  findInvalidComponentTags,
+} from 'avenx-core/runtime';
+
+// 1. Discover registered components in src/components
+const registered = findRegisteredComponents(process.cwd());
+
+// 2. Read component source
+const fileContent = fs.readFileSync('src/pages/dashboard.page.js', 'utf8');
+
+// 3. Find tag naming mismatches
+const issues = findInvalidComponentTags(fileContent, registered);
+
+issues.forEach((issue) => {
+  console.warn(
+    `[Lint Warning] Component tag <${issue.tagName}> at position ${issue.index} ` +
+      `should be written in PascalCase: <${issue.expectedName}>`
+  );
+});
+```
+
+#### Example 2: ESLint Rule Integration
+
+```javascript
+import {
+  extractLintableTemplate,
+  findInvalidComponentTags,
+} from 'avenx-core/runtime';
+
+export const customTagNamingRule = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Enforce PascalCase tag naming for registered Avenx components' },
+    messages: {
+      invalidTag: 'Avenx component <{{tagName}}> must use PascalCase: <{{expectedName}}>',
+    },
+  },
+  create(context) {
+    return {
+      Program() {
+        const source = context.sourceCode.getText();
+        const registered = new Set(['UserCard', 'Navbar', 'Footer']);
+
+        const issues = findInvalidComponentTags(source, registered);
+
+        for (const issue of issues) {
+          context.report({
+            messageId: 'invalidTag',
+            data: {
+              tagName: issue.tagName,
+              expectedName: issue.expectedName,
+            },
+          });
+        }
+      },
+    };
+  },
+};
+```
+
+---
+
+## 12. DevTools `initInspector` & Runtime Inspection Protocol
+
+`initInspector` (exported from `avenx-core/runtime` / `lib/core/tooling/inspect.js`) enables browser extension DevTools, debugging overlays, and external tools to inspect live Avenx-JS applications in real time.
+
+When inspector mode is enabled, `initInspector` creates a Web `BroadcastChannel` named `'avenx-inspector-channel'`, listens for inspection requests, and automatically broadcasts runtime application state on component lifecycles and page transitions.
+
+### Enabling the Inspector
+
+To enable inspection, set `window.__avenx_inspect_enabled = true;` before initializing your `AvenxApp` instance, or pass `initInspector(app)` during application setup:
+
+```javascript
+import { AvenxApp, initInspector } from 'avenx-core/runtime';
+
+// 1. Enable inspector flag on window
+window.__avenx_inspect_enabled = true;
+
+// 2. Initialize application
+const app = new AvenxApp({
+  target: '#app'
+});
+
+// 3. Initialize inspector
+initInspector(app);
+```
+
+---
+
+### `BroadcastChannel` Protocol Specification
+
+`initInspector` uses the standard browser `BroadcastChannel` API (`'avenx-inspector-channel'`) to communicate with browser extension devtools or custom debugging scripts running in adjacent tabs/iframes.
+
+#### Channel Identifier
+
+- **Channel Name:** `'avenx-inspector-channel'`
+
+#### Incoming Request Message
+
+To request a full snapshot of the current application state, post the following message to `'avenx-inspector-channel'`:
+
+```javascript
+channel.postMessage('request-inspect-data');
+```
+
+#### Outgoing Broadcast Payload (`'inspect-data'`)
+
+Whenever a `'request-inspect-data'` message is received, or when application events occur (`avenx:mount`, `avenx:update`, `avenx:unmount`, `app.updateAll()`, `app.mountPage()`), `initInspector` broadcasts an `'inspect-data'` payload message:
+
+```typescript
+interface InspectorDataMessage {
+  type: 'inspect-data';
+  data: {
+    activeComponents: Array<{
+      name: string;        // Component class name (e.g. "UserCard")
+      state: object;       // Sanitized component reactive state
+      props: object;       // Sanitized component props
+    }>;
+    registeredBridges: Record<string, object>; // Map of active bridge names to instances
+    registeredComponents: string[];           // Array of registered component tag names
+    registeredPages: string[];                // Array of registered page names
+    routes: object;                           // Router routes configuration dictionary
+    currentRoute: object | null;              // Currently active route object
+  };
+}
+```
+
+---
+
+### Data Sanitization & Circular Safety (`serializeSafe`)
+
+Before broadcasting payload state across the `BroadcastChannel`, `initInspector` passes the payload through a recursive `serializeSafe()` sanitizer:
+
+- **Functions:** Converted to string placeholders (`"[Function]"`).
+- **DOM Elements & Window:** Converted to node summary strings (e.g. `"[DOM Element: DIV]"` or `"[DOM Element: Window]"`).
+- **Internal Framework Keys:** Properties starting with double underscores (e.g. `__avenx_comp_instance`) are masked as `"[Internal]"`.
+- **Circular References:** Visited objects tracked with `WeakSet` are safely replaced with `"[Circular]"` to prevent postMessage clone exceptions.
+
+---
+
+### Subscribing to DevTools Inspection Events
+
+External debugging tools, browser extension popup windows, or custom overlays can listen to live application state by creating a `BroadcastChannel` listener:
+
+```javascript
+// External DevTools script or extension background page
+const inspectorChannel = new BroadcastChannel('avenx-inspector-channel');
+
+// Subscribe to state updates broadcast by Avenx-JS
+inspectorChannel.onmessage = (event) => {
+  if (event.data && event.data.type === 'inspect-data') {
+    const { activeComponents, registeredBridges, currentRoute } = event.data.data;
+
+    console.log('Active Component Count:', activeComponents.length);
+    console.log('Active Components:', activeComponents);
+    console.log('Current Route:', currentRoute);
+    console.log('Bridges State:', registeredBridges);
+  }
+};
+
+// Request an immediate state snapshot
+inspectorChannel.postMessage('request-inspect-data');
+```
+
+---
+
+## 13. Form Validation Utilities
+
+While component templates use the `data-ax-validate` directive and `this.state.$validation` object for form validation (see the [Form Validation](/core-concepts/form-validation) guide), Avenx-JS exports a suite of low-level, environment-agnostic validation utility functions from `avenx-core/runtime` (or `lib/core/validation/validator.js`).
+
+These functions allow developers to parse rule expressions, validate values programmatically, extract field names from HTML elements, and update `$validation` state objects in custom services, bridges, or standalone scripts.
+
+### Importing
+
+```javascript
+import {
+  parseValidationRules,
+  validateValue,
+  getFieldName,
+  updateValidationState,
+} from 'avenx-core/runtime';
+```
+
+---
+
+### Function Reference
+
+#### `parseValidationRules(ruleString)`
+
+Parses a pipe-delimited rule expression string (e.g. `"required|email|min:8|same:password:Passwords do not match"`) into an array of structured rule objects.
+
+- **Signature:** `parseValidationRules(ruleString: string): Array<{ name: string, arg: string|null, customMsg: string|null }>`
+- **Parameters:** `ruleString: string` — Pipe-delimited validation rules string.
+- **Returns:** `Array<{ name: string, arg: string|null, customMsg: string|null }>`
+  - `name`: Lowercase rule identifier (e.g. `'required'`, `'email'`, `'min'`).
+  - `arg`: Rule argument string or `null` if no parameter was passed (e.g. `'8'` for `'min:8'`).
+  - `customMsg`: Custom error message string override or `null`.
+
+```javascript
+const rules = parseValidationRules('required|email|min:8|same:password:Must match password');
+console.log(rules);
+/*
+[
+  { name: 'required', arg: null, customMsg: null },
+  { name: 'email', arg: null, customMsg: null },
+  { name: 'min', arg: '8', customMsg: null },
+  { name: 'same', arg: 'password', customMsg: 'Must match password' }
+]
+*/
+```
+
+#### `getFieldName(element)`
+
+Extracts a canonical field name from an HTML element by checking attributes in priority order: `name` → `data-ax-bind` → `id` → fallback `'field'`.
+
+- **Signature:** `getFieldName(element: Element): string`
+- **Parameters:** `element: Element` — The HTML DOM element to inspect.
+- **Returns:** `string` — Extracted field identifier name.
+
+```javascript
+const input = document.createElement('input');
+input.setAttribute('data-ax-bind', 'state.email');
+console.log(getFieldName(input)); // 'state.email'
+```
+
+#### `validateValue(value, rules, context)`
+
+Evaluates a value against an array of parsed validation rules and returns an array of error message strings.
+
+- **Signature:** `validateValue(value: any, rules: Array<RuleObject>, context?: object): string[]`
+- **Parameters:**
+  - `value: any` — The value to validate (string, number, boolean, array).
+  - `rules: Array<RuleObject>` — Array of rule objects returned from `parseValidationRules()`.
+  - `context?: object` — Optional context object containing `{ state: object, customMessages: object }`.
+- **Returns:** `string[]` — Array of validation error messages. Empty array `[]` if valid.
+
+##### Built-in Rule Types
+
+| Rule Name | Argument | Description & Behavior |
+| --- | --- | --- |
+| `required` | — | Fails if value is empty string, `false`, or empty array. |
+| `email` | — | Validates email address format via regex. |
+| `min` | `minValue` | Checks minimum string length, number value, or array length. |
+| `max` | `maxValue` | Checks maximum string length, number value, or array length. |
+| `numeric` / `number` | — | Validates if string contains a valid number. |
+| `alpha` | — | Validates that string contains only alphabetic letters (`a-z`, `A-Z`). |
+| `alphanumeric` | — | Validates that string contains only letters and numbers. |
+| `url` | — | Validates URL format using Web `URL` constructor. |
+| `pattern` / `regex` | `regexPattern` | Validates string against custom regular expression pattern. |
+| `same` | `targetProp` | Compares value to `context.state[targetProp]`. |
+
+```javascript
+const rules = parseValidationRules('required|email');
+const errors = validateValue('invalid-email', rules);
+console.log(errors); // ['Invalid email address']
+```
+
+#### `updateValidationState(state, fieldName, errors)`
+
+Initializes or updates the `$validation` schema structure on a reactive state object.
+
+- **Signature:** `updateValidationState(state: object, fieldName: string, errors: string[]): void`
+- **Parameters:**
+  - `state: object` — The target state object to mutate.
+  - `fieldName: string` — Field identifier.
+  - `errors: string[]` — Array of error messages for the field.
+- **Returns:** `void`
+
+```javascript
+const state = {};
+updateValidationState(state, 'email', ['Invalid email address']);
+
+console.log(state.$validation);
+/*
+{
+  isValid: false,
+  errors: { email: ['Invalid email address'] },
+  fields: { email: { isValid: false, errors: ['Invalid email address'] } }
+}
+*/
+```
+
+---
+
+### Standalone Validation Example
+
+```javascript
+import {
+  parseValidationRules,
+  validateValue,
+  updateValidationState
+} from 'avenx-core/runtime';
+
+// Define target form state
+const formState = {
+  email: 'user@domain',
+  password: '123',
+  confirmPassword: '456'
+};
+
+// Define validation rules dictionary
+const formRules = {
+  email: 'required|email',
+  password: 'required|min:8',
+  confirmPassword: 'required|same:password:Passwords must match'
+};
+
+// Perform standalone validation
+for (const [field, ruleStr] of Object.entries(formRules)) {
+  const parsedRules = parseValidationRules(ruleStr);
+  const fieldErrors = validateValue(formState[field], parsedRules, { state: formState });
+  updateValidationState(formState, field, fieldErrors);
+}
+
+console.log('Is Form Valid:', formState.$validation.isValid); // false
+console.log('Form Errors:', formState.$validation.errors);
+```
+
+---
+
+## 14. Performance Profiler Utilities
+
+The performance profiler utilities (exported from `avenx-core/runtime` / `lib/core/utils/profiler.js`) provide execution profiling helpers (`profile` and `getComponentProfilingInfo`) used internally by `AvenxApp` and `AvenxComponent` to measure mount, render, patch, and lifecycle hook execution times.
+
+These utilities leverage the browser's native `performance.mark` and `performance.measure` APIs, creating entries formatted as `[Avenx] <ComponentName> - <phase>` (e.g. `[Avenx] UserCard - render` or `[Avenx] Dashboard - onMount`).
+
+### Importing
+
+```javascript
+import { profile, getComponentProfilingInfo } from 'avenx-core/runtime';
+```
+
+---
+
+### Function Reference
+
+#### `profile(enableProfiling, componentName, phase, fn)`
+
+Wraps an execution callback function `fn` with `performance.mark()` start/end points and records a `performance.measure()` entry if profiling is enabled. Supports both synchronous functions and async Promise functions.
+
+- **Signature:** `profile<T>(enableProfiling: boolean, componentName: string, phase: string, fn: () => T): T`
+- **Parameters:**
+  - `enableProfiling: boolean` — Flag controlling whether performance marks and measures should be created.
+  - `componentName: string` — Name of the component being profiled (e.g. `'UserCard'`).
+  - `phase: string` — The phase being measured (e.g. `'mount'`, `'render'`, `'patch'`, `'onMount'`).
+  - `fn: () => T` — The function or async callback to execute and profile.
+- **Returns:** `T` — The return value of `fn()` (or resolved Promise value).
+
+##### Performance Mark Names & Measurement Format
+
+- **Start Mark:** `ax-start-<componentName>-<phase>-<id>`
+- **End Mark:** `ax-end-<componentName>-<phase>-<id>`
+- **Performance Measure Label:** `[Avenx] <componentName> - <phase>`
+
+```javascript
+import { profile } from 'avenx-core/runtime';
+
+// Programmatically profile a heavy rendering or calculation block
+const result = profile(true, 'DataGrid', 'render', () => {
+  return computeComplexLayoutData();
+});
+```
+
+#### `getComponentProfilingInfo(element)`
+
+Traverses the DOM tree upwards starting from `element` to find the nearest parent `AvenxComponent` instance. Resolves whether profiling is enabled and retrieves the component's constructor name.
+
+- **Signature:** `getComponentProfilingInfo(element: Element | null): { enableProfiling: boolean, componentName: string }`
+- **Parameters:** `element: Element | null` — Target HTML DOM node.
+- **Returns:** `{ enableProfiling: boolean, componentName: string }`
+  - `enableProfiling`: `true` if `component.$app.enableProfiling` or `window.__avenx_enable_profiling` is enabled.
+  - `componentName`: Component constructor name (or `'UnknownComponent'` if no parent component is found).
+
+```javascript
+import { getComponentProfilingInfo } from 'avenx-core/runtime';
+
+const button = document.querySelector('#submit-btn');
+const { enableProfiling, componentName } = getComponentProfilingInfo(button);
+
+console.log(componentName);     // e.g. "UserForm"
+console.log(enableProfiling);   // true or false
+```
+
+---
+
+### Programmatic Profiling Benchmark Example
+
+```javascript
+import { profile } from 'avenx-core/runtime';
+
+async function measureCustomWorkflow() {
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  // Measure synchronous operation
+  const html = profile(isDev, 'CustomWidget', 'template-build', () => {
+    return buildWidgetMarkup();
+  });
+
+  // Measure asynchronous API fetch
+  const data = await profile(isDev, 'CustomWidget', 'async-fetch', async () => {
+    const res = await fetch('/api/widget-data');
+    return res.json();
+  });
+
+  // Inspect generated performance entries in Chrome/Firefox DevTools Performance tab
+  const measures = performance.getEntriesByType('measure')
+    .filter(m => m.name.startsWith('[Avenx]'));
+
+  console.log('Avenx Performance Measures:', measures);
+}
 ```
 

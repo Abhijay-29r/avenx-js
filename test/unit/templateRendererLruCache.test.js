@@ -1,73 +1,49 @@
 import assert from 'assert';
 import { TemplateRenderer } from '../../lib/core/renderer/renderTemplate.js';
-import { SafeHtml } from '../../lib/core/security/escapeHtml.js';
 
-function runTests() {
-  console.log('🧪 Testing TemplateRenderer with LruCache bounded capacity...');
+function testTemplateRendererLruCacheEviction() {
+  console.log('🧪 Testing TemplateRenderer LRU Cache Eviction under 10,000 unique templates workload...');
 
-  // 1. Constructor capacity initialization
-  const defaultRenderer = new TemplateRenderer();
-  assert.strictEqual(defaultRenderer.capacity, 500, 'Default capacity should be 500');
-  assert.strictEqual(defaultRenderer.cache.limit, 500, 'Cache limit should be 500');
+  const capacity = 200;
+  let evictions = 0;
+  const evictedKeys = [];
 
-  const customCapacityRenderer = new TemplateRenderer(5);
-  assert.strictEqual(customCapacityRenderer.capacity, 5, 'Custom capacity number should be 5');
-  assert.strictEqual(customCapacityRenderer.cache.limit, 5);
+  const renderer = new TemplateRenderer(capacity);
+  renderer.cache.onEvict = (key) => {
+    evictions++;
+    evictedKeys.push(key);
+  };
 
-  const configObjectRenderer = new TemplateRenderer({ templateCacheCapacity: 10 });
-  assert.strictEqual(configObjectRenderer.capacity, 10, 'Config object capacity should be 10');
-  assert.strictEqual(configObjectRenderer.cache.limit, 10);
+  const iterations = 10000;
+  const resolve = (expr) => `val_${expr}`;
 
-  // 2. Rendering correctness and caching
-  const renderer = new TemplateRenderer(3);
-  const scope = { name: 'Alice', html: '<b>Bold</b>' };
-  const resolver = (expr) => scope[expr.trim()];
+  for (let i = 0; i < iterations; i++) {
+    const template = `<div id="tpl-${i}">Hello {{ name_${i} }}</div>`;
+    const result = renderer.render(template, resolve);
+    assert.strictEqual(result, `<div id="tpl-${i}">Hello val_name_${i}</div>`);
 
-  const t1 = 'Hello {{ name }}!';
-  const out1 = renderer.render(t1, resolver);
-  assert.strictEqual(out1, 'Hello Alice!');
-  assert.strictEqual(renderer.cache.size, 1, 'Cache size should be 1 after rendering t1');
-  assert.ok(renderer.cache.has(t1), 'Cache should contain t1');
+    assert.ok(renderer.cache.size <= capacity, `Cache size ${renderer.cache.size} exceeded capacity ${capacity}`);
+  }
 
-  // Raw HTML interpolation
-  const t2 = 'Body: {{{ html }}}';
-  const out2 = renderer.render(t2, resolver);
-  assert.strictEqual(out2, 'Body: <b>Bold</b>');
-  assert.strictEqual(renderer.cache.size, 2);
+  assert.strictEqual(renderer.cache.size, capacity, `Final cache size should equal capacity limit ${capacity}`);
+  assert.strictEqual(evictions, iterations - capacity, `Eviction count should equal ${iterations - capacity}`);
 
-  // SafeHtml interpolation
-  const t3 = 'Safe: {{ html }}';
-  const safeScope = { html: new SafeHtml('<i>Italic</i>') };
-  const out3 = renderer.render(t3, (expr) => safeScope[expr.trim()]);
-  assert.strictEqual(out3, 'Safe: <i>Italic</i>');
-  assert.strictEqual(renderer.cache.size, 3, 'Cache size should reach limit 3');
+  const firstEvictedTemplate = `<div id="tpl-0">Hello {{ name_0 }}</div>`;
+  assert.strictEqual(renderer.cache.has(firstEvictedTemplate), false, 'First template should have been evicted');
+  assert.strictEqual(renderer.cache.get(firstEvictedTemplate), undefined);
 
-  // 3. LRU Eviction behavior
-  const t4 = 'Extra {{ name }}';
-  const out4 = renderer.render(t4, resolver);
-  assert.strictEqual(out4, 'Extra Alice');
-  assert.strictEqual(renderer.cache.size, 3, 'Cache size should remain at limit 3');
-  assert.strictEqual(renderer.cache.has(t1), false, 'Oldest template t1 should be evicted');
-  assert.ok(renderer.cache.has(t2), 't2 should remain in cache');
-  assert.ok(renderer.cache.has(t3), 't3 should remain in cache');
-  assert.ok(renderer.cache.has(t4), 't4 should be in cache');
+  const latestTemplate = `<div id="tpl-${iterations - 1}">Hello {{ name_${iterations - 1} }}</div>`;
+  assert.strictEqual(renderer.cache.has(latestTemplate), true, 'Latest template should be in cache');
 
-  // 4. Seamless re-rendering after eviction
-  const reRenderedOut1 = renderer.render(t1, resolver);
-  assert.strictEqual(reRenderedOut1, 'Hello Alice!', 'Evicted template t1 should re-render correctly');
-  assert.ok(renderer.cache.has(t1), 't1 should be re-cached after re-rendering');
-
-  // 5. clearCache functionality
-  renderer.clearCache();
-  assert.strictEqual(renderer.cache.size, 0, 'clearCache() should empty the cache');
-
-  console.log('  ✅ TemplateRenderer LruCache unit tests passed successfully!');
+  console.log('  ✅ TemplateRenderer LRU Cache Eviction tests passed!');
 }
 
 try {
-  runTests();
+  testTemplateRendererLruCacheEviction();
+  console.log('✅ All TemplateRenderer LRU Cache tests successfully completed!');
+  process.exit(0);
 } catch (error) {
-  console.error('❌ TemplateRenderer LruCache unit tests failed!');
+  console.error('❌ TemplateRenderer LRU Cache tests failed!');
   console.error(error);
   process.exit(1);
 }

@@ -138,71 +138,83 @@ AvenxError (Base framework runtime error)
 
 ---
 
-### Constructor Signatures & Properties
+### Constructor Signatures & Location Options
 
 #### `CompilerError`
 
 ```javascript
-new CompilerError(code, message, details)
+new CompilerError(code, ...args, locationOptions)
 ```
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `code` | `string` | The AvenxErrorCode identifier (e.g. `'AVX_C02'`). |
-| `message` | `string \| ...args` | Arguments formatted into the template message. |
-| `details` | `object` *(optional)* | Diagnostic metadata object containing extra context. |
+| `code` | `string` | The AvenxErrorCode identifier (e.g. `'AVX_C02'`, `'AVX_W28'`). |
+| `...args` | `any[]` | Arguments formatted into the template message placeholders (`{0}`, `{1}`). |
+| `locationOptions` | `object` *(optional)* | Location object containing `{ source, filename, line, column, index, length }`. |
+
+If a location object is passed as the last argument, `CompilerError` automatically invokes `setLocation(locationOptions)` to compute line/column coordinates and generate a visual code frame snippet with carets (`^`).
 
 #### `TemplateValidationError`
 
 ```javascript
-new TemplateValidationError(code, message, sourceLine)
+new TemplateValidationError(code, ...args, locationOptions)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `code` | `string` | The template error or warning code (e.g. `'AVX_W02'`, `'AVX_W03'`, `'AVX_W04'`). |
-| `message` | `string \| ...args` | Arguments formatted within the template message. |
-| `sourceLine` | `number \| null` *(optional)* | The line number in the component template or script where the error occurred. |
+Specialized for template syntax, HTML parsing, structural directives, tag matching, and static validation warnings or errors (e.g., `AVX_W02`, `AVX_W03`, `AVX_W04`, `AVX_W05`, `AVX_W06`, `AVX_W28`, `AVX_W30`).
 
 #### `StyleCompilerError`
 
 ```javascript
-new StyleCompilerError(code, message, cssFilePath)
+new StyleCompilerError(code, ...args, locationOptions)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `code` | `string` | The style compiler error or warning code (e.g. `'AVX_W24'`, `'AVX_W31'`). |
-| `message` | `string \| ...args` | Arguments formatted within the template message (e.g. preprocessor type or cause). |
-| `cssFilePath` | `string \| null` *(optional)* | The stylesheet or component path where the CSS error occurred. |
+Specialized for CSS preprocessor processing, missing style dependencies, preprocessor failures, and CSS scoping errors (e.g., `AVX_W24`, `AVX_W31`).
 
 #### `BuildError`
 
 ```javascript
-new BuildError(code, message, buildContext)
+new BuildError(code, ...args, locationOptions)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `code` | `string` | The build error or warning code (e.g. `'AVX_C01'`, `'AVX_C02'`, `'AVX_C03'`, `'AVX_W01'`, `'AVX_W25'`). |
-| `message` | `string \| ...args` | Arguments formatted within the template message. |
-| `buildContext` | `object \| string \| null` *(optional)* | Context metadata object or string detailing build stage or file paths. |
+Specialized for build pipeline failures, missing `src` or output `dist` directories, component class name collisions, invalid configuration files, and bundle budget errors (e.g., `AVX_C01`, `AVX_C02`, `AVX_C03`, `AVX_W01`, `AVX_W25`).
 
 ---
 
-### Public Properties Reference
+### Location Resolution & Code Frames (`setLocation`)
+
+`CompilerError` provides the `.setLocation(loc)` method to attach location metadata and generate visual code frame snippets highlighting error positions with carets (`^`):
+
+```javascript
+const err = new TemplateValidationError(AvenxErrorCodes.COMPILER_MULTIPLE_STATE_TAGS);
+
+err.setLocation({
+  source: componentSource,
+  index: secondStateTagIndex,
+  filename: 'src/components/card.component.js'
+});
+```
+
+#### Public Properties Reference
 
 | Property | Type | Class Source | Description |
 | --- | --- | --- | --- |
-| `code` | `string` | `AvenxError` | The raw error code passed to the constructor (e.g. `'AVX_C03'`). |
+| `code` | `string` | `AvenxError` | The raw error code identifier (e.g. `'AVX_C03'`). |
 | `name` | `string` | Subclass | Custom name identifier (`'CompilerError'`, `'TemplateValidationError'`, `'StyleCompilerError'`, `'BuildError'`). |
-| `message` | `string` | `AvenxError` | Fully formatted error message, prefixed with `[code]`. |
-| `sourceLine` | `number \| null` | `TemplateValidationError` / `AvenxError` | Line number in the component template or script where the error occurred. |
+| `message` | `string` | `AvenxError` | Fully formatted error message, prefixed with `[code]` and appended with the visual code frame if available. |
+| `line` | `number \| undefined` | `CompilerError` | 1-based line number in the source file where the error occurred. |
+| `column` | `number \| undefined` | `CompilerError` | 1-based column offset in the source file where the error occurred. |
+| `filename` | `string \| undefined` | `CompilerError` | File path of the source file being compiled. |
+| `source` | `string \| undefined` | `CompilerError` | Raw template or component source string. |
+| `frame` | `string \| undefined` | `CompilerError` | Formatted visual code frame snippet highlighting the error location with carets (`^`). |
 | `cssFilePath` | `string \| null` | `StyleCompilerError` | File path of the stylesheet involved in preprocessor or styling failures. |
 | `buildContext` | `object \| string \| null` | `BuildError` | Contextual object or string detailing build directory, config, or duplicate component files. |
 | `details` | `object` | `AvenxError` | Diagnostic metadata object containing extra context (e.g., failed expression or props). |
-| `componentName` | `string \| null` | `AvenxError` | Name of the component class or file where the exception originated. |
 | `stack` | `string` | `Error` | V8 call stack string. |
+
+#### Static Helper Methods
+
+- **`CompilerError.formatCodeFrame(source, line, column, options)`**: Generates a formatted code frame string with carets under `line:column`.
+- **`CompilerError.getLineAndColumn(source, index)`**: Computes 1-based `{ line, column }` coordinates from a character offset `index`.
 
 ---
 
@@ -853,6 +865,201 @@ For a subtree to qualify as static and be successfully optimized, it must:
 - Not contain `<@for>` or other structural directives that produce dynamic output.
 
 Subtrees that meet these requirements are hoisted out of the render function and reused across updates without re-evaluation, improving performance for components with large amounts of unchanging markup.
+
+### AVX_W26 — COMPONENT_METHOD_RESERVED_KEY_COLLISION
+
+**Warning Message**
+
+```text
+Method name "{0}" in component "{1}" collides with a reserved lifecycle hook or instance method.
+```
+
+**Cause:** This warning is emitted during component compilation or runtime instantiation when a component declares an action, method, or property name that collides with reserved internal `AvenxComponent` prototype keys or lifecycle hook names (e.g. `mount`, `update`, `destroy`, `onMount`, `onUpdate`).
+
+Declaring a component action or property with a reserved name overrides the framework's internal component lifecycle methods or prototype functionality, leading to unexpected behavior, broken DOM patching, or unhandled recursion issues.
+
+**Reserved Component Prototype Keys & Lifecycle Hooks:**
+
+| Category | Reserved Keys | Description |
+| --- | --- | --- |
+| **Core Lifecycle Methods** | `mount`, `unmount`, `update`, `destroy`, `scheduleUpdate` | Framework internal methods controlling component mounting, unmounting, DOM diffing/patching, and update scheduling. |
+| **Lifecycle Hooks** | `onBeforeMount`, `onMount`, `onBeforeUpdate`, `onUpdate`, `onUnmount`, `onActivate`, `onDeactivate`, `onErrorCaptured` | Reserved framework lifecycle hook callback names. |
+| **Instance Properties & API Helpers** | `$parent`, `$refs`, `$slots`, `$route`, `$keepAlive`, `$nextTick`, `nextTick`, `setProps`, `clearKeepAliveCache`, `watch` | Reserved component instance properties and API methods. |
+
+**Resolution:** To resolve this warning:
+
+1. Rename custom component actions or methods to avoid names in the reserved list (e.g. rename `update` to `updateUserProfile`, or `destroy` to `handleDelete`).
+2. If you intended to hook into a framework lifecycle event (such as `onMount` or `onUpdate`), implement it as a standard lifecycle hook callback function rather than redefining it as a custom action method.
+
+**Incorrect**
+
+Defining custom actions with names matching reserved keys:
+
+```html
+<state user="Guest" />
+
+<!-- ❌ Collides with internal AvenxComponent.prototype.update -->
+<action name="update">
+  console.log("Updating user...");
+</action>
+
+<!-- ❌ Collides with internal AvenxComponent.prototype.destroy -->
+<action name="destroy">
+  console.log("Destroying component...");
+</action>
+
+<div>
+  <p>User: {{ user }}</p>
+  <button @click="update()">Update</button>
+</div>
+```
+
+**Correct**
+
+Renaming custom actions to distinct, non-reserved names:
+
+```html
+<state user="Guest" />
+
+<!-- ✅ Renamed to clear, non-colliding action names -->
+<action name="updateUser">
+  console.log("Updating user...");
+</action>
+
+<action name="handleDelete">
+  console.log("Deleting item...");
+</action>
+
+<div>
+  <p>User: {{ user }}</p>
+  <button @click="updateUser()">Update</button>
+</div>
+```
+
+### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
+**Warning Message**
+
+```text
+Multiple <state> tags found in component source. Only the first <state> declaration is reactive; subsequent tags are ignored.
+```
+
+**Cause:** This warning is emitted during compilation when a `.component.js` or `.page.js` file contains more than one `<state />` tag declaration. Avenx-JS component templates support a single top-level state block where initial state properties are defined.
+
+**Compiler Fallback Behavior:**
+
+When multiple `<state />` tags are declared:
+1. The compiler evaluates and parses **only the first** `<state />` tag found in the component source file.
+2. All subsequent `<state />` tags are skipped and ignored during reactive state proxy creation. Any properties declared in secondary `<state />` tags will not be initialized on the component's reactive `state` object.
+
+**Resolution:** To resolve this warning:
+
+Consolidate all initial state properties into a single `<state />` tag at the top of your component file.
+
+**Incorrect**
+
+Declaring multiple `<state />` tags in a single component file:
+
+```html
+<!-- ❌ First <state> declaration (parsed) -->
+<state count="0" title="Counter" />
+
+<!-- ❌ Second <state> declaration (ignored; emits AVX_W28) -->
+<state isLoading="false" username="Guest" />
+
+<action name="increment">
+  state.count++;
+</action>
+
+<div>
+  <h1>{{ title }}</h1>
+  <p>Count: {{ count }}</p>
+  <!-- username and isLoading are NOT initialized on state! -->
+</div>
+```
+
+**Correct**
+
+Consolidating all initial state properties into a single `<state />` tag:
+
+```html
+<!-- ✅ All initial state properties consolidated into a single <state /> declaration -->
+<state count="0" title="Counter" isLoading="false" username="Guest" />
+
+<action name="increment">
+  state.count++;
+</action>
+
+<div>
+  <h1>{{ title }}</h1>
+  <p>Count: {{ count }} (User: {{ username }})</p>
+</div>
+```
+
+### AVX_W31 — COMPILER_PREPROCESSOR_FAILED
+
+**Warning Message**
+
+```text
+Error compiling {0}: {1}
+```
+
+**Cause:** This warning is emitted during component compilation when the configured CSS preprocessor (e.g. Sass, SCSS, Less, PostCSS) encounters a syntax error or execution failure while processing stylesheet content in `.component.css` or `.page.css` files.
+
+When `StyleProcessor` catches a compilation error from the underlying preprocessor engine, it emits **AVX_W31** containing the preprocessor type (e.g. `scss`) and the detailed parser error message (e.g. `Undefined variable: "$theme-bg"` or `expected "}"`). The compiler then gracefully falls back to passing raw CSS content through the build pipeline.
+
+**Common Causes:**
+
+1. **Preprocessor Syntax Errors:** Referencing undefined SCSS/Sass variables (`$primary`), calling un-imported mixins (`@include flex-center`), unclosed block braces (`{`), or invalid nesting syntax.
+2. **Indented Sass Format Violations:** Mixing tabs and spaces or improper indentation levels when `style.preprocessor` is set to `"sass"`.
+3. **Missing Imports or Files:** Attempting to `@import` or `@use` an external SCSS/Less stylesheet file that does not exist or has an incorrect file path.
+4. **PostCSS Plugin Pipeline Failures:** Malformed PostCSS directives or failing PostCSS plugin transformations.
+
+**Resolution Steps:**
+
+1. **Inspect Preprocessor Output:** Review the detailed error message in `[AVX_W31]` to locate the failing file path, line number, and character position reported by the preprocessor.
+2. **Fix Syntax Errors:** Correct typos in variable names, add missing `@import`/`@use` statements, or ensure all braces `{}` and quotes `""` are properly balanced.
+3. **Verify Preprocessor Package:** Ensure the required preprocessor npm package (`sass`, `less`, `postcss`) is installed in `devDependencies` and matches the `style.preprocessor` option configured in `avenx.config.json`.
+
+**Incorrect**
+
+Invalid SCSS syntax (referencing an undefined variable `$theme-color` and missing a closing brace):
+
+```css
+<@css>
+  .card {
+    /* ❌ Undefined SCSS variable and missing closing brace; emits AVX_W31 */
+    background: $theme-color;
+    padding: 1.5rem;
+</@css>
+```
+
+Invalid Sass indented format (mixing invalid indentation):
+
+```css
+<@css>
+  .button
+    color: red
+  /* ❌ Indentation syntax mismatch in Sass mode */
+    background-color: blue
+</@css>
+```
+
+**Correct**
+
+Valid SCSS stylesheet with defined variables and properly balanced braces:
+
+```css
+<@css>
+  $theme-color: #646cff;
+
+  .card {
+    /* ✅ Properly defined variable and balanced closing brace */
+    background: $theme-color;
+    padding: 1.5rem;
+  }
+</@css>
+```
 
 ### AVX_W07 — PAGE_ALREADY_REGISTERED
 
@@ -2415,4 +2622,77 @@ Unidirectional computed dependency:
 <!-- ✅ Both computed properties derive unidirectionally from state.count -->
 <computed name="double" value="count * 2" />
 <computed name="triple" value="count * 3" />
+```
+
+### AVX_R05 — COMPUTED_EVALUATION_FAILED
+
+**Error Message**
+
+```text
+[AVX_R05] Failed to evaluate computed property "{0}". Expression: "{1}". Error: {2}
+```
+
+**Cause:** This error is thrown at runtime when an unhandled JavaScript exception or type error occurs during the evaluation of a `<computed>` property's getter function. When `ComputedRegistry` evaluates the computed expression, any runtime error (such as reading a property of `null` or `undefined`, calling a non-existent function, or executing an invalid math operation) is caught, wrapped in **AVX_R05**, and thrown with details identifying the computed property name, expression string, and root cause error message.
+
+This typically happens for a few common reasons:
+
+- **Uninitialized or Null State Reference**: Accessing nested object properties (e.g. `user.profile.name`) when `user` or `profile` is `null` or `undefined` (such as before an async API fetch completes).
+- **Type Mismatch or Invalid Method Calls**: Calling array or string methods on non-array or non-string values (e.g. `items.filter(...)` when `items` is initialized to `null`).
+- **Referencing Undefined State Variables**: Referencing a state variable in a computed expression that was not declared in the component's `<state>` block or instance state.
+
+**Resolution:** To resolve this error:
+
+1. **Use Optional Chaining (`?.`)**: Protect nested property accesses against `null` or `undefined` values during initial component renders.
+2. **Provide Fallback Values**: Use logical OR (`||`) or nullish coalescing (`??`) operators to ensure computed getters always return a valid safe default.
+3. **Initialize Reactive State**: Ensure all reactive state variables referenced by computed properties are explicitly declared in the `<state>` tag with appropriate initial types (e.g. `items="[]"`, `user="null"`).
+
+**Incorrect**
+
+Accessing nested properties on an uninitialized state object:
+
+```html
+<state user="null" />
+
+<!-- ❌ Throws AVX_R05: Cannot read properties of null (reading 'firstName') -->
+<computed name="userFullName" value="user.firstName + ' ' + user.lastName" />
+```
+
+Calling array methods on an uninitialized state property:
+
+```html
+<state searchResults="null" />
+
+<!-- ❌ Throws AVX_R05: searchResults.filter is not a function -->
+<computed name="activeResults" value="searchResults.filter(item => item.active)" />
+```
+
+**Correct**
+
+Using optional chaining and fallback defaults:
+
+```html
+<state user="null" />
+
+<!-- ✅ Safe evaluation: returns fallback 'Guest' when user is null -->
+<computed name="userFullName" value="user ? (user.firstName + ' ' + user.lastName) : 'Guest'" />
+```
+
+Initializing state with empty collections:
+
+```html
+<state searchResults="[]" />
+
+<!-- ✅ Safe evaluation: empty array permits array methods without throwing -->
+<computed name="activeResults" value="searchResults ? searchResults.filter(item => item.active) : []" />
+```
+
+**Defensive Coding Example**
+
+```html
+<state profile="null" />
+
+<computed 
+  name="avatarUrl" 
+  value="profile?.avatar ?? '/images/default-avatar.png'" 
+/>
 ```
