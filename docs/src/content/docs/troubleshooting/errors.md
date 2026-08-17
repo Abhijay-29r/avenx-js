@@ -138,71 +138,83 @@ AvenxError (Base framework runtime error)
 
 ---
 
-### Constructor Signatures & Properties
+### Constructor Signatures & Location Options
 
 #### `CompilerError`
 
 ```javascript
-new CompilerError(code, message, details)
+new CompilerError(code, ...args, locationOptions)
 ```
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `code` | `string` | The AvenxErrorCode identifier (e.g. `'AVX_C02'`). |
-| `message` | `string \| ...args` | Arguments formatted into the template message. |
-| `details` | `object` *(optional)* | Diagnostic metadata object containing extra context. |
+| `code` | `string` | The AvenxErrorCode identifier (e.g. `'AVX_C02'`, `'AVX_W28'`). |
+| `...args` | `any[]` | Arguments formatted into the template message placeholders (`{0}`, `{1}`). |
+| `locationOptions` | `object` *(optional)* | Location object containing `{ source, filename, line, column, index, length }`. |
+
+If a location object is passed as the last argument, `CompilerError` automatically invokes `setLocation(locationOptions)` to compute line/column coordinates and generate a visual code frame snippet with carets (`^`).
 
 #### `TemplateValidationError`
 
 ```javascript
-new TemplateValidationError(code, message, sourceLine)
+new TemplateValidationError(code, ...args, locationOptions)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `code` | `string` | The template error or warning code (e.g. `'AVX_W02'`, `'AVX_W03'`, `'AVX_W04'`). |
-| `message` | `string \| ...args` | Arguments formatted within the template message. |
-| `sourceLine` | `number \| null` *(optional)* | The line number in the component template or script where the error occurred. |
+Specialized for template syntax, HTML parsing, structural directives, tag matching, and static validation warnings or errors (e.g., `AVX_W02`, `AVX_W03`, `AVX_W04`, `AVX_W05`, `AVX_W06`, `AVX_W28`, `AVX_W30`).
 
 #### `StyleCompilerError`
 
 ```javascript
-new StyleCompilerError(code, message, cssFilePath)
+new StyleCompilerError(code, ...args, locationOptions)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `code` | `string` | The style compiler error or warning code (e.g. `'AVX_W24'`, `'AVX_W31'`). |
-| `message` | `string \| ...args` | Arguments formatted within the template message (e.g. preprocessor type or cause). |
-| `cssFilePath` | `string \| null` *(optional)* | The stylesheet or component path where the CSS error occurred. |
+Specialized for CSS preprocessor processing, missing style dependencies, preprocessor failures, and CSS scoping errors (e.g., `AVX_W24`, `AVX_W31`).
 
 #### `BuildError`
 
 ```javascript
-new BuildError(code, message, buildContext)
+new BuildError(code, ...args, locationOptions)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `code` | `string` | The build error or warning code (e.g. `'AVX_C01'`, `'AVX_C02'`, `'AVX_C03'`, `'AVX_W01'`, `'AVX_W25'`). |
-| `message` | `string \| ...args` | Arguments formatted within the template message. |
-| `buildContext` | `object \| string \| null` *(optional)* | Context metadata object or string detailing build stage or file paths. |
+Specialized for build pipeline failures, missing `src` or output `dist` directories, component class name collisions, invalid configuration files, and bundle budget errors (e.g., `AVX_C01`, `AVX_C02`, `AVX_C03`, `AVX_W01`, `AVX_W25`).
 
 ---
 
-### Public Properties Reference
+### Location Resolution & Code Frames (`setLocation`)
+
+`CompilerError` provides the `.setLocation(loc)` method to attach location metadata and generate visual code frame snippets highlighting error positions with carets (`^`):
+
+```javascript
+const err = new TemplateValidationError(AvenxErrorCodes.COMPILER_MULTIPLE_STATE_TAGS);
+
+err.setLocation({
+  source: componentSource,
+  index: secondStateTagIndex,
+  filename: 'src/components/card.component.js'
+});
+```
+
+#### Public Properties Reference
 
 | Property | Type | Class Source | Description |
 | --- | --- | --- | --- |
-| `code` | `string` | `AvenxError` | The raw error code passed to the constructor (e.g. `'AVX_C03'`). |
+| `code` | `string` | `AvenxError` | The raw error code identifier (e.g. `'AVX_C03'`). |
 | `name` | `string` | Subclass | Custom name identifier (`'CompilerError'`, `'TemplateValidationError'`, `'StyleCompilerError'`, `'BuildError'`). |
-| `message` | `string` | `AvenxError` | Fully formatted error message, prefixed with `[code]`. |
-| `sourceLine` | `number \| null` | `TemplateValidationError` / `AvenxError` | Line number in the component template or script where the error occurred. |
+| `message` | `string` | `AvenxError` | Fully formatted error message, prefixed with `[code]` and appended with the visual code frame if available. |
+| `line` | `number \| undefined` | `CompilerError` | 1-based line number in the source file where the error occurred. |
+| `column` | `number \| undefined` | `CompilerError` | 1-based column offset in the source file where the error occurred. |
+| `filename` | `string \| undefined` | `CompilerError` | File path of the source file being compiled. |
+| `source` | `string \| undefined` | `CompilerError` | Raw template or component source string. |
+| `frame` | `string \| undefined` | `CompilerError` | Formatted visual code frame snippet highlighting the error location with carets (`^`). |
 | `cssFilePath` | `string \| null` | `StyleCompilerError` | File path of the stylesheet involved in preprocessor or styling failures. |
 | `buildContext` | `object \| string \| null` | `BuildError` | Contextual object or string detailing build directory, config, or duplicate component files. |
 | `details` | `object` | `AvenxError` | Diagnostic metadata object containing extra context (e.g., failed expression or props). |
-| `componentName` | `string \| null` | `AvenxError` | Name of the component class or file where the exception originated. |
 | `stack` | `string` | `Error` | V8 call stack string. |
+
+#### Static Helper Methods
+
+- **`CompilerError.formatCodeFrame(source, line, column, options)`**: Generates a formatted code frame string with carets under `line:column`.
+- **`CompilerError.getLineAndColumn(source, index)`**: Computes 1-based `{ line, column }` coordinates from a character offset `index`.
 
 ---
 
