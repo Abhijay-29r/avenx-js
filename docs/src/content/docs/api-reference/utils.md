@@ -568,133 +568,184 @@ const watcher = new AvenxWatcher(
 watcher.teardown();
 ```
 
-## AvenxLogger
+## 9. AvenxLogger
 
-The `AvenxLogger` class provides Avenx-JS's built-in logging system. It supports configurable log levels, custom formatting, and custom transports, making it suitable for both development and production environments.
+The `AvenxLogger` class provides Avenx-JS's built-in logging system. It supports configurable log levels, custom formatting, context tagging, and custom transports, making it suitable for both development and production environments.
 
-A shared logger instance is also exported from the runtime for convenient use throughout your application.
+A shared global logger instance (`logger`) and severity constants (`LogLevels`) are exported from `avenx-core/runtime`.
 
 ### Importing
 
-```js
-import { AvenxLogger, logger } from "avenx-core/runtime";
+```javascript
+import { AvenxLogger, logger, LogLevels, formatContextTag, defaultFormatter } from "avenx-core/runtime";
 ```
 
-- `AvenxLogger` creates a new logger instance with custom configuration.
-- `logger` is the default global logger instance provided by Avenx-JS.
+- `AvenxLogger`: Central logger class for instantiating custom loggers.
+- `logger`: The default shared global logger instance used across the framework runtime.
+- `LogLevels`: Enum-like object mapping severity level names to numeric priorities.
 
 ---
 
-## Constructor
+### Constructor & Configuration
 
-```js
+```javascript
 const logger = new AvenxLogger(config);
 ```
 
-### Configuration Options
+#### `LoggingConfig` Schema
 
 | Option | Type | Default | Description |
-| ------- | ---- | ------- | ----------- |
-| `level` | `string` | `"info"` | Minimum log level to output. |
-| `silent` | `boolean` | `false` | Disables all logging when enabled. |
-| `formatter` | `Function` | `defaultFormatter` | Formats log messages before they are passed to transports. |
-| `transports` | `Array` | `[consoleTransport]` | Collection of custom transport targets. |
+| --- | --- | --- | --- |
+| `level` | `string` | `"info"` | Minimum severity log level to output (`'trace'`, `'debug'`, `'info'`, `'warn'`, `'error'`, `'fatal'`, `'off'`, `'silent'`). |
+| `silent` | `boolean` | `false` | When `true`, suppresses all log outputs. |
+| `formatter` | `(level: string, args: any[]) => any[]` | `defaultFormatter` | Custom formatting function applied to log messages before dispatching to transports. |
+| `transports` | `Array<Object \| Function>` | `[consoleTransport]` | Collection of transport targets (e.g. `console`, file writer, or HTTP log stream). |
 
 ---
 
-## Log Levels
+### Log Levels & `LogLevels` Constants
 
-Supported log levels are listed below in ascending order of severity.
+Log levels in Avenx-JS are ordered by ascending severity priority. `LogLevels` maps level names to numeric priority values:
 
-| Level | Description |
-| ------- | ----------- |
-| `trace` | Detailed diagnostic information. |
-| `debug` | Development and debugging messages. |
-| `info` | General application information. |
-| `warn` | Warning messages. |
-| `error` | Error messages. |
-| `fatal` | Critical failures. |
-| `off` | Disables logging. |
-| `silent` | Alias for `off`. |
+```javascript
+import { LogLevels } from "avenx-core/runtime";
 
-The logger only outputs messages whose severity is greater than or equal to the configured log level.
-
----
-
-## Logging Methods
-
-Every logger instance provides the following methods.
-
-| Method | Description |
-| ------- | ----------- |
-| `trace(...args)` | Logs a trace message. |
-| `debug(...args)` | Logs a debug message. |
-| `info(...args)` | Logs an informational message. |
-| `log(...args)` | Alias for `info()`. |
-| `warn(...args)` | Logs a warning. |
-| `error(...args)` | Logs an error. |
-| `fatal(...args)` | Logs a fatal error. |
-
----
-
-## Using the Global Logger
-
-The runtime exports a shared logger instance that can be used anywhere in your application.
-
-```js
-import { logger } from "avenx-core/runtime";
-
-logger.info("Application started.");
-logger.warn("Cache miss.");
-logger.error("Failed to load configuration.");
+console.log(LogLevels);
+/*
+{
+  trace: 0,
+  debug: 1,
+  info: 2,
+  warn: 3,
+  error: 4,
+  fatal: 5,
+  off: 6,
+  silent: 6
+}
+*/
 ```
 
-This is the same instance that `AvenxApp` configures when you pass a `logging` option to its constructor, so `logger.configure()` calls and the `logging` option affect the same shared state:
+| Severity Level | Priority Value | Description |
+| --- | --- | --- |
+| `trace` | `0` | Highly verbose diagnostic and internal state tracing. |
+| `debug` | `1` | Development and debugging messages. |
+| `info` | `2` | Standard application operational events. |
+| `warn` | `3` | Warning messages for potential errors or non-fatal issues. |
+| `error` | `4` | Error messages for failed operations or caught exceptions. |
+| `fatal` | `5` | Critical unrecoverable application failures. |
+| `off` / `silent` | `6` | Disables all log outputs completely. |
 
-```js
+The logger outputs messages only when their severity priority is greater than or equal to the active configured level.
+
+---
+
+### Class Methods
+
+#### `setLevel(level)`
+
+Programmatically sets the minimum log severity level for the logger instance.
+
+- **Signature:** `setLevel(level: string): void`
+- **Parameters:** `level: string` — Target log level name (e.g. `'debug'`, `'warn'`, `'silent'`).
+- **Returns:** `void`
+
+```javascript
+import { logger } from "avenx-core/runtime";
+
+// Enable verbose debug logging during dev
+logger.setLevel('debug');
+
+// Suppress info/debug logs in production
+logger.setLevel('warn');
+```
+
+#### `configure(config)`
+
+Reconfigures one or more logger settings at runtime.
+
+- **Signature:** `configure(config: LoggingConfig): void`
+- **Parameters:** `config: LoggingConfig` — Object containing updated options (`level`, `silent`, `formatter`, `transports`).
+- **Returns:** `void`
+
+```javascript
+logger.configure({
+  level: 'error',
+  silent: false,
+});
+```
+
+If `level` is set to an invalid string, `configure()` logs a warning and falls back to `"info"`.
+
+#### `shouldLog(level)`
+
+Evaluates whether a message of the given severity level will be logged under the current configuration.
+
+- **Signature:** `shouldLog(level: string): boolean`
+- **Parameters:** `level: string` — Log level name to evaluate.
+- **Returns:** `boolean` — `true` if the level will be logged, otherwise `false`.
+
+```javascript
+if (logger.shouldLog('debug')) {
+  const detailedPayload = buildComplexDiagnosticData();
+  logger.debug('Diagnostic data:', detailedPayload);
+}
+```
+
+#### `write(level, ...args)`
+
+Writes a log statement through the configured formatter and dispatches it to all transports if `shouldLog(level)` is `true`.
+
+- **Signature:** `write(level: string, ...args: any[]): void`
+- **Parameters:**
+  - `level: string` — Severity level name.
+  - `...args: any[]` — Arguments to format and log.
+- **Returns:** `void`
+
+#### Logging Shortcut Methods
+
+Every `AvenxLogger` instance exposes convenience shortcut methods for each severity level:
+
+- `logger.trace(...args: any[]): void`
+- `logger.debug(...args: any[]): void`
+- `logger.info(...args: any[]): void`
+- `logger.log(...args: any[]): void` (Alias for `info()`)
+- `logger.warn(...args: any[]): void`
+- `logger.error(...args: any[]): void`
+- `logger.fatal(...args: any[]): void`
+
+---
+
+### Suppressing Framework Logs in Production
+
+To optimize performance and suppress verbose framework logging in production setups, you can configure the shared global `logger` or pass `logging` options during `AvenxApp` initialization:
+
+#### Option 1: Suppress via `logger.setLevel()` / `logger.configure()`
+
+```javascript
+import { logger } from "avenx-core/runtime";
+
+if (process.env.NODE_ENV === 'production') {
+  // Suppress info & debug logs; only log warnings and errors
+  logger.setLevel('warn');
+
+  // Or suppress ALL framework log output completely:
+  // logger.configure({ silent: true });
+}
+```
+
+#### Option 2: Suppress via `AvenxApp` Constructor
+
+```javascript
+import { AvenxApp } from "avenx-core/runtime";
+
 const app = new AvenxApp({
   target: "#app",
-  logging: { level: "debug" },
+  logging: {
+    level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
+    silent: process.env.NODE_ENV === 'test', // Completely quiet during automated tests
+  },
 });
 ```
-
-Note that this is unrelated to the `logging` option in `avenx.config.json`, which only controls the CLI's own build-time output, not this runtime logger.
-
----
-
-## Creating a Custom Logger
-
-Create a separate logger instance with its own configuration.
-
-```js
-import { AvenxLogger } from "avenx-core/runtime";
-
-const logger = new AvenxLogger({
-  level: "debug"
-});
-
-logger.debug("Debug logging enabled.");
-```
-
----
-
-## Updating Logger Configuration
-
-Logger instances can be reconfigured at runtime.
-
-```js
-import { logger } from "avenx-core/runtime";
-
-logger.configure({
-  level: "trace"
-});
-
-logger.trace("Verbose logging is now enabled.");
-```
-
-You can update one or more configuration options at any time using `configure()`.
-
-If `level` is set to a value that isn't one of the supported log levels, `configure()` logs a warning and falls back to `"info"`.
 
 ---
 

@@ -701,6 +701,7 @@ export class AvenxLogger {
     };
     constructor(config?: AvenxLoggerOptions);
     configure(config: AvenxLoggerOptions): void;
+    setLevel(level: string): void;
     shouldLog(level: string): boolean;
     write(level: string, ...args: any[]): void;
     trace(...args: any[]): void;
