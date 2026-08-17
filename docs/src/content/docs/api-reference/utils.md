@@ -1143,5 +1143,159 @@ inspectorChannel.onmessage = (event) => {
 // Request an immediate state snapshot
 inspectorChannel.postMessage('request-inspect-data');
 ```
+
+---
+
+## 13. Form Validation Utilities
+
+While component templates use the `data-ax-validate` directive and `this.state.$validation` object for form validation (see the [Form Validation](/core-concepts/form-validation) guide), Avenx-JS exports a suite of low-level, environment-agnostic validation utility functions from `avenx-core/runtime` (or `lib/core/validation/validator.js`).
+
+These functions allow developers to parse rule expressions, validate values programmatically, extract field names from HTML elements, and update `$validation` state objects in custom services, bridges, or standalone scripts.
+
+### Importing
+
+```javascript
+import {
+  parseValidationRules,
+  validateValue,
+  getFieldName,
+  updateValidationState,
+} from 'avenx-core/runtime';
+```
+
+---
+
+### Function Reference
+
+#### `parseValidationRules(ruleString)`
+
+Parses a pipe-delimited rule expression string (e.g. `"required|email|min:8|same:password:Passwords do not match"`) into an array of structured rule objects.
+
+- **Signature:** `parseValidationRules(ruleString: string): Array<{ name: string, arg: string|null, customMsg: string|null }>`
+- **Parameters:** `ruleString: string` — Pipe-delimited validation rules string.
+- **Returns:** `Array<{ name: string, arg: string|null, customMsg: string|null }>`
+  - `name`: Lowercase rule identifier (e.g. `'required'`, `'email'`, `'min'`).
+  - `arg`: Rule argument string or `null` if no parameter was passed (e.g. `'8'` for `'min:8'`).
+  - `customMsg`: Custom error message string override or `null`.
+
+```javascript
+const rules = parseValidationRules('required|email|min:8|same:password:Must match password');
+console.log(rules);
+/*
+[
+  { name: 'required', arg: null, customMsg: null },
+  { name: 'email', arg: null, customMsg: null },
+  { name: 'min', arg: '8', customMsg: null },
+  { name: 'same', arg: 'password', customMsg: 'Must match password' }
+]
+*/
+```
+
+#### `getFieldName(element)`
+
+Extracts a canonical field name from an HTML element by checking attributes in priority order: `name` → `data-ax-bind` → `id` → fallback `'field'`.
+
+- **Signature:** `getFieldName(element: Element): string`
+- **Parameters:** `element: Element` — The HTML DOM element to inspect.
+- **Returns:** `string` — Extracted field identifier name.
+
+```javascript
+const input = document.createElement('input');
+input.setAttribute('data-ax-bind', 'state.email');
+console.log(getFieldName(input)); // 'state.email'
+```
+
+#### `validateValue(value, rules, context)`
+
+Evaluates a value against an array of parsed validation rules and returns an array of error message strings.
+
+- **Signature:** `validateValue(value: any, rules: Array<RuleObject>, context?: object): string[]`
+- **Parameters:**
+  - `value: any` — The value to validate (string, number, boolean, array).
+  - `rules: Array<RuleObject>` — Array of rule objects returned from `parseValidationRules()`.
+  - `context?: object` — Optional context object containing `{ state: object, customMessages: object }`.
+- **Returns:** `string[]` — Array of validation error messages. Empty array `[]` if valid.
+
+##### Built-in Rule Types
+
+| Rule Name | Argument | Description & Behavior |
+| --- | --- | --- |
+| `required` | — | Fails if value is empty string, `false`, or empty array. |
+| `email` | — | Validates email address format via regex. |
+| `min` | `minValue` | Checks minimum string length, number value, or array length. |
+| `max` | `maxValue` | Checks maximum string length, number value, or array length. |
+| `numeric` / `number` | — | Validates if string contains a valid number. |
+| `alpha` | — | Validates that string contains only alphabetic letters (`a-z`, `A-Z`). |
+| `alphanumeric` | — | Validates that string contains only letters and numbers. |
+| `url` | — | Validates URL format using Web `URL` constructor. |
+| `pattern` / `regex` | `regexPattern` | Validates string against custom regular expression pattern. |
+| `same` | `targetProp` | Compares value to `context.state[targetProp]`. |
+
+```javascript
+const rules = parseValidationRules('required|email');
+const errors = validateValue('invalid-email', rules);
+console.log(errors); // ['Invalid email address']
+```
+
+#### `updateValidationState(state, fieldName, errors)`
+
+Initializes or updates the `$validation` schema structure on a reactive state object.
+
+- **Signature:** `updateValidationState(state: object, fieldName: string, errors: string[]): void`
+- **Parameters:**
+  - `state: object` — The target state object to mutate.
+  - `fieldName: string` — Field identifier.
+  - `errors: string[]` — Array of error messages for the field.
+- **Returns:** `void`
+
+```javascript
+const state = {};
+updateValidationState(state, 'email', ['Invalid email address']);
+
+console.log(state.$validation);
+/*
+{
+  isValid: false,
+  errors: { email: ['Invalid email address'] },
+  fields: { email: { isValid: false, errors: ['Invalid email address'] } }
+}
+*/
+```
+
+---
+
+### Standalone Validation Example
+
+```javascript
+import {
+  parseValidationRules,
+  validateValue,
+  updateValidationState
+} from 'avenx-core/runtime';
+
+// Define target form state
+const formState = {
+  email: 'user@domain',
+  password: '123',
+  confirmPassword: '456'
+};
+
+// Define validation rules dictionary
+const formRules = {
+  email: 'required|email',
+  password: 'required|min:8',
+  confirmPassword: 'required|same:password:Passwords must match'
+};
+
+// Perform standalone validation
+for (const [field, ruleStr] of Object.entries(formRules)) {
+  const parsedRules = parseValidationRules(ruleStr);
+  const fieldErrors = validateValue(formState[field], parsedRules, { state: formState });
+  updateValidationState(formState, field, fieldErrors);
+}
+
+console.log('Is Form Valid:', formState.$validation.isValid); // false
+console.log('Form Errors:', formState.$validation.errors);
+```
 ```
 
