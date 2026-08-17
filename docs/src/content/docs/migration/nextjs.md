@@ -186,7 +186,139 @@ Creating a file like `src/pages/settings.page.js` does **not** create a `/settin
 
 ## 3. Data Fetching and Async Boundaries
 
-*This section will document replacing server components with client `<resource>` tags, `<@suspense>`, and `<@errorBoundary>`.*
+In Next.js App Router, data fetching is typically performed on the server inside **React Server Components (RSC)**, `getServerSideProps`, or `getStaticProps` before HTML is rendered or streamed to the client.
+
+Avenx-JS is a client-side framework (CSR). Asynchronous data loading is declared cleanly in templates using the `<resource>` tag, while UI loading and error states are managed declaratively with `<@suspense>` and `<@errorBoundary>` compiler tags. See the [Resources](/core-concepts/resources) guide for full specifications and the [Migration Overview](/migration/overview) for paradigm comparisons.
+
+---
+
+### Architectural Mapping
+
+| Next.js Data Fetching | Avenx-JS Equivalent | Behavior & Usage Notes |
+| :--- | :--- | :--- |
+| **Server Component Fetch** (`await fetch()`) | `<resource name="data">` tag | Executes an asynchronous fetch Promise in the browser client. |
+| **`React.Suspense` + Fallback** | `<@suspense>` with `<@fallback>` | Displays skeleton or spinner markup while resource Promise resolves. |
+| **`error.js` Boundary** | `<@errorBoundary>` with `<@fallback as="err">` | Catches rejected resource Promises and displays client error UI. |
+| **`useSWR` / React Query Auto-Refetch** | Automatic Reactive Tracking | Re-fetches automatically when reactive `state` properties in handler change. |
+| **`useSWR` Polling (`refreshInterval`)** | `pollInterval="5000"` attribute | Polls the resource endpoint at specified millisecond intervals. |
+
+---
+
+### Code Migration Example
+
+#### Before — Next.js Server Component Fetch (`app/dashboard/page.tsx`)
+
+```tsx
+// app/dashboard/page.tsx (Server Component)
+async function getDashboardData() {
+  const res = await fetch('https://api.example.com/stats', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch stats');
+  return res.json();
+}
+
+export default async function DashboardPage() {
+  const stats = await getDashboardData();
+
+  return (
+    <div className="dashboard">
+      <h1>Total Users: {stats.users}</h1>
+    </div>
+  );
+}
+```
+
+#### After — Avenx.js Resource & Suspense (`src/pages/dashboard.page.js`)
+
+```html
+<!-- src/pages/dashboard.page.js -->
+<resource name="stats">
+  return fetch('https://api.example.com/stats').then(res => {
+    if (!res.ok) throw new Error('Failed to fetch dashboard stats');
+    return res.json();
+  });
+</resource>
+
+<div class="dashboard">
+  <@errorBoundary>
+    <@suspense>
+      <h1>Total Users: {{ stats.value.users }}</h1>
+
+      <!-- Fallback displayed while resource Promise is pending -->
+      <@fallback>
+        <p>Loading dashboard metrics...</p>
+      </@fallback>
+    </@suspense>
+
+    <!-- Error fallback displayed if resource Promise rejects -->
+    <@fallback as="err">
+      <p class="error">Error loading metrics: {{ err.message }}</p>
+    </@fallback>
+  </@errorBoundary>
+</div>
+```
+
+---
+
+### Automatic Refetching & Background Polling
+
+#### Automatic Reactive Tracking
+
+When a `<resource>` handler accesses reactive `state` variables, Avenx-JS tracks those dependencies automatically. Whenever the state changes, the resource is automatically re-evaluated:
+
+```html
+<state category="all" />
+
+<resource name="products">
+  // Automatically re-fetches whenever state.category changes!
+  return fetch(`https://api.example.com/products?category=${state.category}`).then(r => r.json());
+</resource>
+
+<div>
+  <button @click="state.category = 'electronics'">Electronics</button>
+
+  <@suspense>
+    <ul>
+      <@for item in products.value.items key="item.id">
+        <li>{{ item.name }}</li>
+      </@for>
+    </ul>
+    <@fallback><p>Updating products...</p></@fallback>
+  </@suspense>
+</div>
+```
+
+#### Background Polling (`pollInterval`)
+
+Add `pollInterval` to automatically refresh a resource at specified millisecond intervals (similar to SWR `refreshInterval`):
+
+```html
+<resource name="liveFeed" pollInterval="5000">
+  return fetch('https://api.example.com/live').then(r => r.json());
+</resource>
+```
+
+---
+
+### Key Conceptual Differences & Security Pitfalls
+
+#### 1. Client-Side Execution & Security Rules
+
+In Next.js Server Components, code inside `fetch()` runs on the Node.js server, allowing direct database access or private secret key usage (`process.env.SECRET_KEY`).
+
+In Avenx-JS, `<resource>` handlers run **entirely in the user's web browser**.
+
+:::caution
+Never expose secret API keys, private credentials, or direct database connections inside `<resource>` blocks. All `<resource>` requests must call public REST/GraphQL backend API endpoints.
+:::
+
+#### 2. Accessing Resolved Resource Values (`.value`)
+
+Inside `<@suspense>` blocks, access the resolved payload object using `resourceName.value` (e.g. `stats.value.users` or `products.value.items`).
+
+#### 3. Suspense & Error Boundary Syntax
+
+- `<@suspense>` requires a `<@fallback>` tag inside it for the loading UI.
+- `<@errorBoundary>` catches uncaught errors from child resources and uses `<@fallback as="err">` to expose the error object (`err.message`).
 
 ---
 
