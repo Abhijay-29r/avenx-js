@@ -23,12 +23,76 @@ A wrapper class designating that a string is verified and safe for raw output. E
 
 ## 3. `HtmlEscaper`
 
-Internal utility class providing character replacement mappings to prevent code injections:
+Utility class providing character replacement mappings to prevent code injections (XSS) by escaping HTML special characters, as well as reversing entity encoding.
 
 ```javascript
+import { HtmlEscaper, unescapeHtml } from 'avenx-core/runtime';
+
 const escaper = new HtmlEscaper();
+
+// Escaping
 escaper.escape('<h1>Text</h1>');
 // Returns: &lt;h1&gt;Text&lt;/h1&gt;
+
+// Unescaping
+escaper.unescape('&lt;h1&gt;Text&lt;/h1&gt;');
+// Returns: <h1>Text</h1>
+```
+
+### `unescapeHtml(str)`
+
+Reverses HTML entity encoding for strings containing entities like `&amp;`, `&lt;`, `&gt;`, `&quot;`, and `&#39;`, restoring raw characters. Available as a standalone exported function or via `HtmlEscaper.prototype.unescape()`.
+
+**Signature:**
+
+`unescapeHtml(str: string): string`
+
+**Parameters:**
+
+- `str` (any): The entity-encoded HTML string to decode (coerced to a string).
+
+**Returns:**
+
+- `string`: The unescaped string with decoded characters.
+
+**Supported Entity Mappings:**
+
+| HTML Entity | Decoded Character | Description |
+| --- | --- | --- |
+| `&amp;` | `&` | Ampersand |
+| `&lt;` | `<` | Less-than sign |
+| `&gt;` | `>` | Greater-than sign |
+| `&quot;` | `"` | Double quote |
+| `&#39;` | `'` | Single quote / apostrophe |
+
+**Common Use Cases:**
+
+- **Decoding stored database strings:** Reversing entity encoding from APIs or databases when plain text display is needed.
+- **Form input normalization:** Pre-populating form fields or textareas with unescaped text.
+- **Raw text template processing:** Decoding encoded text snippets prior to plain-text export or email generation.
+
+**Security Warning (XSS Risks):**
+
+> [!WARNING]
+> Never pass unescaped output from `unescapeHtml()` directly into `innerHTML`, unescaped template interpolations (`{{{ ... }}}`), or `SafeHtml` without first passing it through a sanitizer such as `Sanitizer.prototype.sanitize()`. Unescaping untrusted user input restores executable HTML markup (like `<script>` tags and inline event handlers), introducing cross-site scripting (XSS) vulnerabilities.
+
+**Example**
+
+```javascript
+import { unescapeHtml, Sanitizer } from 'avenx-core/runtime';
+
+const encodedData = '&lt;script&gt;alert("xss")&lt;/script&gt; &amp; Welcome!';
+const rawText = unescapeHtml(encodedData);
+
+console.log(rawText);
+// Output: '<script>alert("xss")</script> & Welcome!'
+
+// ALWAYS sanitize if inserting into DOM!
+const sanitizer = new Sanitizer();
+const safeMarkup = sanitizer.sanitize(rawText);
+
+console.log(safeMarkup);
+// Output: ' & Welcome!'
 ```
 
 ## 4. `Sanitizer`

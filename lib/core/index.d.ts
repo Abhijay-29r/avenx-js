@@ -667,6 +667,7 @@ export class ComputedRegistry {
 
 export class HtmlEscaper {
     escape(str: string): string;
+    unescape(str: string): string;
 }
 
 export class SafeHtml {
@@ -676,6 +677,7 @@ export class SafeHtml {
 }
 
 export function html(strings: string | TemplateStringsArray, ...values: any[]): SafeHtml;
+export function unescapeHtml(str: string): string;
 
 export class Sanitizer {
     sanitize(html: string): string;
