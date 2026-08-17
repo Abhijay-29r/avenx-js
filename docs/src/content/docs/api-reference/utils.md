@@ -1040,3 +1040,108 @@ export const customTagNamingRule = {
 };
 ```
 
+---
+
+## 12. DevTools `initInspector` & Runtime Inspection Protocol
+
+`initInspector` (exported from `avenx-core/runtime` / `lib/core/tooling/inspect.js`) enables browser extension DevTools, debugging overlays, and external tools to inspect live Avenx-JS applications in real time.
+
+When inspector mode is enabled, `initInspector` creates a Web `BroadcastChannel` named `'avenx-inspector-channel'`, listens for inspection requests, and automatically broadcasts runtime application state on component lifecycles and page transitions.
+
+### Enabling the Inspector
+
+To enable inspection, set `window.__avenx_inspect_enabled = true;` before initializing your `AvenxApp` instance, or pass `initInspector(app)` during application setup:
+
+```javascript
+import { AvenxApp, initInspector } from 'avenx-core/runtime';
+
+// 1. Enable inspector flag on window
+window.__avenx_inspect_enabled = true;
+
+// 2. Initialize application
+const app = new AvenxApp({
+  target: '#app'
+});
+
+// 3. Initialize inspector
+initInspector(app);
+```
+
+---
+
+### `BroadcastChannel` Protocol Specification
+
+`initInspector` uses the standard browser `BroadcastChannel` API (`'avenx-inspector-channel'`) to communicate with browser extension devtools or custom debugging scripts running in adjacent tabs/iframes.
+
+#### Channel Identifier
+
+- **Channel Name:** `'avenx-inspector-channel'`
+
+#### Incoming Request Message
+
+To request a full snapshot of the current application state, post the following message to `'avenx-inspector-channel'`:
+
+```javascript
+channel.postMessage('request-inspect-data');
+```
+
+#### Outgoing Broadcast Payload (`'inspect-data'`)
+
+Whenever a `'request-inspect-data'` message is received, or when application events occur (`avenx:mount`, `avenx:update`, `avenx:unmount`, `app.updateAll()`, `app.mountPage()`), `initInspector` broadcasts an `'inspect-data'` payload message:
+
+```typescript
+interface InspectorDataMessage {
+  type: 'inspect-data';
+  data: {
+    activeComponents: Array<{
+      name: string;        // Component class name (e.g. "UserCard")
+      state: object;       // Sanitized component reactive state
+      props: object;       // Sanitized component props
+    }>;
+    registeredBridges: Record<string, object>; // Map of active bridge names to instances
+    registeredComponents: string[];           // Array of registered component tag names
+    registeredPages: string[];                // Array of registered page names
+    routes: object;                           // Router routes configuration dictionary
+    currentRoute: object | null;              // Currently active route object
+  };
+}
+```
+
+---
+
+### Data Sanitization & Circular Safety (`serializeSafe`)
+
+Before broadcasting payload state across the `BroadcastChannel`, `initInspector` passes the payload through a recursive `serializeSafe()` sanitizer:
+
+- **Functions:** Converted to string placeholders (`"[Function]"`).
+- **DOM Elements & Window:** Converted to node summary strings (e.g. `"[DOM Element: DIV]"` or `"[DOM Element: Window]"`).
+- **Internal Framework Keys:** Properties starting with double underscores (e.g. `__avenx_comp_instance`) are masked as `"[Internal]"`.
+- **Circular References:** Visited objects tracked with `WeakSet` are safely replaced with `"[Circular]"` to prevent postMessage clone exceptions.
+
+---
+
+### Subscribing to DevTools Inspection Events
+
+External debugging tools, browser extension popup windows, or custom overlays can listen to live application state by creating a `BroadcastChannel` listener:
+
+```javascript
+// External DevTools script or extension background page
+const inspectorChannel = new BroadcastChannel('avenx-inspector-channel');
+
+// Subscribe to state updates broadcast by Avenx-JS
+inspectorChannel.onmessage = (event) => {
+  if (event.data && event.data.type === 'inspect-data') {
+    const { activeComponents, registeredBridges, currentRoute } = event.data.data;
+
+    console.log('Active Component Count:', activeComponents.length);
+    console.log('Active Components:', activeComponents);
+    console.log('Current Route:', currentRoute);
+    console.log('Bridges State:', registeredBridges);
+  }
+};
+
+// Request an immediate state snapshot
+inspectorChannel.postMessage('request-inspect-data');
+```
+```
+
