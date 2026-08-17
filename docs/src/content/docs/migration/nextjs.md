@@ -23,7 +23,164 @@ Next.js is a full-stack framework with file-based routing (`app/` or `pages/`), 
 
 ## 2. Router and Page Architecture
 
-*This section will document explicit routing setup in `main.app.js`, `.page.js` components, dynamic `:id` parameters, and `keepAlive` page caching.*
+Next.js uses file-system based routing inside the `app/` or `pages/` directory, where file names and folder structures (`app/profile/[id]/page.tsx`) determine application routes automatically on the server.
+
+Avenx-JS uses an **explicit client-side SPA routing architecture**. Creating a `.page.js` file does not automatically expose a URL route. Instead, pages are registered with `app.registerPage()` and routes are explicitly configured using `app.initRouter()` in `src/main.app.js`. See the [Routing](/core-concepts/routing) guide for full specifications and the [Migration Overview](/migration/overview) for paradigm comparisons.
+
+---
+
+### Key Architectural Differences
+
+| Feature | Next.js | Avenx-JS |
+| :--- | :--- | :--- |
+| **Route Definition** | Automatic based on file tree (`app/profile/[id]/page.tsx`) | Explicit configuration object in `src/main.app.js` (`app.initRouter()`) |
+| **Page Component Base** | React component export (`export default function Page()`) | Top-level `.page.js` component (compiles to subclass of `AvenxPage`) |
+| **Dynamic Segments** | Square brackets (`[id]`, `[...slug]`) | Colon parameter syntax (`:id`, `:category`) |
+| **Params Access** | Component props (`params.id`) | Accessible automatically via `state.id` or `state.params.id` |
+| **Page Caching / State Preservation** | Server cache / React tree re-mount | Client-side `keepAlive: true` with configurable `keepAliveLimit` |
+
+---
+
+### Code Migration Example
+
+#### Before — Next.js App Router Page (`app/profile/[id]/page.tsx`)
+
+```tsx
+// app/profile/[id]/page.tsx
+export default function ProfilePage({ params }: { params: { id: string } }) {
+  return (
+    <div className="profile-page">
+      <h1>Profile ID: {params.id}</h1>
+    </div>
+  );
+}
+```
+
+#### After — Avenx.js Page & Router Setup (`src/pages/profile.page.js` & `src/main.app.js`)
+
+```html
+<!-- src/pages/profile.page.js -->
+<state id="" />
+
+<div class="profile-page">
+  <Navbar />
+  <h1>Profile ID: {{ state.id }}</h1>
+</div>
+```
+
+```javascript
+// src/main.app.js
+import { AvenxApp } from 'avenx-core/runtime';
+import ProfilePage from './pages/profile.page.js';
+import HomePage from './pages/home.page.js';
+
+const app = new AvenxApp({
+  target: '#app',
+  keepAliveLimit: 3, // Retain up to 3 cached keep-alive pages in DOM memory
+});
+
+// 1. Register page components with the application instance
+app.registerPage('Home', HomePage);
+app.registerPage('Profile', ProfilePage);
+
+// 2. Explicitly map URL hash routes to registered page names
+app.initRouter({
+  '/': 'Home',
+  '/profile/:id': {
+    page: 'Profile',
+    keepAlive: true,
+  },
+  '*': 'Home',
+});
+```
+
+---
+
+### Dynamic Parameters (`:id`)
+
+In Next.js, dynamic route parameters are defined with square brackets (`[id]`) and passed to the page function as `params`.
+
+In Avenx-JS, dynamic route parameters are defined with colons (`:id`). When a route like `/profile/:id` is matched (e.g. `#/profile/42`), the router automatically injects the extracted parameters into the page's reactive `state`:
+
+- `state.id` (or `state.<paramName>`) is automatically populated.
+- `state.params` contains the complete key-value dictionary of all route parameters (e.g. `{ id: '42' }`).
+
+```html
+<!-- src/pages/profile.page.js -->
+<div>
+  <!-- Access dynamic param directly from state -->
+  <h2>User #{{ state.id }}</h2>
+  <p>Raw params object: {{ JSON.stringify(state.params) }}</p>
+</div>
+```
+
+---
+
+### Keep-Alive Page Caching & State Retention
+
+Next.js re-renders components on navigation unless client layout caching is explicitly utilized. In long-running SPAs, Avenx-JS provides native **Keep-Alive Page Caching**.
+
+Setting `keepAlive: true` on a route configuration instructs `AvenxRouter` to cache the mounted DOM subtree and component instance state when the user navigates away:
+
+```javascript
+app.initRouter({
+  '/dashboard': {
+    page: 'DashboardPage',
+    keepAlive: true, // Retain DOM & state on navigation
+  },
+});
+```
+
+#### Configuring `keepAliveLimit`
+
+To prevent memory leaks when navigating between many cached pages, configure `keepAliveLimit` on `AvenxApp`:
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  keepAliveLimit: 5, // Evicts oldest cached page when limit is exceeded
+});
+```
+
+#### Keep-Alive Lifecycle Hooks (`onActivate` & `onDeactivate`)
+
+When a keep-alive page is revisited, its DOM is re-attached without running full re-initialization. Use `onActivate` and `onDeactivate` lifecycle methods to handle re-activation logic:
+
+```html
+<!-- src/pages/dashboard.page.js -->
+<state lastRefreshed="" />
+
+<action name="onActivate" params="routeParams">
+  console.log("Dashboard re-activated with params:", routeParams);
+  state.lastRefreshed = new Date().toLocaleTimeString();
+</action>
+
+<action name="onDeactivate">
+  console.log("Dashboard backgrounded");
+</action>
+
+<div>
+  <h1>Dashboard</h1>
+  <p>Last active: {{ lastRefreshed }}</p>
+</div>
+```
+
+---
+
+### Key Conceptual Differences & Migration Pitfalls
+
+#### 1. No File-System Routing
+
+Creating a file like `src/pages/settings.page.js` does **not** create a `/settings` route automatically. You must:
+1. Import `SettingsPage` in `src/main.app.js`.
+2. Register it via `app.registerPage('Settings', SettingsPage)`.
+3. Add the route entry in `app.initRouter({ '/settings': 'Settings' })`.
+
+#### 2. `.page.js` vs `.component.js` Nesting Rules
+
+- `.page.js` files compile to subclasses of `AvenxPage` and serve as top-level router targets.
+- Regular `.component.js` files compile to `AvenxComponent` and are nested inside page templates.
+- Child components **cannot** host top-level router targets — only `.page.js` components can be assigned as route targets in `app.initRouter()`.
 
 ---
 
