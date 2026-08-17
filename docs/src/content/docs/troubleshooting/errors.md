@@ -924,6 +924,66 @@ Renaming custom actions to distinct, non-reserved names:
 </div>
 ```
 
+### AVX_W28 — COMPILER_MULTIPLE_STATE_TAGS
+
+**Warning Message**
+
+```text
+Multiple <state> tags found in component source. Only the first <state> declaration is reactive; subsequent tags are ignored.
+```
+
+**Cause:** This warning is emitted during compilation when a `.component.js` or `.page.js` file contains more than one `<state />` tag declaration. Avenx-JS component templates support a single top-level state block where initial state properties are defined.
+
+**Compiler Fallback Behavior:**
+
+When multiple `<state />` tags are declared:
+1. The compiler evaluates and parses **only the first** `<state />` tag found in the component source file.
+2. All subsequent `<state />` tags are skipped and ignored during reactive state proxy creation. Any properties declared in secondary `<state />` tags will not be initialized on the component's reactive `state` object.
+
+**Resolution:** To resolve this warning:
+
+Consolidate all initial state properties into a single `<state />` tag at the top of your component file.
+
+**Incorrect**
+
+Declaring multiple `<state />` tags in a single component file:
+
+```html
+<!-- ❌ First <state> declaration (parsed) -->
+<state count="0" title="Counter" />
+
+<!-- ❌ Second <state> declaration (ignored; emits AVX_W28) -->
+<state isLoading="false" username="Guest" />
+
+<action name="increment">
+  state.count++;
+</action>
+
+<div>
+  <h1>{{ title }}</h1>
+  <p>Count: {{ count }}</p>
+  <!-- username and isLoading are NOT initialized on state! -->
+</div>
+```
+
+**Correct**
+
+Consolidating all initial state properties into a single `<state />` tag:
+
+```html
+<!-- ✅ All initial state properties consolidated into a single <state /> declaration -->
+<state count="0" title="Counter" isLoading="false" username="Guest" />
+
+<action name="increment">
+  state.count++;
+</action>
+
+<div>
+  <h1>{{ title }}</h1>
+  <p>Count: {{ count }} (User: {{ username }})</p>
+</div>
+```
+
 ### AVX_W07 — PAGE_ALREADY_REGISTERED
 
 **Warning Message**
