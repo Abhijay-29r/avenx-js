@@ -895,3 +895,15 @@ export class LruCache<T = any> {
     readonly size: number;
 }
 
+export interface InvalidComponentTagIssue {
+    tagName: string;
+    expectedName: string;
+    index: number;
+}
+
+export function componentNameFromFile(fileName: string): string;
+export function findRegisteredComponents(projectRoot: string, componentsDir?: string): Set<string>;
+export function extractLintableTemplate(source: string): string;
+export function findInvalidComponentTags(source: string, registeredComponents: Set<string>): InvalidComponentTagIssue[];
+export function findProjectRoot(filePath: string, fallbackRoot: string): string;
+

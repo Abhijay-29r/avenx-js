@@ -869,3 +869,123 @@ console.log(userCache.has('user:102')); // false
 console.log(userCache.has('user:101')); // true
 ```
 
+---
+
+## 11. Component Tag Naming Linter Utilities
+
+Avenx-JS provides framework tooling functions in `avenx-core/runtime` (or `lib/core/tooling/componentTagNaming.js`) to audit single-file component (SFC) templates and enforce PascalCase component tag conventions (e.g. `<UserCard />` instead of `<user-card />` or `<userCard />`).
+
+These utilities enable custom build scripts, pre-commit hooks, and ESLint plugins (such as Avenx's built-in ESLint component tag rule) to analyze component markup without executing full compilation.
+
+### `extractLintableTemplate(source)`
+
+Isolates HTML template markup from an Avenx SFC component source string by masking non-template metadata blocks (`<state>`, `<computed>`, `<action>`, `<resource>`, and HTML comments).
+
+**Signature:**
+
+`extractLintableTemplate(source: string): string`
+
+**Parameters:**
+
+- `source` (`string`): The raw single-file component (`.component.js`) file contents.
+
+**Returns:**
+
+- `string`: A masked template string where non-template blocks are replaced with whitespace while strictly preserving line numbers (`\n` and `\r\n`).
+
+**Line Offset Preservation:**
+
+To accurately report diagnostic lint warnings or errors back to IDEs and CLI logs, `extractLintableTemplate` replaces non-line-break characters in metadata blocks (`<state>`, `<action>`, etc.) with blank spaces. Because character indexes and line counts are preserved identically, error locations map directly back to the original source file line and column positions.
+
+### `findInvalidComponentTags(source, registeredComponents)`
+
+Analyzes an Avenx component source template against a set of canonical PascalCase registered component names and identifies tag references that do not adhere to PascalCase naming conventions.
+
+**Signature:**
+
+`findInvalidComponentTags(source: string, registeredComponents: Set<string>): Array<InvalidComponentTagIssue>`
+
+**Parameters:**
+
+- `source` (`string`): The raw component SFC source text.
+- `registeredComponents` (`Set<string>`): A set of canonical PascalCase component names (e.g. `new Set(['UserCard', 'Header'])`).
+
+**Returns:**
+
+An array of issue objects:
+
+```typescript
+interface InvalidComponentTagIssue {
+  tagName: string;      // The invalid tag found in the template (e.g. "user-card")
+  expectedName: string; // The canonical PascalCase component name (e.g. "UserCard")
+  index: number;        // 1-based character position in the source string
+}
+```
+
+### Practical Tooling Integration Examples
+
+#### Example 1: Custom Build Script / Linter
+
+```javascript
+import fs from 'fs';
+import {
+  findRegisteredComponents,
+  findInvalidComponentTags,
+} from 'avenx-core/runtime';
+
+// 1. Discover registered components in src/components
+const registered = findRegisteredComponents(process.cwd());
+
+// 2. Read component source
+const fileContent = fs.readFileSync('src/pages/dashboard.page.js', 'utf8');
+
+// 3. Find tag naming mismatches
+const issues = findInvalidComponentTags(fileContent, registered);
+
+issues.forEach((issue) => {
+  console.warn(
+    `[Lint Warning] Component tag <${issue.tagName}> at position ${issue.index} ` +
+      `should be written in PascalCase: <${issue.expectedName}>`
+  );
+});
+```
+
+#### Example 2: ESLint Rule Integration
+
+```javascript
+import {
+  extractLintableTemplate,
+  findInvalidComponentTags,
+} from 'avenx-core/runtime';
+
+export const customTagNamingRule = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Enforce PascalCase tag naming for registered Avenx components' },
+    messages: {
+      invalidTag: 'Avenx component <{{tagName}}> must use PascalCase: <{{expectedName}}>',
+    },
+  },
+  create(context) {
+    return {
+      Program() {
+        const source = context.sourceCode.getText();
+        const registered = new Set(['UserCard', 'Navbar', 'Footer']);
+
+        const issues = findInvalidComponentTags(source, registered);
+
+        for (const issue of issues) {
+          context.report({
+            messageId: 'invalidTag',
+            data: {
+              tagName: issue.tagName,
+              expectedName: issue.expectedName,
+            },
+          });
+        }
+      },
+    };
+  },
+};
+```
+
