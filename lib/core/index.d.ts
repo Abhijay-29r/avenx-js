@@ -908,3 +908,7 @@ export function extractLintableTemplate(source: string): string;
 export function findInvalidComponentTags(source: string, registeredComponents: Set<string>): InvalidComponentTagIssue[];
 export function findProjectRoot(filePath: string, fallbackRoot: string): string;
 
+export function profile<T = any>(enableProfiling: boolean, componentName: string, phase: string, fn: () => T): T;
+export function getComponentProfilingInfo(element: any): { enableProfiling: boolean; componentName: string };
+
+

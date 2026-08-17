@@ -1297,5 +1297,99 @@ for (const [field, ruleStr] of Object.entries(formRules)) {
 console.log('Is Form Valid:', formState.$validation.isValid); // false
 console.log('Form Errors:', formState.$validation.errors);
 ```
+
+---
+
+## 14. Performance Profiler Utilities
+
+The performance profiler utilities (exported from `avenx-core/runtime` / `lib/core/utils/profiler.js`) provide execution profiling helpers (`profile` and `getComponentProfilingInfo`) used internally by `AvenxApp` and `AvenxComponent` to measure mount, render, patch, and lifecycle hook execution times.
+
+These utilities leverage the browser's native `performance.mark` and `performance.measure` APIs, creating entries formatted as `[Avenx] <ComponentName> - <phase>` (e.g. `[Avenx] UserCard - render` or `[Avenx] Dashboard - onMount`).
+
+### Importing
+
+```javascript
+import { profile, getComponentProfilingInfo } from 'avenx-core/runtime';
+```
+
+---
+
+### Function Reference
+
+#### `profile(enableProfiling, componentName, phase, fn)`
+
+Wraps an execution callback function `fn` with `performance.mark()` start/end points and records a `performance.measure()` entry if profiling is enabled. Supports both synchronous functions and async Promise functions.
+
+- **Signature:** `profile<T>(enableProfiling: boolean, componentName: string, phase: string, fn: () => T): T`
+- **Parameters:**
+  - `enableProfiling: boolean` — Flag controlling whether performance marks and measures should be created.
+  - `componentName: string` — Name of the component being profiled (e.g. `'UserCard'`).
+  - `phase: string` — The phase being measured (e.g. `'mount'`, `'render'`, `'patch'`, `'onMount'`).
+  - `fn: () => T` — The function or async callback to execute and profile.
+- **Returns:** `T` — The return value of `fn()` (or resolved Promise value).
+
+##### Performance Mark Names & Measurement Format
+
+- **Start Mark:** `ax-start-<componentName>-<phase>-<id>`
+- **End Mark:** `ax-end-<componentName>-<phase>-<id>`
+- **Performance Measure Label:** `[Avenx] <componentName> - <phase>`
+
+```javascript
+import { profile } from 'avenx-core/runtime';
+
+// Programmatically profile a heavy rendering or calculation block
+const result = profile(true, 'DataGrid', 'render', () => {
+  return computeComplexLayoutData();
+});
+```
+
+#### `getComponentProfilingInfo(element)`
+
+Traverses the DOM tree upwards starting from `element` to find the nearest parent `AvenxComponent` instance. Resolves whether profiling is enabled and retrieves the component's constructor name.
+
+- **Signature:** `getComponentProfilingInfo(element: Element | null): { enableProfiling: boolean, componentName: string }`
+- **Parameters:** `element: Element | null` — Target HTML DOM node.
+- **Returns:** `{ enableProfiling: boolean, componentName: string }`
+  - `enableProfiling`: `true` if `component.$app.enableProfiling` or `window.__avenx_enable_profiling` is enabled.
+  - `componentName`: Component constructor name (or `'UnknownComponent'` if no parent component is found).
+
+```javascript
+import { getComponentProfilingInfo } from 'avenx-core/runtime';
+
+const button = document.querySelector('#submit-btn');
+const { enableProfiling, componentName } = getComponentProfilingInfo(button);
+
+console.log(componentName);     // e.g. "UserForm"
+console.log(enableProfiling);   // true or false
+```
+
+---
+
+### Programmatic Profiling Benchmark Example
+
+```javascript
+import { profile } from 'avenx-core/runtime';
+
+async function measureCustomWorkflow() {
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  // Measure synchronous operation
+  const html = profile(isDev, 'CustomWidget', 'template-build', () => {
+    return buildWidgetMarkup();
+  });
+
+  // Measure asynchronous API fetch
+  const data = await profile(isDev, 'CustomWidget', 'async-fetch', async () => {
+    const res = await fetch('/api/widget-data');
+    return res.json();
+  });
+
+  // Inspect generated performance entries in Chrome/Firefox DevTools Performance tab
+  const measures = performance.getEntriesByType('measure')
+    .filter(m => m.name.startsWith('[Avenx]'));
+
+  console.log('Avenx Performance Measures:', measures);
+}
+```
 ```
 
