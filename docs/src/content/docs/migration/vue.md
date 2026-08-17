@@ -201,7 +201,115 @@ A component can decide whether the parent actually supplied content for a slot u
 
 ## 3. Directives and Event Handling
 
-*This section will document translating Vue directives (`v-model`, `v-show`, `:class`, `:style`) and event syntax (`@click`) to Avenx.*
+Vue templates heavily rely on built-in directives such as `v-model`, `v-show`, `v-if`, `:class`, `:style`, and `@event` handlers. Avenx-JS provides lightweight HTML5 `data-ax-*` data attributes for directives and `@event` syntax for event handling. See the [Directives](/core-concepts/directives) guide for full specifications and the [Migration Overview](/migration/overview) for paradigm comparisons.
+
+### Directive Mapping Reference
+
+| Vue Directive | Avenx-JS Equivalent | Behavior & Usage Notes |
+| :--- | :--- | :--- |
+| `v-model="text"` | `data-ax-bind="state.text"` | Two-way data binding for text inputs, textareas, and select elements. |
+| `v-show="isVisible"` | `data-ax-show="state.isVisible"` | Toggles `display` property (`none` vs original) to show/hide DOM elements. |
+| `v-if="condition"` | Inline Ternary `{{{ condition ? '...' : '' }}}` | Avenx has **no `v-if` directive**. Use raw ternary interpolation or `data-ax-show`. |
+| `:class="{ active: isAct }"` | `data-ax-class="{ active: state.isAct }"` | Dynamically adds or removes CSS class names based on truthy expressions. |
+| `:style="{ color: c }"` | `data-ax-style="{{ { color: state.c } }}"` | Dynamically applies inline CSS style properties. |
+| `@click="logout"` | `@click="logout()"` | Binds DOM event listeners to `<action>` handlers (requires parentheses). |
+
+---
+
+### Code Migration Example
+
+#### Before — Vue Directives Template (`.vue`)
+
+```html
+<template>
+  <div>
+    <input v-model="username" placeholder="Username" />
+    <input type="checkbox" v-model="acceptedTerms" />
+
+    <div v-show="isVisible" :class="{ active: isActive }" :style="{ color: textColor }">
+      Visible Content
+    </div>
+
+    <p v-if="isLoggedIn">Welcome back!</p>
+    <button @click="logout">Logout</button>
+  </div>
+</template>
+```
+
+#### After — Avenx.js Directives & Events (`.component.js`)
+
+```html
+<!-- src/components/user-form/user-form.component.js -->
+<state username="" acceptedTerms="false" isVisible="true" isActive="true" textColor="blue" isLoggedIn="true" />
+
+<action name="logout">
+  state.isLoggedIn = false;
+</action>
+
+<div>
+  <!-- Two-way binding for text inputs -->
+  <input type="text" data-ax-bind="state.username" placeholder="Username" />
+
+  <!-- Manual binding for checkboxes -->
+  <input type="checkbox" checked="{{ state.acceptedTerms }}" @change="state.acceptedTerms = event.target.checked" />
+
+  <!-- Visibility, class, and style directives -->
+  <div data-ax-show="state.isVisible" data-ax-class="{ active: state.isActive }" data-ax-style="{{ { color: state.textColor } }}">
+    Visible Content
+  </div>
+
+  <!-- Conditional rendering using inline ternary expression -->
+  {{{ state.isLoggedIn ? '<p>Welcome back!</p>' : '' }}}
+
+  <!-- Event listener call -->
+  <button @click="logout()">Logout</button>
+</div>
+```
+
+---
+
+### Key Conceptual Differences & Migration Pitfalls
+
+#### 1. No `v-if` Directive
+
+Avenx-JS deliberately does **not** include a `v-if` or `<@if>` directive tag. Conditional markup is handled in one of two ways:
+
+1. **Inline Ternary Expressions (`{{{ ... }}}`):** To dynamically insert or destroy DOM elements based on state, use raw HTML interpolation with a JS ternary condition:
+   ```html
+   {{{ state.isLoggedIn ? '<p>Welcome back!</p>' : '' }}}
+   ```
+2. **`data-ax-show` Directive:** If the DOM element should remain mounted in the DOM tree while toggling visibility, use `data-ax-show="state.isVisible"`.
+
+#### 2. Checkbox & Radio Two-Way Binding (`data-ax-bind` Limitation)
+
+In Vue, `v-model` automatically detects if an input is a checkbox and binds to its `checked` boolean property. In Avenx-JS, `data-ax-bind` specifically targets input `value` string properties.
+
+:::caution
+Do **not** use `data-ax-bind="state.acceptedTerms"` on `<input type="checkbox">` if `acceptedTerms` is a boolean. `data-ax-bind` assigns to `input.value`, not `input.checked`.
+:::
+
+For checkboxes and radio buttons, write a manual binding:
+```html
+<input type="checkbox" checked="{{ state.acceptedTerms }}" @change="state.acceptedTerms = event.target.checked" />
+```
+
+#### 3. Event Handler Invocation Syntax (`@click="logout()"`)
+
+In Vue templates, method references without parentheses (e.g. `@click="logout"`) are valid. In Avenx-JS, event attributes (`@click`, `@input`, `@change`, `@submit`) execute template expressions directly. Action handlers must include **explicit execution parentheses**:
+
+```html
+<!-- Vue (Method reference without parentheses) -->
+<button @click="logout">Logout</button>
+
+<!-- Avenx-JS (Explicit execution parentheses) -->
+<button @click="logout()">Logout</button>
+```
+
+Event parameters can also be passed directly to action methods or inline expressions:
+```html
+<button @click="selectUser(item.id)">Select</button>
+<input @input="state.searchQuery = event.target.value" />
+```
 
 ---
 
