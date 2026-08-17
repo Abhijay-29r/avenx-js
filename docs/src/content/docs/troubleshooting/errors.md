@@ -984,6 +984,71 @@ Consolidating all initial state properties into a single `<state />` tag:
 </div>
 ```
 
+### AVX_W31 — COMPILER_PREPROCESSOR_FAILED
+
+**Warning Message**
+
+```text
+Error compiling {0}: {1}
+```
+
+**Cause:** This warning is emitted during component compilation when the configured CSS preprocessor (e.g. Sass, SCSS, Less, PostCSS) encounters a syntax error or execution failure while processing stylesheet content in `.component.css` or `.page.css` files.
+
+When `StyleProcessor` catches a compilation error from the underlying preprocessor engine, it emits **AVX_W31** containing the preprocessor type (e.g. `scss`) and the detailed parser error message (e.g. `Undefined variable: "$theme-bg"` or `expected "}"`). The compiler then gracefully falls back to passing raw CSS content through the build pipeline.
+
+**Common Causes:**
+
+1. **Preprocessor Syntax Errors:** Referencing undefined SCSS/Sass variables (`$primary`), calling un-imported mixins (`@include flex-center`), unclosed block braces (`{`), or invalid nesting syntax.
+2. **Indented Sass Format Violations:** Mixing tabs and spaces or improper indentation levels when `style.preprocessor` is set to `"sass"`.
+3. **Missing Imports or Files:** Attempting to `@import` or `@use` an external SCSS/Less stylesheet file that does not exist or has an incorrect file path.
+4. **PostCSS Plugin Pipeline Failures:** Malformed PostCSS directives or failing PostCSS plugin transformations.
+
+**Resolution Steps:**
+
+1. **Inspect Preprocessor Output:** Review the detailed error message in `[AVX_W31]` to locate the failing file path, line number, and character position reported by the preprocessor.
+2. **Fix Syntax Errors:** Correct typos in variable names, add missing `@import`/`@use` statements, or ensure all braces `{}` and quotes `""` are properly balanced.
+3. **Verify Preprocessor Package:** Ensure the required preprocessor npm package (`sass`, `less`, `postcss`) is installed in `devDependencies` and matches the `style.preprocessor` option configured in `avenx.config.json`.
+
+**Incorrect**
+
+Invalid SCSS syntax (referencing an undefined variable `$theme-color` and missing a closing brace):
+
+```css
+<@css>
+  .card {
+    /* ❌ Undefined SCSS variable and missing closing brace; emits AVX_W31 */
+    background: $theme-color;
+    padding: 1.5rem;
+</@css>
+```
+
+Invalid Sass indented format (mixing invalid indentation):
+
+```css
+<@css>
+  .button
+    color: red
+  /* ❌ Indentation syntax mismatch in Sass mode */
+    background-color: blue
+</@css>
+```
+
+**Correct**
+
+Valid SCSS stylesheet with defined variables and properly balanced braces:
+
+```css
+<@css>
+  $theme-color: #646cff;
+
+  .card {
+    /* ✅ Properly defined variable and balanced closing brace */
+    background: $theme-color;
+    padding: 1.5rem;
+  }
+</@css>
+```
+
 ### AVX_W07 — PAGE_ALREADY_REGISTERED
 
 **Warning Message**
