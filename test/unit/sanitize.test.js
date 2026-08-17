@@ -243,12 +243,27 @@ function testConfigurablePolicyOptions() {
   }
 }
 
+function testStripTags() {
+  console.log('🧪 Testing Sanitizer.stripTags static method...');
+
+  assert.strictEqual(Sanitizer.stripTags('<p>Hello <b>World</b></p>'), 'Hello World');
+  assert.strictEqual(Sanitizer.stripTags('<div>Hello <script>alert(1)</script> <b>World</b></div>'), 'Hello  World');
+  assert.strictEqual(Sanitizer.stripTags('<!-- comment -->Plain text'), 'Plain text');
+  assert.strictEqual(Sanitizer.stripTags('<style>body { color: red; }</style>Content'), 'Content');
+  assert.strictEqual(Sanitizer.stripTags(null), '');
+  assert.strictEqual(Sanitizer.stripTags(undefined), '');
+  assert.strictEqual(Sanitizer.stripTags(123), '123');
+
+  console.log('  ✅ Sanitizer.stripTags tests passed!');
+}
+
 try {
   testSanitizerWithDOM();
   testSanitizerFallback();
   testCustomVoidTags();
   testConfigurablePolicyOptions();
   testSanitizeUrl();
+  testStripTags();
   console.log('✅ All Sanitizer tests successfully completed!');
   process.exit(0);
 } catch (error) {

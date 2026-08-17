@@ -75,6 +75,51 @@ console.log(cleanHtml);
 // Output: <div>Hello  <a>World</a></div>
 ```
 
+#### `Sanitizer.stripTags(html)`
+
+Strips all HTML tags, script elements, style tags, and comments from a string, returning unformatted plain text.
+
+**Signature:**
+
+`Sanitizer.stripTags(html: string): string`
+
+**Parameters:**
+
+- `html` (any): The raw content to strip (coerced to a string).
+
+**Returns:**
+
+- `string`: The extracted plain-text string with all HTML tag markup removed.
+
+**Common Use Cases:**
+
+- **Plain-text preview generation:** Creating article card summaries, post excerpts, or email snippet previews from rich HTML content.
+- **Search indexing:** Extracting searchable text content from HTML templates for indexing.
+- **Tooltip text formatting:** Clearing markup for native `title` attributes or plain-text tooltips.
+- **Meta tag description extraction:** Auto-generating SEO `<meta name="description">` content from body HTML markup.
+
+**Guidelines: `stripTags()` vs. `sanitize()`**
+
+- Use **`Sanitizer.stripTags(html)`** when you need unformatted plain text without any HTML markup (e.g. for previews, search indexes, or tooltips).
+- Use **`Sanitizer.prototype.sanitize(html)`** when you want to safely insert user-provided dynamic HTML into the DOM while retaining safe markup structure (such as bold, italics, links, and paragraphs) and filtering out dangerous scripts and attributes.
+
+| Method | Behavior | Primary Use Case | Output |
+| --- | --- | --- | --- |
+| `Sanitizer.stripTags(html)` | Removes **all** HTML tags, script/style content, and comments entirely. | Text summaries, previews, search indexing, meta descriptions. | Plain text |
+| `sanitizer.sanitize(html)` | Filters HTML against allowed tags and attributes policies to prevent XSS. | Rendering rich, user-generated HTML safely in the DOM. | Safe HTML markup |
+
+**Example**
+
+```javascript
+import { Sanitizer } from 'avenx-core/runtime';
+
+const richText = '<div><p>Hello <b>World</b>!</p><script>alert("xss")</script><!-- comment --></div>';
+const plainText = Sanitizer.stripTags(richText);
+
+console.log(plainText);
+// Output: "Hello World!"
+```
+
 ## 4b. `formatMessage(code, ...args)`
 
 Formats an Avenx error/warning template into a console-ready string **without throwing**. Use this when you want to log or report a framework message yourself.

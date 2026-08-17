@@ -679,6 +679,8 @@ export function html(strings: string | TemplateStringsArray, ...values: any[]): 
 
 export class Sanitizer {
     sanitize(html: string): string;
+    static sanitizeUrl(url: string, allowedProtocols?: string[]): string;
+    static stripTags(html: string): string;
 }
 
 export interface AvenxLoggerOptions {
