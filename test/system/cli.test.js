@@ -1114,6 +1114,24 @@ async function runTest() {
     }
     console.log('  ✅ Interactive wizard test passed!');
 
+    console.log('🧪 Testing avenx stats & avenx s CLI command...');
+    resetTestProject();
+
+    const statsResult = runCli(['stats']);
+    assert.strictEqual(statsResult.status, 0, 'avenx stats should exit with code 0');
+    assert.ok(statsResult.stdout.includes('📊 Avenx Component & Bundle Footprint Metrics'), 'avenx stats output header verified');
+
+    const statsAliasResult = runCli(['s']);
+    assert.strictEqual(statsAliasResult.status, 0, 'avenx s alias should exit with code 0');
+
+    const statsJsonResult = runCli(['stats', '--json']);
+    assert.strictEqual(statsJsonResult.status, 0, 'avenx stats --json should exit with code 0');
+    const parsedStatsJson = JSON.parse(statsJsonResult.stdout);
+    assert.ok(parsedStatsJson.summary, 'JSON output should contain summary object');
+    assert.ok(Array.isArray(parsedStatsJson.items), 'JSON output should contain items array');
+
+    console.log('  ✅ avenx stats / s tests passed!');
+
   } catch (error) {
     console.error('❌ Test failed!');
     console.error(error);
