@@ -23,6 +23,7 @@ ${bold(cyan('Commands:'))}
   ${green('check (lint)')}              ${gray('Validate templates without building')}
   ${green('doctor')}                    ${gray('Diagnose environment, config, and project health')}
   ${green('inspect (i)')}               ${gray('Inspect project route and component hierarchy')}
+  ${green('stats (s)')}                ${gray('Display component & bundle footprint metrics')}
   ${green('serve [port]')}              ${gray('Start dev server with hot-reload (default: 3000)')}
   ${green('watch (w)')}                 ${gray('Watch for file changes and rebuild automatically')}
   ${green('help')}                      ${gray('Show this help message')}
