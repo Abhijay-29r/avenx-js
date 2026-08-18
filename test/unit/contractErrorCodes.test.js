@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AvenxError, AvenxErrorCodes, AvenxErrorMessages, formatMessage } from '../../lib/core/runtime/AvenxError.js';
+import { AvenxError, AvenxErrorCodes, formatMessage } from '../../lib/core/runtime/AvenxError.js';
 
 test('Contract error codes and messages are defined properly', () => {
   assert.equal(AvenxErrorCodes.COMPILER_CONTRACT_STATIC_VIOLATION, 'AVX_C04');
