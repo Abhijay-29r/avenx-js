@@ -152,6 +152,9 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://tyr1onx.github.io/"><img src="https://avatars.githubusercontent.com/u/212495395?v=4?s=100" width="100px;" alt="栖白"/><br /><sub><b>栖白</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=Tyr1onX" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/REAPER2705"><img src="https://avatars.githubusercontent.com/u/206106439?v=4?s=100" width="100px;" alt="AKSHAT BHARDWAJ"/><br /><sub><b>AKSHAT BHARDWAJ</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=REAPER2705" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/deekshithasajja-maker"><img src="https://avatars.githubusercontent.com/u/252833550?v=4?s=100" width="100px;" alt="Sajja Deekshitha"/><br /><sub><b>Sajja Deekshitha</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=deekshithasajja-maker" title="Documentation">📖</a></td>
+    </tr>
   </tbody>
 </table>
 
