@@ -121,7 +121,7 @@ global.document = {
 };
 
 global.DOMParser = class {
-  parseFromString(html) {
+  parseFromString() {
     const body = createMockElement('body');
     return { body };
   }
@@ -133,7 +133,6 @@ import { AvenxComponent } from '../../lib/core/runtime/AvenxComponent.js';
 import { logger } from '../../lib/core/runtime/AvenxLogger.js';
 import { AvenxErrorCodes } from '../../lib/core/runtime/AvenxError.js';
 import {
-  queueJob,
   nextTick,
   resetScheduler,
   onSchedulerDeadlock,
@@ -148,7 +147,7 @@ async function testSchedulerComponentLoopDetection() {
   resetScheduler();
   setSchedulerMaxFlushCount(15);
 
-  let errors = [];
+  const errors = [];
   const originalError = logger.error;
   logger.error = (msg) => {
     errors.push(msg);
@@ -161,31 +160,31 @@ async function testSchedulerComponentLoopDetection() {
   });
 
   // Create two mutually triggering components
-  let compA, compB;
+  const comps = {};
 
-  compA = new AvenxComponent(
+  comps.a = new AvenxComponent(
     { val: 0 },
     {},
     {},
     '<div>{{ val }}</div>',
     {
       onUpdate() {
-        if (compB) {
-          compB.state.val = this.val + 1;
+        if (comps.b) {
+          comps.b.state.val = this.val + 1;
         }
       },
     },
   );
 
-  compB = new AvenxComponent(
+  comps.b = new AvenxComponent(
     { val: 0 },
     {},
     {},
     '<div>{{ val }}</div>',
     {
       onUpdate() {
-        if (compA) {
-          compA.state.val = this.val + 1;
+        if (comps.a) {
+          comps.a.state.val = this.val + 1;
         }
       },
     },
@@ -193,13 +192,13 @@ async function testSchedulerComponentLoopDetection() {
 
   const elA = createMockElement('div');
   const elB = createMockElement('div');
-  compA.__setMountTarget(elA);
-  compA.__afterMount();
-  compB.__setMountTarget(elB);
-  compB.__afterMount();
+  comps.a.__setMountTarget(elA);
+  comps.a.__afterMount();
+  comps.b.__setMountTarget(elB);
+  comps.b.__afterMount();
 
   // Kick off the infinite loop
-  compA.state.val = 1;
+  comps.a.state.val = 1;
 
   // Wait for scheduler to flush and intercept the deadlock
   await nextTick();
@@ -223,7 +222,7 @@ async function testSynchronousWatcherCascadeDetection() {
   console.log('🧪 Testing synchronous watcher cascade loop detection...');
   resetScheduler();
 
-  let errors = [];
+  const errors = [];
   const originalError = logger.error;
   logger.error = (msg) => {
     errors.push(msg);
@@ -264,7 +263,7 @@ async function testLegitimateMultiPassUpdate() {
   resetScheduler();
   setSchedulerMaxFlushCount(25);
 
-  let errors = [];
+  const errors = [];
   const originalError = logger.error;
   logger.error = (msg) => {
     errors.push(msg);
