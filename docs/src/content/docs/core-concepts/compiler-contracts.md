@@ -1,4 +1,7 @@
-# Compiler Contracts
+---
+title: 'Compiler Contracts'
+description: 'Compiler Contracts (static, pure, deterministic, isolated) and compile-time optimizations in Avenx-JS.'
+---
 
 Avenx-JS introduces **Compiler Contracts** (`static`, `pure`, `deterministic`, `isolated`). Compiler contracts are explicit semantic guarantees provided by the developer to the Avenx compiler. The compiler leverages these guarantees for static analysis, validation, and optimizations.
 
