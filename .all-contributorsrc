@@ -904,6 +904,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "deekshithasajja-maker",
+      "name": "Sajja Deekshitha",
+      "avatar_url": "https://avatars.githubusercontent.com/u/252833550?v=4",
+      "profile": "https://github.com/deekshithasajja-maker",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
