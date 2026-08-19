@@ -263,6 +263,155 @@ const serializedError = error.toJSON();
 console.log(JSON.stringify(serializedError, null, 2));
 ```
 
+## 4d. Security Sandbox & `DynamicEvaluator` API
+
+Avenx-JS provides an isolated runtime execution sandbox (`lib/core/security/sandbox.js`) and expression evaluation engine (`lib/core/security/evaluator.js`) to parse and evaluate dynamic template expressions, directive conditions, and event handlers securely.
+
+### Security Architecture & Protections
+
+To protect against Cross-Site Scripting (XSS), prototype pollution, and unauthorized host environment access, all dynamic template expressions execute within a sandboxed `Proxy` wrapper:
+
+```text
+Template Expression ──► AvenxSandbox.validateSource() ──► Static AST/Token Validation
+                              │
+                              ▼
+                        AvenxSandbox.createProxy() ──► Isolated Scope & Allowed Globals
+                              │
+                              ▼
+                      DynamicEvaluator.evaluate() ──► Secure Evaluation (with(this))
+```
+
+#### 1. Prototype Pollution Prevention
+
+Access to object prototype manipulation properties (`__proto__`, `constructor`, `prototype`) is strictly blocked during static source validation and runtime proxy access. Any attempt to read or write to these properties immediately throws **`AVX_R15` (`SANDBOX_VIOLATION`)**.
+
+#### 2. Restricted Global Scope & Globals Whitelist
+
+Direct access to browser window APIs, network transports, timers, and execution primitives is blocked inside template expressions:
+
+- **Allowed Globals (`ALLOWED_GLOBALS`)**: `Math`, `JSON`, `Array`, `Object`, `String`, `Number`, `Boolean`, `Date`, `Error`, `Map`, `Set`, `Promise`, `console`, `parseInt`, `parseFloat`, `isNaN`, `isFinite`, `decodeURI`, `decodeURIComponent`, `encodeURI`, `encodeURIComponent`.
+- **Restricted Globals (`RESTRICTED_GLOBALS`)**: `window`, `document`, `localStorage`, `sessionStorage`, `location`, `navigator`, `history`, `fetch`, `alert`, `confirm`, `prompt`, `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `XMLHttpRequest`, `WebSocket`, `process`, `global`, `globalThis`, `eval`, `Function`.
+
+If a template expression accesses a restricted global (e.g. `<button onclick="alert('Done')">` or `data-ax-show="localStorage.getItem('token')"`), execution halts with error **`AVX_R15`**.
+
+> [!TIP]
+> **Best Practice:** Decouple native browser ecosystem API calls (`fetch`, `localStorage`, `alert`, `window`) into standard component action methods rather than invoking them inline inside HTML templates.
+
+---
+
+### `DynamicEvaluator` Class Reference
+
+```javascript
+import { DynamicEvaluator } from 'avenx-core/runtime';
+
+const evaluator = new DynamicEvaluator();
+```
+
+#### Methods
+
+##### `evaluator.evaluateExpression(expression, scope = {}, thisArg = scope)`
+
+Evaluates a JavaScript expression string safely within the sandboxed scope and returns the computed result.
+
+**Parameters:**
+- `expression` (`string`): The JavaScript expression to evaluate (e.g., `'items.length > 0'`).
+- `scope` (`object`, optional): The variable scope available to the expression (e.g. `{ items: [1, 2, 3] }`).
+- `thisArg` (`object`, optional): The `this` context binding for the evaluation.
+
+**Returns:** `any` — The result of evaluating the expression.
+
+```javascript
+const result = evaluator.evaluateExpression('count * multiplier', { count: 5, multiplier: 3 });
+console.log(result); // 15
+```
+
+##### `evaluator.executeStatement(source, scope = {}, thisArg = scope)`
+
+Executes one or more JavaScript statements within the sandboxed scope.
+
+**Parameters:**
+- `source` (`string`): The JavaScript statements to execute.
+- `scope` (`object`, optional): The variable scope.
+- `thisArg` (`object`, optional): The `this` context.
+
+```javascript
+const scope = { user: { name: 'Alice' } };
+evaluator.executeStatement("user.name = 'Bob'", scope);
+console.log(scope.user.name); // 'Bob'
+```
+
+##### `evaluator.createMethodMap(methods = {}, getScope, getThisArg)`
+
+Transforms a dictionary of string statement definitions or functions into sandboxed executable method handlers.
+
+##### `evaluator.sanitizeHTML(value, options = {})`
+
+Helper method that delegates to `Sanitizer.prototype.sanitize()`.
+
+---
+
+### `AvenxSandbox` Class Reference
+
+```javascript
+import { AvenxSandbox } from 'avenx-core/runtime';
+```
+
+#### Methods
+
+##### `AvenxSandbox.validateSource(source)`
+
+Statically validates source code against forbidden prototype keywords (`constructor`, `__proto__`, `prototype`). Throws `AVX_R15` if forbidden identifiers are detected.
+
+##### `AvenxSandbox.createProxy(scope, thisArg, excludeParams = false)`
+
+Creates a sandboxed `Proxy` object wrapping `scope` and `thisArg`. Intercepts property lookups (`get`), assignments (`set`), and `has` traps to restrict global access and prevent prototype pollution.
+
+---
+
+### Programmatic Usage Examples
+
+#### 1. Evaluating Custom Directive Expressions in Plugins
+
+```javascript
+import { DynamicEvaluator } from 'avenx-core/runtime';
+
+const evaluator = new DynamicEvaluator();
+
+export function evaluateDirectiveCondition(directiveAttr, componentInstance) {
+  try {
+    const scope = {
+      state: componentInstance.state,
+      props: componentInstance.props,
+      $element: componentInstance.$element,
+    };
+
+    return evaluator.evaluateExpression(directiveAttr, scope, componentInstance);
+  } catch (err) {
+    console.error(`[Directive Error] Failed to evaluate expression "${directiveAttr}":`, err.message);
+    return false;
+  }
+}
+```
+
+#### 2. Handling Sandbox Violations (`AVX_R15`)
+
+```javascript
+import { DynamicEvaluator } from 'avenx-core/runtime';
+
+const evaluator = new DynamicEvaluator();
+
+try {
+  // ❌ Throws AVX_R15 because 'localStorage' is a restricted global
+  evaluator.evaluateExpression("localStorage.getItem('token')", {});
+} catch (err) {
+  console.log(err.code); // 'AVX_R15'
+  console.log(err.message);
+  // => [AVX_R15] [Avenx Sandbox Violation] Access to global object "localStorage" is restricted inside templates.
+}
+```
+
+---
+
 ## 5. Reactivity API Reference
 
 Avenx-JS exposes APIs for programmatically creating reactive state objects and observing reactive values.
