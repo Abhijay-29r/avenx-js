@@ -1677,29 +1677,31 @@ Keeping externally-managed DOM separate from Avenx-managed slot regions prevents
 [AVX_W15] Injected key "{0}" not found in any ancestor component.
 ```
 
-**Cause:** This warning is emitted at runtime when a child component attempts to access an injected property defined via its `inject` option, but no ancestor component in the DOM component hierarchy exposes a matching key via the `provide` option. When an injected property is accessed, Avenx-JS performs a bottom-up traversal of the component tree searching for a parent component providing that key. If the traversal reaches the root component without finding a provider, Avenx-JS logs warning **AVX_W15** and evaluates the property to `undefined`.
+**Cause:** This warning is emitted at runtime when a child component attempts to access an injected property defined via its `inject` option (or `inject: ['key']` / `inject: { localName: 'provideKey' }`), but no ancestor component in the DOM component hierarchy exposes a matching key via the `provide` option.
 
-The Provide/Inject API allows parent components to act as dependency providers for their entire subtree without prop-drilling values through intermediate components.
+When an injected property is accessed, Avenx-JS performs a bottom-up traversal of the DOM component tree searching for a parent component that provides that key. If the traversal reaches the root component without finding a matching provider, Avenx-JS logs warning **`AVX_W15` (`COMPONENT_INJECT_KEY_NOT_FOUND`)** and evaluates the injected property to `undefined`.
+
+The [Provide / Inject](/core-concepts/provide-inject) API allows parent components to act as dependency providers for their entire subtree without prop-drilling values through intermediate components.
 
 This typically happens for a few common reasons:
 
 - Forgetting to declare `provide` in a root page or parent component.
 - Typos in the key name between `provide` and `inject` (e.g. `provide: { appTheme: 'dark' }` but `inject: ['theme']`).
 - Attempting to inject a key from a sibling or child component instead of an ancestor in the parent chain.
-- Instantiating a component standalone outside of its expected parent container tree.
+- Instantiating a component standalone during isolated unit testing without mounting it inside a provider container or sandbox.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure an ancestor component in the component hierarchy declares the requested key using `provide`.
+1. Ensure an ancestor component in the component hierarchy declares the requested key using `provide` (as an object or factory function `provide() { return { ... }; }`).
 2. Double-check key spelling to ensure exact string matching between `provide` and `inject`.
-3. Verify the component relationship — `provide` keys are only searchable up the direct parent component hierarchy (sibling components cannot inject from each other).
+3. Verify the component hierarchy — `provide` keys are only searchable up the direct parent component hierarchy (sibling components cannot inject from each other).
 4. Provide a defensive default fallback value in the injecting component when keys are optional.
 
 **Incorrect**
 
 ```javascript
 // ChildComponent.component.js
-// ❌ Error: No ancestor component in the tree calls provide for 'theme'
+// ❌ Warning AVX_W15: No ancestor component in the tree calls provide for 'theme'
 export default {
   inject: ['theme'],
   template: `<p>Theme: {{ theme }}</p>`,
@@ -1732,7 +1734,7 @@ export default {
 
 **Defensive Example with Fallback Default**
 
-When an injected key is optional or may be rendered outside of a provider boundary, specify a safe fallback default value:
+When an injected key is optional or may be rendered outside of a provider boundary (such as in isolated component tests), specify a safe fallback default value:
 
 ```javascript
 // ChildComponent.component.js
@@ -1748,7 +1750,9 @@ export default {
 };
 ```
 
-Using a computed property as a fallback ensures your component behaves gracefully even when no matching provider exists in the ancestor tree.
+Using a computed property or nullish coalescing as a fallback ensures your component behaves gracefully even when no matching provider exists in the ancestor tree.
+
+---
 
 ### AVX_W16 — SECURITY_SANITIZED_TAG
 
