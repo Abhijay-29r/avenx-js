@@ -717,6 +717,117 @@ const watcher = new AvenxWatcher(
 watcher.teardown();
 ```
 
+---
+
+## 8b. Microtask Scheduler Utilities (`nextTick`, `queueJob`, `queueFlushCallback`)
+
+The Avenx-JS reactive rendering engine manages asynchronous DOM updates through a microtask scheduler (`lib/core/reactive/scheduler.js`), exported via `avenx-core/runtime`.
+
+### DOM Patch Timing & Microtask Queue Architecture
+
+To achieve optimal performance and eliminate layout thrashing, Avenx-JS **batches** state mutations. When you modify one or more reactive properties synchronously, the framework does not patch the DOM immediately on every assignment. Instead, it pushes the component's update job to a priority queue and schedules a single asynchronous flush in a microtask.
+
+```text
+Synchronous State Mutations ──► queueJob() (Deduplicated) ──► Microtask Scheduled (queueFlush)
+                                                                    │
+                                                                    ▼
+                                                            flushJobs() Loop
+                                                            ├─ 1. Sort jobs by Component UID
+                                                            ├─ 2. Execute DOM Patches
+                                                            └─ 3. Run flushCallbacks (nextTick)
+```
+
+Because DOM updates are deferred to the microtask queue, querying element properties (such as `.offsetWidth`, `.scrollHeight`, or `querySelector()`) immediately after modifying state will read pre-update measurements. Using `nextTick()` guarantees that the DOM patch cycle has completed.
+
+---
+
+### Function Signatures & Descriptions
+
+```javascript
+import {
+  nextTick,
+  queueJob,
+  queueFlushCallback,
+  setSchedulerMaxFlushCount,
+  getSchedulerMaxFlushCount,
+  onSchedulerDeadlock,
+  resetScheduler
+} from 'avenx-core/runtime';
+```
+
+| Utility Function | Type Signature | Description |
+| :--- | :--- | :--- |
+| `nextTick(callback?)` | `(cb?: Function) => Promise<void> \| void` | Returns a Promise (or invokes an optional callback) after the scheduler finishes flushing all queued DOM updates and lifecycle patch jobs. |
+| `queueJob(job)` | `(job: Function) => void` | Adds a job callback to the pending scheduler queue. Automatically deduplicates identical jobs and schedules a microtask flush if one is not already pending. |
+| `queueFlushCallback(cb)` | `(cb: Function) => void` | Registers a callback executed immediately after all active DOM patch jobs in the current flush cycle complete. |
+| `setSchedulerMaxFlushCount(count)` | `(count: number) => void` | Configures the recursion threshold before aborting runaway update cycles (defaults to 25). |
+| `getSchedulerMaxFlushCount()` | `() => number` | Returns the currently configured maximum flush cycle recursion depth. |
+| `onSchedulerDeadlock(handler)` | `(handler: Function) => Function` | Subscribes a listener to reactive deadlock detection events. Returns an unsubscribe cleanup function. |
+| `resetScheduler()` | `() => void` | Resets all internal queue arrays, counters, and execution history (used in unit testing). |
+
+---
+
+### Practical Code Examples
+
+#### 1. Awaiting DOM Measurements after State Mutation (`nextTick`)
+
+Inside component actions or methods, use `await nextTick()` (or `this.nextTick()`) to inspect the DOM after new elements or classes have rendered:
+
+```javascript
+// src/components/chat-box.component.js
+export default {
+  actions: {
+    async sendMessage(text) {
+      // 1. Mutate reactive state
+      this.state.messages.push({ id: Date.now(), text });
+
+      // 2. Wait for DOM patch to complete
+      await nextTick();
+
+      // 3. Scroll to the newly rendered message
+      const chatContainer = this.$element.querySelector('.messages-list');
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }
+};
+```
+
+#### 2. Post-Flush Callbacks with `queueFlushCallback()`
+
+Execute a task immediately after all scheduled component updates finish rendering in the current tick:
+
+```javascript
+import { queueFlushCallback } from 'avenx-core/runtime';
+
+function updateUIAndNotify(component) {
+  component.state.status = 'Ready';
+
+  queueFlushCallback(() => {
+    console.log('All components have finished DOM patching for this tick.');
+    window.dispatchEvent(new CustomEvent('app:rendered'));
+  });
+}
+```
+
+#### 3. Custom Batching Jobs with `queueJob()`
+
+Deduplicate heavy computations or background updates using `queueJob()`:
+
+```javascript
+import { queueJob } from 'avenx-core/runtime';
+
+function syncServerState() {
+  console.log('Synchronizing state with backend...');
+}
+
+// Queue multiple triggers in the same tick; only one job executes
+queueJob(syncServerState);
+queueJob(syncServerState);
+queueJob(syncServerState);
+```
+
+---
+
 ## 9. AvenxLogger
 
 The `AvenxLogger` class provides Avenx-JS's built-in logging system. It supports configurable log levels, custom formatting, context tagging, and custom transports, making it suitable for both development and production environments.
