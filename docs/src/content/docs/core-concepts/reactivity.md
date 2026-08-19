@@ -398,6 +398,172 @@ Only the **nearest** ancestor providing a given key is used. If multiple ancesto
 If no ancestor in the tree provides an injected key, the property resolves to `undefined` and a warning is logged to the console — it does not throw. Double-check ancestor/descendant `provide`/`inject` key names match if an injected value is unexpectedly `undefined`.
 :::
 
+---
+
+## AvenxWatcher & Component Watch API
+
+While computed properties automatically derive values and update DOM templates, you often need to execute **side effects** in response to state changes (such as fetching data from an API, syncing with `localStorage`, logging analytics, or triggering animations).
+
+Avenx-JS provides the `this.$watch()` / `this.watch()` component API and the underlying `AvenxWatcher` engine (`lib/core/reactive/watcher.js`) to observe reactive properties and expressions with fine-grained control.
+
+---
+
+### Component Watch API (`this.$watch`)
+
+Inside component actions, lifecycle hooks, or class methods, register watchers using `this.$watch()`:
+
+```typescript
+this.$watch(source, callback, options?): AvenxWatcher
+```
+
+#### Supported `source` Formats
+
+| Format | Syntax Example | Description |
+| :--- | :--- | :--- |
+| **State Key (String Path)** | `'user.profile.name'` | Observes top-level or nested properties on `this.state`. Nested property paths are traversed and resolved automatically. |
+| **Getter Function** | `() => this.state.count * 2` | Evaluates a reactive expression and runs the callback whenever any accessed reactive property changes. |
+| **Multi-Source Array** | `[() => this.state.a, () => this.state.b]` | Observes multiple sources concurrently. Callback receives arrays of `[newA, newB]` and `[oldA, oldB]`. |
+
+#### Callback Signature
+
+```javascript
+callback(newValue, oldValue)
+```
+
+- `newValue`: The latest evaluated value of the watched source.
+- `oldValue`: The previous value before mutation (`undefined` during the initial invocation when `immediate: true`).
+
+---
+
+### Watcher Configuration Options
+
+Configure watcher execution behavior by passing an `options` object:
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `immediate` | `boolean` | `false` | When `true`, runs the callback immediately upon watcher registration with the initial value. |
+| `deep` | `boolean` | `false` | When `true`, recursively traverses nested objects and arrays so modifications to nested child properties trigger the callback. |
+| `debounce` | `number` (ms) | `undefined` | Delays callback execution until `number` milliseconds of inactivity have elapsed since the last state mutation (debouncing). |
+| `throttle` | `number` (ms) | `undefined` | Limits callback execution frequency to at most once per `number` milliseconds (throttling). |
+| `lazy` | `boolean` | `false` | Postpones initial value calculation until first evaluated (used internally for lazy computed properties). |
+
+---
+
+### Watcher Control Methods (`AvenxWatcher` Instance)
+
+Calling `this.$watch()` returns an `AvenxWatcher` instance that provides programmatic control over its lifecycle:
+
+| Method | Description |
+| :--- | :--- |
+| `watcher.pause()` | Temporarily pauses watcher callback execution without unregistering reactive dependencies. State mutations occurring while paused do not trigger the callback. |
+| `watcher.resume()` | Re-enables watcher execution and resumes processing reactive state changes. |
+| `watcher.teardown()` | Unsubscribes the watcher from all tracked dependencies and clears pending debounce/throttle timers. Automatically invoked when components unmount. |
+
+---
+
+### Practical Code Examples
+
+#### 1. Debounced Search Input Watcher
+
+Debounce autocomplete API requests to avoid excess network traffic as the user types:
+
+```javascript
+// src/components/search-box.component.js
+export default {
+  actions: {
+    onMount() {
+      // Debounce input changes by 300ms
+      this._searchWatcher = this.$watch(
+        'searchQuery',
+        async (query) => {
+          if (!query || query.trim() === '') {
+            this.state.results = [];
+            return;
+          }
+          this.state.isSearching = true;
+          const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+          this.state.results = await res.json();
+          this.state.isSearching = false;
+        },
+        { debounce: 300 }
+      );
+    },
+  },
+};
+```
+
+#### 2. Multi-Source Array Watcher
+
+Observe multiple reactive values concurrently and trigger a single combined side effect:
+
+```javascript
+// Observe changes to both page number and filter category
+this.$watch(
+  [() => this.state.currentPage, () => this.state.filterCategory],
+  ([newPage, newCategory], [oldPage, oldCategory]) => {
+    console.log(`Filter changed from (${oldPage}, ${oldCategory}) to (${newPage}, ${newCategory})`);
+    this.fetchTableData(newPage, newCategory);
+  },
+  { immediate: true }
+);
+```
+
+#### 3. Deep Object Watching
+
+Observe mutations on nested object properties or arrays:
+
+```javascript
+this.$watch(
+  () => this.state.userPreferences,
+  (newPrefs) => {
+    localStorage.setItem('user_prefs', JSON.stringify(newPrefs));
+  },
+  { deep: true }
+);
+```
+
+#### 4. Pausing Watchers During Bulk State Updates
+
+Temporarily pause watcher triggers during bulk state assignments to avoid redundant operations:
+
+```javascript
+const watcher = this.$watch('items', (items) => this.calculateTotal(items));
+
+function loadBatch(newItems) {
+  // Pause watcher triggers during batch insertion
+  watcher.pause();
+
+  newItems.forEach((item) => {
+    this.state.items.push(item);
+  });
+
+  // Resume watcher and run recalculation once
+  watcher.resume();
+  this.calculateTotal(this.state.items);
+}
+```
+
+#### 5. Standalone `AvenxWatcher` Usage
+
+Outside components, create standalone reactive watchers using `AvenxWatcher`:
+
+```javascript
+import { AvenxWatcher } from 'avenx-core/runtime';
+
+const watcher = new AvenxWatcher(
+  () => appState.theme,
+  (newTheme, oldTheme) => {
+    document.documentElement.setAttribute('data-theme', newTheme);
+  },
+  { immediate: true }
+);
+
+// Clean up when no longer needed
+watcher.teardown();
+```
+
+---
+
 ## Reactivity Exclusions and Limitations
 
 Avenx-JS uses JavaScript `Proxy` objects to track changes to reactive state. While this works well for plain JavaScript objects and arrays, some values are intentionally excluded from reactive tracking to preserve native behavior and avoid prototype-related issues.
