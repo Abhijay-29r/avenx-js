@@ -527,6 +527,12 @@ export class AvenxApp {
     onError(callback: (error: Error, component: AvenxComponent, origin: string) => void): this;
 
     /**
+     * Registers an application-wide warning handler callback.
+     * @param callback Callback triggered when a framework warning is reported.
+     */
+    onWarn(callback: (warningMessage: string, component?: AvenxComponent, code?: string) => void): this;
+
+    /**
      * Registers a plugin with the application. Supports synchronous plugins, async installer functions, dynamic import loaders, or Promises.
      * @param plugin The plugin object, installer function, async loader function, or Promise.
      * @param options Optional configurations for the plugin.
