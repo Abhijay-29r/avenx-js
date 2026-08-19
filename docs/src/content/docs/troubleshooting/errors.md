@@ -399,6 +399,120 @@ const app = new AvenxApp({
 | `[AVX_C01]` | Could not create dist directory at "{dir}".                                                 | **Cause:** Write permission failure.<br />**Resolution:** Adjust your operating system directory write permissions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `[AVX_C02]` | "src" directory not found at "{path}". Run "avenx init" to scaffold a project. | **Identifier:** `COMPILER_SRC_DIR_MISSING`.<br />**Cause:** Running `avenx build` or `avenx watch` in a project directory where the `src/` folder is missing.<br />**Resolution:** Run `npx avenx init` to scaffold a valid project directory, or manually create the `src/` directory with the required application files. |                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `[AVX_C03]` | Duplicate component name(s) detected. These files compile to the same class name: {details} | **Cause:** Two or more component files (e.g. `card.component.js` in different directories) resolve to the same generated class name, since Avenx-JS derives a component's class name from its file name. This causes a naming collision when the components are bundled together.<br />**Resolution:** Rename one of the conflicting files, or move it to a location that produces a distinct class name — for example, renaming `card.component.js` to `profile-card.component.js`. The build halts and lists every conflicting file path so you can identify exactly which components need to be renamed. |
+| `[AVX_C04]` | Node or component tagged with "static" contract contains dynamic expression or binding: {0} | **Cause:** A `static` subtree contains runtime-dependent content such as an interpolation, event handler, two-way binding, or slot.<br />**Resolution:** Remove the dynamic content or remove `static` from the containing node. See the [compiler contracts guide](/core-concepts/compiler-contracts/). |
+| `[AVX_C05]` | Isolated component "{0}" violates isolation boundary by accessing external scope or bridge: {1} | **Cause:** An `isolated` component accesses `$bridges`, `this.$bridges`, `$parent`, or `this.$parent` instead of using explicit inputs.<br />**Resolution:** Pass the required value through props or local state. See the [compiler contracts guide](/core-concepts/compiler-contracts/). |
+| `[AVX_C06]` | Invalid contract declaration "{0}" in {1}: {2} | **Cause:** The `<contract />` declaration contains an unknown contract name or malformed syntax.<br />**Resolution:** Use only `static`, `pure`, `deterministic`, and `isolated`, then fix the parser reason reported in `{2}`. See the [compiler contracts guide](/core-concepts/compiler-contracts/). |
+
+### AVX_C04 — static contract violation
+
+**Message:** `Node or component tagged with "static" contract contains dynamic expression or binding: {0}`
+
+A `static` subtree must not depend on runtime values. Interpolations, event handlers, two-way bindings, and slots make the output dynamic.
+
+**Incorrect**
+
+```html
+<div static>
+  <span>{{ props.title }}</span>
+  <button @click="save">Save</button>
+</div>
+```
+
+**Correct**
+
+```html
+<div static>
+  <span>Account settings</span>
+</div>
+```
+
+Remove the dynamic content or remove `static` from the containing node. See the [compiler contracts guide](/core-concepts/compiler-contracts/).
+
+### AVX_C05 — isolated contract violation
+
+**Message:** `Isolated component "{0}" violates isolation boundary by accessing external scope or bridge: {1}`
+
+An `isolated` component may use explicit props and local state, but not `$bridges`, `this.$bridges`, `$parent`, or `this.$parent`.
+
+**Incorrect**
+
+```html
+<contract isolated />
+<template><p>{{ $bridges.userStore.name }}</p></template>
+```
+
+**Correct**
+
+```html
+<contract isolated />
+<template><p>{{ props.userName }}</p></template>
+```
+
+Pass the required value through props or local state. See the [compiler contracts guide](/core-concepts/compiler-contracts/).
+
+### AVX_C06 — invalid contract declaration
+
+**Message:** `Invalid contract declaration "{0}" in {1}: {2}`
+
+This diagnostic identifies an unknown contract name or malformed `<contract />` declaration. The `{1}` placeholder identifies the source location, while `{2}` preserves the parser's specific reason.
+
+**Incorrect**
+
+```html
+<contract statc />
+```
+
+**Correct**
+
+```html
+<contract static pure deterministic isolated />
+```
+
+Use only `static`, `pure`, `deterministic`, and `isolated`, and fix the exact parser reason reported in the message. See the [compiler contracts guide](/core-concepts/compiler-contracts/).
+
+### AVX_W33 — deterministic contract violation
+
+**Message:** `Deterministic contract violation in component "{0}": contains non-deterministic expression or call: {1}`
+
+A `deterministic` block must produce the same semantic output for the same inputs. Time, randomness, and environment-dependent APIs violate that contract.
+
+**Incorrect**
+
+```html
+<div deterministic>{{ Math.random() }}</div>
+```
+
+**Correct**
+
+```html
+<div deterministic>{{ props.seededValue }}</div>
+```
+
+Compute or inject the changing value outside the deterministic block, then pass it as an explicit input. See the [compiler contracts guide](/core-concepts/compiler-contracts/).
+
+### AVX_W34 — redundant contract declaration
+
+**Message:** `Contract "{0}" is redundant in "{1}" because parent scope already enforces "{2}".`
+
+The validator reports a child declaration when a stricter parent already enforces it. For example, a `pure` child under a `static` parent is redundant.
+
+**Incorrect**
+
+```html
+<div static>
+  <span pure>Account settings</span>
+</div>
+```
+
+**Correct**
+
+```html
+<div static>
+  <span>Account settings</span>
+</div>
+```
+
+Remove the child declaration unless it communicates a genuinely different boundary. See the [compiler contracts guide](/core-concepts/compiler-contracts/).
 
 ### AVX_C01 — COMPILER_DIST_CREATION_FAILED
 
