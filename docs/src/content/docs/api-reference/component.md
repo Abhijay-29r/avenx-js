@@ -255,16 +255,19 @@ export default class MyComponent extends AvenxComponent {
 
 ### Complete Lifecycle Hooks Reference
 
-| Hook Name | Parameters | Description |
-| :--- | :--- | :--- |
-| `onBeforeMount()` | None | Called after state and actions are set up, right before the component template is compiled and inserted into the DOM. |
-| `onMount()` | None | Called immediately after the component element is attached to the DOM. Ideal for initial API data fetches, setting up timers, or DOM queries. |
-| `onBeforeUpdate()` | None | Called right before the DOM is patched following a reactive state or props change. Useful for reading current DOM scroll positions or focus states. |
-| `onUpdate()` | None | Called immediately after the DOM patch update finishes. Ideal for DOM measurements or re-initializing third-party UI widgets. |
-| `onActivate(params)` | `params: Object` | Called whenever a cached page configured with `keepAlive: true` becomes active. Receives current route parameters. |
-| `onDeactivate()` | None | Called when navigating away from a page configured with `keepAlive: true`. The page remains cached in memory rather than unmounted. |
-| `onUnmount()` | None | Called right before the component element is unmounted and detached from the DOM. Use this to clean up timers, global event listeners, and subscriptions. |
-| `onErrorCaptured(err, instance, info)` | `err: Error, instance: Object, info: String` | Called when an unhandled exception is caught from a descendant child component. Return `false` to stop error propagation. |
+| Hook Name | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `onBeforeMount()` | None | `void` | Called after state and actions are set up, right before the component template is compiled and inserted into the DOM. |
+| `onMount()` | None | `void` | Called immediately after the component element is attached to the DOM. Ideal for initial API data fetches, setting up timers, or DOM queries. |
+| `onEnter()` | None | `void` | Called immediately after initial mount and first render update. Ideal for entrance animations, tracking impressions, or post-entry focus. |
+| `onBeforeUpdate()` | None | `void` | Called right before the DOM is patched following a reactive state or props change. Useful for reading current DOM scroll positions or focus states. |
+| `onUpdate()` | None | `void` | Called immediately after the DOM patch update finishes. Ideal for DOM measurements or re-initializing third-party UI widgets. |
+| `onBeforeLeave()` | None | `void \| Promise<void>` | Called before component unmounting begins. If a `Promise` is returned, unmounting and teardown are postponed until the Promise resolves. Ideal for exit animations or confirmation prompts. |
+| `onLeave()` | None | `void` | Called immediately before internal component teardown begins. Ideal for final transition cleanup and resetting global styles. |
+| `onActivate(params)` | `params: Object` | `void` | Called whenever a cached page configured with `keepAlive: true` becomes active. Receives current route parameters. |
+| `onDeactivate()` | None | `void` | Called when navigating away from a page configured with `keepAlive: true`. The page remains cached in memory rather than unmounted. |
+| `onUnmount()` | None | `void` | Called right before the component element is unmounted and detached from the DOM. Use this to clean up timers, global event listeners, and subscriptions. |
+| `onErrorCaptured(err, instance, info)` | `err: Error, instance: Object, info: String` | `boolean \| void` | Called when an unhandled exception is caught from a descendant child component. Return `false` to stop error propagation. |
 
 ---
 

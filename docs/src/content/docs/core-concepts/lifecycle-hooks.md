@@ -31,8 +31,11 @@ graph TD
 | --- | --- | --- | --- |
 | `onBeforeMount()` | Pre-Mount | ❌ No | Initialize non-reactive variables, prepare state values. |
 | `onMount()` | Mounting | ✅ Yes | Fetch initial API data, measure DOM dimensions, attach listeners, start timers. |
+| `onEnter()` | Post-Mount Transition | ✅ Yes | Trigger entrance animations or log page view telemetry immediately after initial render. |
 | `onBeforeUpdate()` | Pre-Patch | ✅ Yes | Read DOM scroll/cursor positions before patching updates. |
 | `onUpdate()` | Post-Patch | ✅ Yes | Adjust DOM scroll, re-initialize third-party DOM widgets. |
+| `onBeforeLeave()` | Pre-Unmount Transition | ✅ Yes | Postpone unmounting by returning a `Promise` (e.g. exit animations or confirm dialogs). |
+| `onLeave()` | Unmount Transition | ✅ Yes | Execute final transition cleanup immediately before internal teardown begins. |
 | `onUnmount()` | Teardown | ✅ Yes (pre-removal) | Clear timers (`clearInterval`), remove `window` listeners, close WebSockets. |
 | `onActivate(params)` | KeepAlive Active | ✅ Yes | Triggered when returning to a cached `keepAlive` page route. |
 | `onDeactivate()` | KeepAlive Inactive | ✅ Yes | Triggered when navigating away from a cached `keepAlive` page route. |
@@ -197,6 +200,94 @@ onErrorCaptured(error, instance, info) {
   this.state.hasError = true;
   this.state.errorMessage = error.message;
   return false; // Suppress further error propagation up the tree
+}
+```
+
+---
+
+### 8. `onEnter()`
+
+- **Trigger:** Runs immediately after the component instance completes its initial mount and first render update (`LifecycleManager.mount()`).
+- **Use Cases:** Triggering entrance CSS transitions, Web Animations API sequences, tracking page view analytics/impressions, or setting initial focus.
+- **DOM Availability:** Fully mounted and accessible via `this.el`.
+
+```javascript
+onEnter() {
+  console.log('Page/Component entered the active viewport.');
+
+  // Trigger entrance animation
+  const container = this.el.querySelector('.page-container');
+  if (container) {
+    container.classList.add('animate-fade-in');
+  }
+
+  // Track page-view impression
+  if (window.analytics) {
+    window.analytics.track('PageView', { page: this.$pageName || this.constructor.name });
+  }
+}
+```
+
+---
+
+### 9. `onBeforeLeave()`
+
+- **Trigger:** Runs before component unmounting begins (`LifecycleManager.unmount()`).
+- **Async Promise Return Mechanism:** If `onBeforeLeave()` returns a `Promise`, `LifecycleManager` **postpones unmounting and teardown** until the returned Promise resolves (`beforeLeaveResult.then(doTeardown)`).
+- **Use Cases:**
+  - Running asynchronous exit animations (e.g. fade-out, slide-up) so the component remains in the DOM until the animation completes.
+  - Displaying custom unsaved changes confirmation dialogs before allowing the route transition and unmounting to proceed.
+- **DOM Availability:** Fully mounted and accessible during execution.
+
+```javascript
+// Asynchronous exit transition example
+onBeforeLeave() {
+  return new Promise((resolve) => {
+    const container = this.el.querySelector('.page-content');
+    if (!container) {
+      return resolve();
+    }
+
+    // Play CSS exit transition before teardown
+    container.classList.add('page-exit-active');
+    container.addEventListener('transitionend', () => resolve(), { once: true });
+
+    // Fallback timer to prevent stalling if transitionend does not fire
+    setTimeout(resolve, 350);
+  });
+}
+```
+
+#### Example: Unsaved Form Confirmation with `onBeforeLeave()`
+
+```javascript
+// src/pages/edit-profile.page.js
+export default class EditProfilePage extends AvenxPage {
+  onBeforeLeave() {
+    if (this.state.isDirty) {
+      return new Promise((resolve) => {
+        const leave = window.confirm('You have unsaved changes. Are you sure you want to leave?');
+        if (leave) {
+          resolve(); // Allow unmount and route transition to proceed
+        }
+      });
+    }
+  }
+}
+```
+
+---
+
+### 10. `onLeave()`
+
+- **Trigger:** Executed immediately before internal teardown (`component.__performTeardown()`) begins.
+- **Use Cases:** Final transition cleanup, resetting global document styles, removing temporary transition CSS classes, or completing transition telemetry.
+- **DOM Availability:** Last moment where DOM nodes and component context are still intact before destruction.
+
+```javascript
+onLeave() {
+  console.log('Component is leaving. Executing final transition cleanup.');
+  document.body.classList.remove('lock-scroll');
 }
 ```
 
