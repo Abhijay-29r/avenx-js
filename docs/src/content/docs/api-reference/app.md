@@ -199,22 +199,49 @@ app.initRouter({
 
 ### `directive(name, definition)`
 
-Registers a custom directive with the application instance.
+Registers a custom directive with the application instance. Returns the `AvenxApp` instance for chaining.
+
+```typescript
+directive(name: string, definition: DirectiveDefinition | DirectiveFunction): AvenxApp
+```
 
 | Param | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus`. |
-| `definition` | `object` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`). |
+| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus` (or with dot modifiers like `data-ax-focus.lazy`). |
+| `definition` | `object \| function` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`), or a shorthand function `(el, binding) => void` executed on both mount and update. |
+
+#### Lifecycle Hooks Schema (`DirectiveDefinition`)
+
+| Hook | Parameters | Description |
+| --- | --- | --- |
+| `mounted(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the bound element is inserted into the DOM. |
+| `updated(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the directive expression value updates (`binding.value !== binding.oldValue`). |
+| `unmounted(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the bound element is removed/unmounted from the DOM. |
+
+#### Binding Object Schema (`DirectiveBinding`)
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `binding.value` | `any` | Evaluated result of the directive expression. |
+| `binding.oldValue` | `any` | Previous evaluated result before the update. |
+| `binding.expression` | `string` | Raw string expression passed in the template. |
+| `binding.modifiers` | `object` | Key/value map of modifier flags (e.g. `data-ax-tooltip.top.lazy` -> `{ top: true, lazy: true }`). |
 
 ```javascript
+// Object definition
 app.directive('focus', {
   mounted(el) {
     el.focus();
   },
 });
+
+// Shorthand function definition (runs on mounted and updated)
+app.directive('color', (el, binding) => {
+  el.style.color = binding.value;
+});
 ```
 
-See [Custom Directives](/core-concepts/directives/) for full details and examples.
+See [Custom Directives](/core-concepts/directives/) for complete guides, modifier handling, and real-world examples.
 
 ### `registerBridge(name, bridgeData)`
 
