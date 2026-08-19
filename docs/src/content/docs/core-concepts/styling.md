@@ -571,3 +571,148 @@ For per-instance dynamic CSS values, use the [`data-ax-style`](/core-concepts/te
 
 Full details: [Compiler Warnings](/troubleshooting/errors#avx_w24--compiler_preprocessor_missing).
 
+---
+
+## 9. StyleMountManager & Dynamic Runtime Style Lifecycle
+
+In addition to static compile-time stylesheet bundling, Avenx-JS provides dynamic runtime CSS injection through the `StyleMountManager` module (`lib/core/runtime/StyleMountManager.js`), exported via `avenx-core/runtime`.
+
+`StyleMountManager` ensures that when components declare runtime styles (such as `static styles = '...'` on class components or dynamically generated CSS), exactly **one** `<style>` element per component class exists in `document.head`, and that styles are automatically cleaned up when all instances of that component unmount.
+
+---
+
+### Reference Counting Architecture
+
+`StyleMountManager` uses reference counting to manage the lifecycle of injected stylesheets:
+
+```text
+Component A (Instance 1) mounts   ──► refCount = 1  ──► Append <style data-avenx-style="avenx-style-ComponentA">
+Component A (Instance 2) mounts   ──► refCount = 2  ──► Increment refCount (no duplicate DOM node)
+Component A (Instance 1) unmounts ──► refCount = 1  ──► Decrement refCount (style remains active)
+Component A (Instance 2) unmounts ──► refCount = 0  ──► Remove <style data-avenx-style="avenx-style-ComponentA">
+```
+
+#### Lifecycle Steps
+
+1. **Mount & Deduplication (`mount`)**:
+   - Reads `componentClass.styles`.
+   - Generates a unique style identifier attribute (e.g. `data-avenx-style="avenx-style-UserProfile"`).
+   - Checks if a matching `<style>` node already exists in `document.head` (e.g., from SSR hydration or pre-rendered markup). If found, it adopts the element and sets `refCount = 1`.
+   - If already registered in memory, increments `refCount++` without creating a duplicate DOM node.
+   - If not present, creates and appends `<style data-avenx-style="...">` to `document.head`.
+
+2. **Unmount & Cleanup (`unmount`)**:
+   - Decrements `refCount--` for that component class.
+   - Verifies whether any active component instances remain in the DOM tree.
+   - When `refCount <= 0` (and no active instances remain), removes the `<style>` tag from `document.head` and purges the entry from the internal registry.
+
+---
+
+### API Method Reference
+
+Import the singleton instance or class:
+
+```javascript
+import { styleMountManager, StyleMountManager } from 'avenx-core/runtime';
+```
+
+| Method | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `mount(componentClass)` | `componentClass: Function` | `void` | Mounts runtime styles defined on `componentClass.styles` into `document.head` and increments the reference count. |
+| `unmount(componentClass)` | `componentClass: Function` | `void` | Decrements the reference count for `componentClass` and removes the `<style>` element if no active instances remain. |
+| `getRefCount(componentClass)` | `componentClass: Function` | `number` | Returns the current active instance reference count for the specified component class (or `0` if unmounted). |
+
+---
+
+### Programmatic Usage Examples
+
+#### 1. Defining Runtime Component Styles (`static styles`)
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export class StatusPill extends AvenxComponent {
+  // Runtime injected CSS
+  static styles = `
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .status-pill.success {
+      background-color: #dcfce7;
+      color: #15803d;
+    }
+  `;
+}
+```
+
+When `<status-pill>` mounts, `StyleMountManager` automatically injects:
+
+```html
+<style data-avenx-style="avenx-style-StatusPill">
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .status-pill.success {
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+</style>
+```
+
+#### 2. Inspecting Reference Counts in Unit Tests
+
+```javascript
+import { styleMountManager } from 'avenx-core/runtime';
+import { StatusPill } from './StatusPill.component.js';
+
+describe('StatusPill Style Lifecycle', () => {
+  it('increments and decrements style refCount on mount/unmount', () => {
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(0);
+
+    const instance1 = new StatusPill();
+    styleMountManager.mount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(1);
+
+    const instance2 = new StatusPill();
+    styleMountManager.mount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(2);
+
+    styleMountManager.unmount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(1);
+
+    styleMountManager.unmount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(0);
+    expect(document.head.querySelector('[data-avenx-style="avenx-style-StatusPill"]')).toBeNull();
+  });
+});
+```
+
+#### 3. Custom Dynamic Theme Plugins
+
+```javascript
+import { styleMountManager } from 'avenx-core/runtime';
+
+export function registerDynamicPluginTheme(pluginName, cssString) {
+  class PluginComponentPlaceholder {
+    static styles = cssString;
+  }
+  Object.defineProperty(PluginComponentPlaceholder, 'name', { value: pluginName });
+
+  styleMountManager.mount(PluginComponentPlaceholder);
+
+  return () => {
+    styleMountManager.unmount(PluginComponentPlaceholder);
+  };
+}
+```
+
