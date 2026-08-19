@@ -546,3 +546,109 @@ When reactivity tracing is enabled, Avenx-JS outputs structured log messages:
 - **Dependency Tracking:** Logs whenever an `AvenxWatcher` accesses a Proxy property and registers a reactive dependency.
 - **State Mutations:** Logs property modifications and Proxy traps (e.g. state mutations and value updates).
 - **Watcher Invalidation:** Logs when dirty state notifications queue a watcher re-render job.
+
+---
+
+## Advanced Reactivity & Proxy Reflection
+
+Avenx-JS exports low-level reflection symbols and utility functions from `lib/core/reactive/proxyHandler.js` for advanced introspection, devtools extensions, and interoperability with non-reactive third-party libraries.
+
+### Reactivity Reflection Symbols
+
+| Symbol | Description | Usage Example |
+| :--- | :--- | :--- |
+| `RAW_SYMBOL` | Unique Symbol key used to unwrap a reactive Proxy and access its raw, underlying non-reactive JavaScript object or array. | `const raw = state[RAW_SYMBOL] \|\| state;` |
+| `IS_REACTIVE_PROXY` | Boolean flag Symbol present on all reactive Proxy instances. Evaluates to `true` on Proxies and `undefined` on plain objects. | `if (state[IS_REACTIVE_PROXY]) { ... }` |
+| `PROXY_REF_SYMBOL` | Global Symbol (`Symbol.for('__avenx_proxy_ref__')`) referencing the cached Proxy instance attached to a raw target object. | `const proxy = rawObject[PROXY_REF_SYMBOL];` |
+
+---
+
+### Reactivity Inspection Utilities
+
+#### `isReactiveTarget(value)`
+
+Determines whether a JavaScript value is eligible to be wrapped in a reactive Proxy.
+
+```javascript
+import { isReactiveTarget } from 'avenx-core/reactive/proxyHandler.js';
+
+isReactiveTarget({ name: 'Alice' }); // true (Plain Object)
+isReactiveTarget([1, 2, 3]);          // true (Array)
+isReactiveTarget(new Map());          // true (Map)
+isReactiveTarget(new Set());          // true (Set)
+
+isReactiveTarget('hello');            // false (Primitive string)
+isReactiveTarget(123);                // false (Primitive number)
+isReactiveTarget(null);               // false (null)
+isReactiveTarget(new Date());         // false (Native Class Instance)
+isReactiveTarget(() => {});           // false (Function)
+```
+
+Eligible targets include:
+- Plain objects with `Object.prototype` or `null` prototype (e.g. `Object.create(null)`).
+- Arrays (`Array.prototype`).
+- `Map` and `Set` collections.
+
+Primitives, functions, promises, and instances of built-in classes (`Date`, `RegExp`, DOM elements) return `false` to prevent internal slot corruption and prototype pollution.
+
+#### `cleanupParentMap(target)`
+
+Recursively traverses a detached or replaced reactive object and clears its parent-child tracking metadata from the internal `parentMap`. This is called automatically when properties on reactive state are reassigned or deleted, preventing memory retention in deep reactive trees.
+
+---
+
+### Practical Use Cases & Examples
+
+#### 1. Unwrapping State for Third-Party Libraries (Charts, Canvas, WebGL)
+
+Third-party libraries (such as Chart.js, D3, Three.js, or Leaflet) may perform identity checks (`===`), clone objects, or mutate arrays internally. Passing raw non-reactive objects avoids triggering unnecessary component re-renders:
+
+```javascript
+import { RAW_SYMBOL, IS_REACTIVE_PROXY } from 'avenx-core/reactive/proxyHandler.js';
+
+// Safe unwrapping helper
+export function toRaw(observed) {
+  return (observed && observed[RAW_SYMBOL]) ? observed[RAW_SYMBOL] : observed;
+}
+
+// In a component action or lifecycle hook:
+function renderChart() {
+  // Extract raw non-reactive data array
+  const rawChartData = toRaw(this.state.metrics);
+
+  // Pass plain JavaScript array to charting library
+  myChartLibrary.updateData(rawChartData);
+}
+```
+
+#### 2. Clean State Serialization & Web Workers (`structuredClone` / `JSON.stringify`)
+
+When transferring state across `postMessage` to Web Workers or serializing data to `localStorage`, unwrapping the proxy ensures optimal cloning performance:
+
+```javascript
+import { RAW_SYMBOL } from 'avenx-core/reactive/proxyHandler.js';
+
+function exportStateSnapshot(stateProxy) {
+  const rawState = stateProxy[RAW_SYMBOL] || stateProxy;
+
+  // Clone or serialize cleanly without triggering getter traps
+  return structuredClone(rawState);
+}
+```
+
+#### 3. Building DevTools, Diagnostics & Logging Plugins
+
+Detect whether an arbitrary object is currently wrapped in an Avenx reactive Proxy:
+
+```javascript
+import { IS_REACTIVE_PROXY, RAW_SYMBOL } from 'avenx-core/reactive/proxyHandler.js';
+
+function inspectObject(obj) {
+  if (obj && obj[IS_REACTIVE_PROXY]) {
+    console.log('[DevTools] Object is a reactive Avenx Proxy.');
+    console.log('[DevTools] Underlying raw target:', obj[RAW_SYMBOL]);
+  } else {
+    console.log('[DevTools] Object is plain / non-reactive.');
+  }
+}
+```
