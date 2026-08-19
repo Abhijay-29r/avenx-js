@@ -2561,6 +2561,295 @@ Use `class` or `data-*` attributes for repeated elements:
 | `[AVX_R16]` | Cannot reassign component state directly.                                               | **Cause:** Assigning a new object to `this.state`, such as `this.state = { count: 1 }`, replaces the reactive Proxy and breaks change detection.<br />**Resolution:** Mutate properties on the existing state object instead, such as `this.state.count = 1`, or update several properties with `Object.assign(this.state, { count: 1 })`.                                                                                                                                                                                   |
 | `[AVX_R17]` | BRIDGE_CONSTRUCTION_FAILED: Failed to construct bridge "{name}". {error}                      | **Cause:** An error occurred while constructing a registered bridge. This can happen when the bridge class's constructor throws an exception, when required dependencies are missing, or when the bridge definition is malformed.<br />**Resolution:** Check the bridge class constructor for errors. Ensure all dependencies are properly imported and initialized before the bridge is registered. Verify the bridge definition follows the expected structure (extends `AvenxBridge` or conforms to the bridge interface).
 
+### AVX_R01 — MOUNT_TARGET_NOT_FOUND
+
+**Error Message**
+
+```text
+[AVX_R01] Mount target selector "{0}" was not found in the DOM.
+```
+
+**Cause:** This error is thrown at runtime when `AvenxApp` attempts to mount the application or a component into the DOM, but the target container element specified by the selector cannot be resolved (`document.querySelector(target)` returns `null`).
+
+This typically happens for a few common reasons:
+
+- **Missing Container Element**: The `index.html` file does not contain an element matching the configured `target` selector (e.g. `<div id="app"></div>`).
+- **Script Execution Timing**: The application bootstrap script is executed before the DOM is fully loaded (e.g., placed in the `<head>` without a `defer` or `type="module"` attribute, or executed before the `DOMContentLoaded` event).
+- **Selector Typo or Syntax Error**: The selector string contains a typo or missing prefix (e.g., passing `'app'` instead of `'#app'`, or mismatching an ID and a class name).
+- **Invalid Custom Mount Target**: Calling `app.mount(componentName, targetSelector)` with an explicit target selector that does not match any element in the active document.
+
+**Resolution:** To resolve this error:
+
+1. Ensure your HTML file (e.g. `index.html`) contains a container element matching the target selector specified in your app configuration:
+   ```html
+   <div id="app"></div>
+   ```
+2. Verify that the JavaScript bootstrap file is loaded after the DOM is ready by adding `type="module"` or `defer` to the `<script>` tag:
+   ```html
+   <script type="module" src="./src/main.app.js"></script>
+   ```
+3. Check the selector syntax passed to `new AvenxApp({ target })` or `app.mount(name, target)`. Use `'#app'` for elements with `id="app"` and `'.app-root'` for elements with `class="app-root"`.
+
+**Incorrect**
+
+Missing ID prefix or executing script before the DOM element is parsed:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ❌ Script runs before <body> is parsed, and target selector lacks '#' prefix -->
+  <script src="./src/main.app.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>
+```
+
+```javascript
+// ❌ Invalid selector missing ID hash symbol
+const app = new AvenxApp({
+  target: 'app'
+});
+```
+
+**Correct**
+
+Using `type="module"` and a valid CSS selector matching the DOM element:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Avenx Application</title>
+</head>
+<body>
+  <!-- ✅ Matching container element -->
+  <div id="app"></div>
+
+  <!-- ✅ Deferred module script executes when DOM is available -->
+  <script type="module" src="./src/main.app.js"></script>
+</body>
+</html>
+```
+
+```javascript
+// ✅ Valid ID selector matching <div id="app"></div>
+const app = new AvenxApp({
+  target: '#app'
+});
+```
+
+**Defensive Coding Example**
+
+Ensuring DOM readiness before initializing the application:
+
+```javascript
+function bootstrap() {
+  const targetSelector = '#app';
+  if (!document.querySelector(targetSelector)) {
+    console.error(`Mount container "${targetSelector}" not found. App initialization aborted.`);
+    return;
+  }
+
+  const app = new AvenxApp({ target: targetSelector });
+  app.registerPage('Home', HomePage);
+  app.initRouter({ '/': 'Home' });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  bootstrap();
+}
+```
+
+### AVX_R02 — PAGE_NOT_FOUND
+
+**Error Message**
+
+```text
+[AVX_R02] Page "{0}" is not registered. Ensure page class is named correctly.
+```
+
+**Cause:** This error is thrown at runtime during routing or manual page mounting when `AvenxApp.mountPage(name)` is called with a page name that does not exist in the application's page registry (`app.pages.get(name)` returns `undefined`).
+
+This typically happens for a few common reasons:
+
+- **Unregistered Route Target**: A route in `app.initRouter(routes)` maps a URL path to a page name that was never registered via `app.registerPage(name, PageClass)`.
+- **Unregistered Layout**: A route definition specifies a `layout` (e.g. `{ page: 'Profile', layout: 'AdminLayout' }`) but the layout class was not registered with `app.registerPage('AdminLayout', AdminLayoutPage)`.
+- **Name Mismatch or Typo**: The string identifier used in the route map (e.g. `'/dashboard': 'Dashboard'`) does not exactly match the name passed to `app.registerPage('dashboard', DashboardPage)` (case sensitivity mismatch).
+- **Missing Import**: The page class file was created but not imported into the application bootstrap file (`src/main.app.js`).
+
+**Resolution:** To resolve this error:
+
+1. Import and register every page component with `app.registerPage('PageName', PageClass)` before calling `app.initRouter()`.
+2. Verify that the page name strings in the router configuration match the registered page names exactly, including casing.
+3. If using layouts for nested routing, ensure both the page component and the layout component are registered with `app.registerPage()`.
+4. Inspect the list of registered pages during development using `app.getRegisteredPages()`.
+
+**Incorrect**
+
+Defining a route without registering the corresponding page class:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import HomePage from './pages/home.page.js';
+// ❌ DashboardPage is not imported or registered
+
+const app = new AvenxApp({ target: '#app' });
+
+app.registerPage('Home', HomePage);
+
+// ❌ Navigating to '#/dashboard' throws AVX_R02: Page "Dashboard" is not registered.
+app.initRouter({
+  '/': 'Home',
+  '/dashboard': 'Dashboard'
+});
+```
+
+**Correct**
+
+Registering all routed pages and layouts before initializing the router:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import HomePage from './pages/home.page.js';
+import DashboardPage from './pages/dashboard.page.js';
+import AdminLayout from './layouts/admin.page.js';
+
+const app = new AvenxApp({ target: '#app' });
+
+// ✅ Register all pages and layouts
+app.registerPage('Home', HomePage);
+app.registerPage('Dashboard', DashboardPage);
+app.registerPage('AdminLayout', AdminLayout);
+
+// ✅ All mapped page identifiers are registered
+app.initRouter({
+  '/': 'Home',
+  '/dashboard': { page: 'Dashboard', layout: 'AdminLayout' }
+});
+```
+
+**Defensive Coding Example**
+
+Validating registered pages before router initialization:
+
+```javascript
+const app = new AvenxApp({ target: '#app' });
+
+app.registerPage('Home', HomePage);
+app.registerPage('Dashboard', DashboardPage);
+
+const routes = {
+  '/': 'Home',
+  '/dashboard': 'Dashboard',
+  '/settings': 'Settings'
+};
+
+// Check for missing registrations before starting router
+const registeredPages = new Set(app.getRegisteredPages());
+for (const [path, def] of Object.entries(routes)) {
+  const pageName = typeof def === 'string' ? def : def.page;
+  if (!registeredPages.has(pageName)) {
+    console.warn(`[Config Warning] Route "${path}" targets unregistered page "${pageName}".`);
+  }
+}
+
+app.initRouter(routes);
+```
+
+### AVX_R03 — COMPONENT_NOT_FOUND
+
+**Error Message**
+
+```text
+[AVX_R03] Component "{0}" is not registered. Registered components: {1}
+```
+
+**Cause:** This error is thrown at runtime when `app.mount(name, targetSelector)` is invoked or when the runtime attempts to instantiate a component by name, but the requested component class cannot be found in the component registry (`app.components.get(name)` returns `undefined`).
+
+This typically happens for a few common reasons:
+
+- **Unregistered Custom Component**: Attempting to mount a component with `app.mount('MyComponent')` without first registering it with `app.register('MyComponent', MyComponentClass)`.
+- **Typo in Component Name**: A spelling or casing mismatch between the component name passed to `app.mount()` and the name registered with `app.register()`.
+- **Missing Component Import**: Forgetting to import the compiled component class into the main application file.
+
+**Resolution:** To resolve this error:
+
+1. Import the component class and register it on the application instance using `app.register('ComponentName', ComponentClass)`.
+2. Check the `Registered components: {1}` list provided in the error message to identify whether the component was registered under a different name or omitted entirely.
+3. Ensure component registration takes place before calling `app.mount()`.
+
+**Incorrect**
+
+Attempting to mount a component without registering it:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+// ❌ UserCard component is not imported or registered
+
+const app = new AvenxApp({ target: '#app' });
+
+// ❌ Throws AVX_R03: Component "UserCard" is not registered. Registered components: VirtualList
+app.mount('UserCard', '#card-slot');
+```
+
+**Correct**
+
+Registering the component before mounting:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import UserCardComponent from './components/user-card.component.js';
+
+const app = new AvenxApp({ target: '#app' });
+
+// ✅ Register component class
+app.register('UserCard', UserCardComponent);
+
+// ✅ Mount registered component
+app.mount('UserCard', '#card-slot');
+```
+
+**Defensive Coding Example**
+
+Centralizing component registration and checking availability:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import HeaderComponent from './components/header.component.js';
+import FooterComponent from './components/footer.component.js';
+import UserCardComponent from './components/user-card.component.js';
+
+const app = new AvenxApp({ target: '#app' });
+
+const componentRegistry = {
+  Header: HeaderComponent,
+  Footer: FooterComponent,
+  UserCard: UserCardComponent,
+};
+
+// Register all components systematically
+for (const [name, compClass] of Object.entries(componentRegistry)) {
+  app.register(name, compClass);
+}
+
+// Safe mount helper
+function safeMount(componentName, selector) {
+  if (!app.components.has(componentName)) {
+    console.error(`Cannot mount unregistered component "${componentName}".`);
+    return;
+  }
+  app.mount(componentName, selector);
+}
+
+safeMount('Header', '#header');
+```
+
 ### AVX_R04 / AVX_E01 — COMPUTED_CIRCULAR_DEPENDENCY
 
 **Error Message**
