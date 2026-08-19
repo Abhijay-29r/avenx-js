@@ -915,6 +915,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "nighshift-labs",
+      "name": "nighshift-labs",
+      "avatar_url": "https://avatars.githubusercontent.com/u/316473592?v=4",
+      "profile": "https://github.com/nighshift-labs",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
