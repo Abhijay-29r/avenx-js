@@ -2985,3 +2985,297 @@ Initializing state with empty collections:
   value="profile?.avatar ?? '/images/default-avatar.png'" 
 />
 ```
+
+### AVX_R06 — ROUTER_GUARD_DENIED
+
+**Warning Message**
+
+```text
+[AVX_R06] Navigation guard denied transition to route "{0}".
+```
+
+**Cause:** This warning is emitted at runtime when a route navigation guard explicitly denies a route transition. In Avenx-JS, navigation guards (`AvenxGuard` classes with a `canActivate(to, from)` method, inline guard functions, or `router.beforeEach()` hooks) control access to protected routes. When a guard returns `false` or returns a control object `{ cancel: true }`, the router halts the navigation sequence, leaves or restores the previous route, and logs **AVX_R06**.
+
+This typically happens for a few common reasons:
+
+- **Authentication / Authorization Failure**: An unauthenticated user attempts to navigate to a protected page (e.g. `#/admin`), and the authentication guard returns `false`.
+- **Falsy Return Value**: A guard function inadvertently returns `null`, `0`, or `false` instead of returning `true` when access is intended to be permitted.
+- **Explicit Cancellation**: A guard returns `{ cancel: true }` without specifying `silent: true`.
+
+**Resolution:** To resolve or properly handle this warning:
+
+1. **Verify Guard Logic**: Ensure `canActivate(to, from)` returns `true` when all criteria are met.
+2. **Use Redirects Instead of Hard Denial**: To provide a seamless user experience, return a redirect path string (e.g. `'/login'`) or a redirect descriptor `{ redirect: '/login', query: { from: to.hash } }` rather than simply returning `false`.
+3. **Use Silent Cancellation**: If the navigation cancellation is intentional and expected (e.g. an unsaved changes confirmation dialog where the user chooses to stay), return `{ cancel: true, silent: true }` to cancel the navigation without emitting **AVX_R06**.
+
+**Incorrect**
+
+Returning `false` on unauthorized access without redirecting the user:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    const isLoggedIn = Boolean(localStorage.getItem('authToken'));
+    if (!isLoggedIn) {
+      // ❌ Returns false: stops transition and logs AVX_R06 warning, but leaves user on a dead-end
+      return false;
+    }
+    return true;
+  }
+}
+```
+
+**Correct**
+
+Returning a redirect path or control object to guide the user:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    const isLoggedIn = Boolean(localStorage.getItem('authToken'));
+    if (!isLoggedIn) {
+      // ✅ Redirects unauthenticated users to the login route with return target
+      return {
+        redirect: '/login',
+        query: { redirect: to.hash }
+      };
+    }
+    return true;
+  }
+}
+```
+
+**Defensive Coding Example**
+
+Implementing silent cancellation and granular navigation control:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class UnsavedChangesGuard extends AvenxGuard {
+  canActivate(to, from) {
+    const formIsDirty = window.__formIsDirty;
+
+    if (formIsDirty) {
+      const confirmLeave = window.confirm('You have unsaved changes. Leave this page anyway?');
+      if (!confirmLeave) {
+        // ✅ Cancels navigation cleanly without emitting console warnings
+        return { cancel: true, silent: true };
+      }
+    }
+
+    return true;
+  }
+}
+```
+
+### AVX_R07 — ROUTER_GUARD_ERROR
+
+**Error Message**
+
+```text
+[AVX_R07] Navigation guard threw an error during evaluation for route "{0}": {1}
+```
+
+**Cause:** This error is emitted at runtime when an unhandled JavaScript exception is thrown or an unhandled Promise rejection occurs during the execution of a navigation guard (`canActivate()`), a global guard (`router.beforeEach()`), or a route after-hook (`router.afterHooks`). When an exception occurs inside a guard, Avenx-JS catches the error, logs **AVX_R07** to prevent an uncaught runtime crash, and automatically aborts the route transition to protect the application from entering an unstable state.
+
+This typically happens for a few common reasons:
+
+- **Unhandled API / Network Errors**: An asynchronous guard fetches user permissions from a backend endpoint without wrapping the call in a `try...catch` block.
+- **Null or Undefined Property Access**: Accessing properties on uninitialized state or missing objects inside `canActivate(to, from)` (e.g. `authBridge.user.role` when `user` is `null`).
+- **Synchronous Exceptions**: Throwing an explicit `Error` or invoking non-existent utility functions within the guard logic.
+
+**Resolution:** To resolve this error:
+
+1. **Wrap Asynchronous Logic in `try...catch`**: Always catch network errors, failed authentication tokens, or rejected promises inside async guards.
+2. **Defensive Property Access**: Use optional chaining (`?.`) and nullish coalescing (`??`) when inspecting user profiles, permissions, or route parameters.
+3. **Return Fallback Actions**: When an error is caught, return a fallback redirect (e.g. `return '/error'` or `return '/login'`) rather than letting the exception bubble up.
+
+**Incorrect**
+
+Unprotected property access and unhandled API fetch inside a guard:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AdminGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    // ❌ If the API call fails or user is null, unhandled exception emits AVX_R07
+    const response = await fetch('/api/user/me');
+    const data = await response.json();
+
+    // ❌ TypeError if data.permissions is undefined
+    return data.permissions.includes('admin');
+  }
+}
+```
+
+**Correct**
+
+Guarding against exceptions with `try...catch` and safe navigation fallbacks:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AdminGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    try {
+      const response = await fetch('/api/user/me');
+      if (!response.ok) {
+        return { redirect: '/login' };
+      }
+
+      const data = await response.json();
+      const hasAdminRole = data?.permissions?.includes('admin') ?? false;
+
+      if (!hasAdminRole) {
+        return { redirect: '/unauthorized' };
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Guard evaluation failed:', err);
+      // ✅ Return fallback redirect rather than throwing
+      return { redirect: '/error' };
+    }
+  }
+}
+```
+
+**Defensive Coding Example**
+
+Global navigation guard with timeout protection and exception handling:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+
+const app = new AvenxApp({ target: '#app' });
+
+const router = app.initRouter({
+  '/': 'Home',
+  '/dashboard': { page: 'Dashboard', guards: [AdminGuard] }
+});
+
+router.beforeEach(async (to, from) => {
+  try {
+    // Perform global telemetry or auth checks safely
+    if (to.hash.startsWith('#/protected')) {
+      const sessionValid = await checkSessionTimeout();
+      if (!sessionValid) {
+        return { redirect: '/login' };
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error('Global guard error:', error);
+    return { redirect: '/login' };
+  }
+});
+```
+
+### AVX_R09 — EVENT_HANDLER_ERROR
+
+**Error Message**
+
+```text
+[AVX_R09] Event handler execution failed for statement "{0}". Error: {1}
+[Context] Element: <{TAG}>, Event: '{type}'
+```
+
+**Cause:** This error is raised at runtime by `EventExecutor` (`lib/core/events/eventExecutor.js`) when an inline event handler expression (e.g. `@click="handleSubmit"`, `@input="onQueryChange(event)"`) throws an unhandled JavaScript exception during execution.
+
+To streamline debugging in complex component hierarchies, `EventExecutor` captures diagnostic metadata from the triggering DOM event, wraps the underlying error in an internal `AvenxEventExecutionError`, and outputs:
+- **`Statement`**: The exact handler expression or action method string defined in the template.
+- **`Error`**: The root cause exception message and stack trace.
+- **`Context`**: The triggering element's tag name (e.g. `<BUTTON>`, `<FORM>`) and the event type (e.g. `'click'`, `'submit'`).
+- **`Component Context`**: The originating component instance and source location if diagnostic logging is enabled.
+
+This typically happens for a few common reasons:
+
+- **Undefined Method or Property Reference**: Calling a method or accessing a property that does not exist on the component instance or active state.
+- **Runtime Exceptions in Action Methods**: An unhandled exception occurs inside a component method invoked by an event (e.g. accessing properties of `null` or `undefined`).
+- **Invalid Event Argument Passing**: Passing invalid arguments in inline expressions (e.g. `@click="deleteItem(item.id)"` where `item` is `null`).
+
+**Resolution:** To resolve this error:
+
+1. Inspect the context metadata (`Element: <TAG>`, `Event: 'type'`) and statement string in the console output to pinpoint the failing template binding.
+2. Ensure the method referenced in `@eventName="methodName"` is declared in the component's `actions` or instance methods.
+3. Protect against uninitialized state values inside action methods using optional chaining (`?.`) and safe default values.
+4. Wrap asynchronous operations (such as form submission network requests) inside `try...catch` blocks.
+
+**Incorrect**
+
+Accessing nested properties of null state inside an event callback:
+
+```html
+<state user="null" />
+
+<action name="saveUser">
+  // ❌ Throws TypeError: Cannot read properties of null (reading 'name')
+  console.log("Saving user:", user.name.toUpperCase());
+</action>
+
+<!-- ❌ Emits AVX_R09 with Context: Element: <BUTTON>, Event: 'click' -->
+<button @click="saveUser()">Save User</button>
+```
+
+**Correct**
+
+Safely validating state before performing operations:
+
+```html
+<state user="null" />
+
+<action name="saveUser">
+  if (!user || !user.name) {
+    console.warn("Cannot save: User data is not loaded yet.");
+    return;
+  }
+  console.log("Saving user:", user.name.toUpperCase());
+</action>
+
+<!-- ✅ Safe event handler execution -->
+<button @click="saveUser()">Save User</button>
+```
+
+**Defensive Coding Example**
+
+Handling asynchronous operations and capturing user feedback in action handlers:
+
+```html
+<state isLoading="false" errorMessage="null" />
+
+<action name="handleFormSubmit" args="event">
+  event.preventDefault();
+
+  try {
+    isLoading = true;
+    errorMessage = null;
+
+    const formData = new FormData(event.target);
+    const payload = Object.fromEntries(formData.entries());
+
+    if (!payload.email) {
+      throw new Error("Email address is required.");
+    }
+
+    await submitFormData(payload);
+  } catch (err) {
+    errorMessage = err.message || "Failed to submit form. Please try again.";
+    console.error("[Form Error]", err);
+  } finally {
+    isLoading = false;
+  }
+</action>
+
+<form @submit="handleFormSubmit(event)">
+  <input name="email" type="email" placeholder="Enter your email" required />
+  <button type="submit" :disabled="isLoading">Submit</button>
+  <p class="error" data-ax-show="Boolean(errorMessage)">{{ errorMessage }}</p>
+</form>
+```
+
