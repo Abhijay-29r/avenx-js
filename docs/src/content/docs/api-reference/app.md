@@ -199,22 +199,49 @@ app.initRouter({
 
 ### `directive(name, definition)`
 
-Registers a custom directive with the application instance.
+Registers a custom directive with the application instance. Returns the `AvenxApp` instance for chaining.
+
+```typescript
+directive(name: string, definition: DirectiveDefinition | DirectiveFunction): AvenxApp
+```
 
 | Param | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus`. |
-| `definition` | `object` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`). |
+| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus` (or with dot modifiers like `data-ax-focus.lazy`). |
+| `definition` | `object \| function` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`), or a shorthand function `(el, binding) => void` executed on both mount and update. |
+
+#### Lifecycle Hooks Schema (`DirectiveDefinition`)
+
+| Hook | Parameters | Description |
+| --- | --- | --- |
+| `mounted(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the bound element is inserted into the DOM. |
+| `updated(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the directive expression value updates (`binding.value !== binding.oldValue`). |
+| `unmounted(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the bound element is removed/unmounted from the DOM. |
+
+#### Binding Object Schema (`DirectiveBinding`)
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `binding.value` | `any` | Evaluated result of the directive expression. |
+| `binding.oldValue` | `any` | Previous evaluated result before the update. |
+| `binding.expression` | `string` | Raw string expression passed in the template. |
+| `binding.modifiers` | `object` | Key/value map of modifier flags (e.g. `data-ax-tooltip.top.lazy` -> `{ top: true, lazy: true }`). |
 
 ```javascript
+// Object definition
 app.directive('focus', {
   mounted(el) {
     el.focus();
   },
 });
+
+// Shorthand function definition (runs on mounted and updated)
+app.directive('color', (el, binding) => {
+  el.style.color = binding.value;
+});
 ```
 
-See [Custom Directives](/core-concepts/directives/) for full details and examples.
+See [Custom Directives](/core-concepts/directives/) for complete guides, modifier handling, and real-world examples.
 
 ### `registerBridge(name, bridgeData)`
 
@@ -227,26 +254,68 @@ app.registerBridge('AuthBridge', { isLoggedIn: false });
 
 ### `onError(callback)`
 
-Registers an application-wide error handler. Handlers are stored in a list—calling `onError` again **adds** another callback (it does not replace previous ones). Returns `this` for chaining.
+Registers an application-wide error handler callback. Handlers are stored in an execution list—calling `onError` multiple times **adds** each callback to the pipeline (it does not replace previous ones). Returns the `AvenxApp` instance for chaining.
 
-When an uncaught component/lifecycle/event error bubbles past local `onErrorCaptured` hooks, AvenxApp dispatches it through internal `_handleError(error, component, origin)`, which invokes every registered callback inside a try/catch so a failing handler cannot break the others.
+When an uncaught component lifecycle or event execution error bubbles past local `onErrorCaptured` hooks, `AvenxApp` dispatches it through internal `_handleError(error, component, origin)`, which safely invokes every registered callback inside an isolated `try/catch` block.
+
+```typescript
+onError(callback: (error: Error, component?: AvenxComponent, origin?: string) => void): AvenxApp
+```
 
 | Param | Type | Description |
 | --- | --- | --- |
-| `callback` | `(error: Error, component: AvenxComponent, origin: string) => void` | Receives the error, the component instance where it occurred, and an origin string (e.g. lifecycle or event context). Non-function values are ignored. |
+| `error` | `Error \| AvenxError` | The caught error instance (includes `code`, `details`, and `stack`). |
+| `component` | `AvenxComponent \| null` | The component instance where the exception originated, or `null`. |
+| `origin` | `string` | Execution phase context (e.g. `'onMount'`, `'onUpdate'`, `'eventHandler:submitForm'`, `'render'`). |
 
 ```javascript
 app.onError((error, component, origin) => {
-  // e.g. Sentry / LogRocket
-  reportErrorToServer({
-    message: error.message,
-    code: error.code,
-    component: component?.constructor?.name,
-    origin,
-  });
-  showErrorToast('Something went wrong. Please try again.');
+  console.error(`[Global App Error] ${origin}:`, error);
+
+  // Send diagnostic telemetry to Datadog / Sentry / LogRocket
+  if (window.Sentry) {
+    Sentry.captureException(error, {
+      extra: {
+        componentName: component?.constructor?.name,
+        origin,
+        errorCode: error.code,
+      },
+    });
+  }
 });
 ```
+
+---
+
+### `onWarn(callback)`
+
+Registers an application-wide warning handler callback for intercepting framework warning messages and codes (`AVX_W01` to `AVX_W32`). Handlers are additive and return the `AvenxApp` instance for chaining.
+
+```typescript
+onWarn(callback: (warningMessage: string, component?: AvenxComponent, code?: string) => void): AvenxApp
+```
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `warningMessage` | `string` | The formatted warning string (e.g. `"[AVX_W15] Inject key \"theme\" was not found..."`). |
+| `component` | `AvenxComponent \| null` | The originating component instance associated with the warning context. |
+| `code` | `string \| undefined` | The parsed warning code identifier (e.g. `'AVX_W15'`). |
+
+```javascript
+app.onWarn((msg, component, code) => {
+  // 1. In production, forward warnings to central observability service
+  if (process.env.NODE_ENV === 'production') {
+    analytics.track('Framework Warning', { message: msg, code, component: component?.constructor?.name });
+  }
+
+  // 2. In automated tests, assert that specific deprecation or mismatch warnings do not occur
+  if (code === 'AVX_W26') {
+    throw new Error(`Reserved method collision warning detected: ${msg}`);
+  }
+});
+```
+
+---
 
 ### `mount(name, targetSelector)`
 

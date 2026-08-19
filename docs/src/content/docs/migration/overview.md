@@ -112,5 +112,6 @@ Choose your framework to explore step-by-step migration patterns:
 
 - **React to Avenx-JS**: Component model, Reactivity, Effects, Styling, State Management.
 - **Vue to Avenx-JS**: SFC translation, Templates & Directives, Reactivity, Composition API alternatives.
+- **Svelte to Avenx-JS**: Runes / `$:` reactivity translation, Companion files, Store conversion to Bridges, Directives & Event modifiers.
 - **Next.js to Avenx-JS**: Router setup, Client-side data fetching, Server/Client decoupling.
 - **Angular to Avenx-JS**: Services to Bridges, Dependency Injection alternatives, Template syntax migration.

@@ -400,6 +400,119 @@ const app = new AvenxApp({
 | `[AVX_C02]` | "src" directory not found at "{path}". Run "avenx init" to scaffold a project. | **Identifier:** `COMPILER_SRC_DIR_MISSING`.<br />**Cause:** Running `avenx build` or `avenx watch` in a project directory where the `src/` folder is missing.<br />**Resolution:** Run `npx avenx init` to scaffold a valid project directory, or manually create the `src/` directory with the required application files. |                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `[AVX_C03]` | Duplicate component name(s) detected. These files compile to the same class name: {details} | **Cause:** Two or more component files (e.g. `card.component.js` in different directories) resolve to the same generated class name, since Avenx-JS derives a component's class name from its file name. This causes a naming collision when the components are bundled together.<br />**Resolution:** Rename one of the conflicting files, or move it to a location that produces a distinct class name — for example, renaming `card.component.js` to `profile-card.component.js`. The build halts and lists every conflicting file path so you can identify exactly which components need to be renamed. |
 
+### AVX_C01 — COMPILER_DIST_CREATION_FAILED
+
+**Error Message**
+
+```text
+[AVX_C01] Could not create dist directory at "{0}".
+```
+
+**Diagnostic Output Format (CLI)**
+
+```text
+❌ [AVX_C01] Could not create dist directory at "/path/to/project/dist".
+```
+
+**Cause:** This error is emitted during the compiler initialization phase (`AvenxCompiler.init()`) when the build pipeline attempts to create the distribution output directory (`dist/` by default or custom path) via recursive directory creation, but the filesystem operation fails.
+
+This typically happens for a few common reasons:
+
+- **Insufficient File System Permissions**: The user or process executing `avenx build` or `avenx watch` lacks write permissions in the project root directory or the specified distribution path.
+- **File Name Conflict**: A regular non-directory file named `dist` (or matching the configured output directory name) already exists in the project root, blocking directory creation.
+- **Restricted CI/CD or Docker Environments**: Running the build inside a read-only filesystem, an unprivileged Docker container, or a CI worker without directory write access.
+- **Invalid Output Path in Configuration**: The `avenx.config.json` configuration specifies an invalid, inaccessible, or restricted custom directory path.
+
+**Resolution:** To resolve this error:
+
+1. **Verify and Grant Directory Permissions**: Ensure the active user account has write permissions to the project directory:
+   ```bash
+   # Grant write permissions to the current user (macOS/Linux)
+   chmod -R u+w .
+   ```
+   If files were previously created with root privileges (e.g., via `sudo`), restore ownership:
+   ```bash
+   sudo chown -R $(whoami) .
+   ```
+2. **Remove Conflicting Files**: Check if a regular file named `dist` exists in the workspace. If present, delete or rename it:
+   ```bash
+   rm dist
+   ```
+3. **Configure CI/CD Pipelines and Dockerfiles**: In automated environments, verify that the working directory is writable and pre-create the output directory if necessary:
+   ```dockerfile
+   # Dockerfile best practice
+   WORKDIR /app
+   RUN mkdir -p dist && chown -R node:node /app
+   USER node
+   ```
+4. **Inspect Build Configuration**: Verify that `avenx.config.json` does not point output files to restricted system paths.
+
+**Incorrect**
+
+Attempting to build when the project directory is read-only or a conflicting file blocks directory creation:
+
+```bash
+# ❌ Conflicting file named 'dist' blocks mkdir
+touch dist
+npx avenx build
+# Emits: ❌ [AVX_C01] Could not create dist directory at ".../dist".
+```
+
+```dockerfile
+# ❌ Container running as unprivileged user without write access to /app
+FROM node:20-alpine
+WORKDIR /app
+COPY . .
+USER node
+# Fails with AVX_C01 if /app is owned by root
+RUN npx avenx build
+```
+
+**Correct**
+
+Ensuring proper directory permissions and ownership in build pipelines:
+
+```bash
+# ✅ Ensure workspace is writable and output directory is clear
+rm -f dist
+npx avenx build
+```
+
+```dockerfile
+# ✅ Proper ownership setup in Docker build
+FROM node:20-alpine
+WORKDIR /app
+COPY --chown=node:node . .
+USER node
+RUN npx avenx build
+```
+
+**Defensive Coding Example**
+
+Pre-validating directory write permissions in custom automated build scripts:
+
+```javascript
+import fs from 'fs';
+import path from 'path';
+import { AvenxCompiler } from 'avenx-core';
+
+const distPath = path.resolve(process.cwd(), 'dist');
+
+try {
+  if (!fs.existsSync(distPath)) {
+    fs.mkdirSync(distPath, { recursive: true });
+  }
+  // Verify write access
+  fs.accessSync(distPath, fs.constants.W_OK);
+  
+  const compiler = new AvenxCompiler({ rootDir: process.cwd() });
+  compiler.build();
+} catch (err) {
+  console.error(`[Build Setup Error] Cannot initialize dist directory at "${distPath}":`, err.message);
+  process.exit(1);
+}
+```
+
 ## Compiler Warnings
 
 Unlike the error codes above, which halt compilation, Avenx-JS also emits **warnings** during the build step. Warnings do not stop the build, but they flag potential mistakes in your templates that are worth fixing.
@@ -1564,29 +1677,31 @@ Keeping externally-managed DOM separate from Avenx-managed slot regions prevents
 [AVX_W15] Injected key "{0}" not found in any ancestor component.
 ```
 
-**Cause:** This warning is emitted at runtime when a child component attempts to access an injected property defined via its `inject` option, but no ancestor component in the DOM component hierarchy exposes a matching key via the `provide` option. When an injected property is accessed, Avenx-JS performs a bottom-up traversal of the component tree searching for a parent component providing that key. If the traversal reaches the root component without finding a provider, Avenx-JS logs warning **AVX_W15** and evaluates the property to `undefined`.
+**Cause:** This warning is emitted at runtime when a child component attempts to access an injected property defined via its `inject` option (or `inject: ['key']` / `inject: { localName: 'provideKey' }`), but no ancestor component in the DOM component hierarchy exposes a matching key via the `provide` option.
 
-The Provide/Inject API allows parent components to act as dependency providers for their entire subtree without prop-drilling values through intermediate components.
+When an injected property is accessed, Avenx-JS performs a bottom-up traversal of the DOM component tree searching for a parent component that provides that key. If the traversal reaches the root component without finding a matching provider, Avenx-JS logs warning **`AVX_W15` (`COMPONENT_INJECT_KEY_NOT_FOUND`)** and evaluates the injected property to `undefined`.
+
+The [Provide / Inject](/core-concepts/provide-inject) API allows parent components to act as dependency providers for their entire subtree without prop-drilling values through intermediate components.
 
 This typically happens for a few common reasons:
 
 - Forgetting to declare `provide` in a root page or parent component.
 - Typos in the key name between `provide` and `inject` (e.g. `provide: { appTheme: 'dark' }` but `inject: ['theme']`).
 - Attempting to inject a key from a sibling or child component instead of an ancestor in the parent chain.
-- Instantiating a component standalone outside of its expected parent container tree.
+- Instantiating a component standalone during isolated unit testing without mounting it inside a provider container or sandbox.
 
 **Resolution:** To resolve this warning:
 
-1. Ensure an ancestor component in the component hierarchy declares the requested key using `provide`.
+1. Ensure an ancestor component in the component hierarchy declares the requested key using `provide` (as an object or factory function `provide() { return { ... }; }`).
 2. Double-check key spelling to ensure exact string matching between `provide` and `inject`.
-3. Verify the component relationship — `provide` keys are only searchable up the direct parent component hierarchy (sibling components cannot inject from each other).
+3. Verify the component hierarchy — `provide` keys are only searchable up the direct parent component hierarchy (sibling components cannot inject from each other).
 4. Provide a defensive default fallback value in the injecting component when keys are optional.
 
 **Incorrect**
 
 ```javascript
 // ChildComponent.component.js
-// ❌ Error: No ancestor component in the tree calls provide for 'theme'
+// ❌ Warning AVX_W15: No ancestor component in the tree calls provide for 'theme'
 export default {
   inject: ['theme'],
   template: `<p>Theme: {{ theme }}</p>`,
@@ -1619,7 +1734,7 @@ export default {
 
 **Defensive Example with Fallback Default**
 
-When an injected key is optional or may be rendered outside of a provider boundary, specify a safe fallback default value:
+When an injected key is optional or may be rendered outside of a provider boundary (such as in isolated component tests), specify a safe fallback default value:
 
 ```javascript
 // ChildComponent.component.js
@@ -1635,7 +1750,9 @@ export default {
 };
 ```
 
-Using a computed property as a fallback ensures your component behaves gracefully even when no matching provider exists in the ancestor tree.
+Using a computed property or nullish coalescing as a fallback ensures your component behaves gracefully even when no matching provider exists in the ancestor tree.
+
+---
 
 ### AVX_W16 — SECURITY_SANITIZED_TAG
 
@@ -2561,6 +2678,295 @@ Use `class` or `data-*` attributes for repeated elements:
 | `[AVX_R16]` | Cannot reassign component state directly.                                               | **Cause:** Assigning a new object to `this.state`, such as `this.state = { count: 1 }`, replaces the reactive Proxy and breaks change detection.<br />**Resolution:** Mutate properties on the existing state object instead, such as `this.state.count = 1`, or update several properties with `Object.assign(this.state, { count: 1 })`.                                                                                                                                                                                   |
 | `[AVX_R17]` | BRIDGE_CONSTRUCTION_FAILED: Failed to construct bridge "{name}". {error}                      | **Cause:** An error occurred while constructing a registered bridge. This can happen when the bridge class's constructor throws an exception, when required dependencies are missing, or when the bridge definition is malformed.<br />**Resolution:** Check the bridge class constructor for errors. Ensure all dependencies are properly imported and initialized before the bridge is registered. Verify the bridge definition follows the expected structure (extends `AvenxBridge` or conforms to the bridge interface).
 
+### AVX_R01 — MOUNT_TARGET_NOT_FOUND
+
+**Error Message**
+
+```text
+[AVX_R01] Mount target selector "{0}" was not found in the DOM.
+```
+
+**Cause:** This error is thrown at runtime when `AvenxApp` attempts to mount the application or a component into the DOM, but the target container element specified by the selector cannot be resolved (`document.querySelector(target)` returns `null`).
+
+This typically happens for a few common reasons:
+
+- **Missing Container Element**: The `index.html` file does not contain an element matching the configured `target` selector (e.g. `<div id="app"></div>`).
+- **Script Execution Timing**: The application bootstrap script is executed before the DOM is fully loaded (e.g., placed in the `<head>` without a `defer` or `type="module"` attribute, or executed before the `DOMContentLoaded` event).
+- **Selector Typo or Syntax Error**: The selector string contains a typo or missing prefix (e.g., passing `'app'` instead of `'#app'`, or mismatching an ID and a class name).
+- **Invalid Custom Mount Target**: Calling `app.mount(componentName, targetSelector)` with an explicit target selector that does not match any element in the active document.
+
+**Resolution:** To resolve this error:
+
+1. Ensure your HTML file (e.g. `index.html`) contains a container element matching the target selector specified in your app configuration:
+   ```html
+   <div id="app"></div>
+   ```
+2. Verify that the JavaScript bootstrap file is loaded after the DOM is ready by adding `type="module"` or `defer` to the `<script>` tag:
+   ```html
+   <script type="module" src="./src/main.app.js"></script>
+   ```
+3. Check the selector syntax passed to `new AvenxApp({ target })` or `app.mount(name, target)`. Use `'#app'` for elements with `id="app"` and `'.app-root'` for elements with `class="app-root"`.
+
+**Incorrect**
+
+Missing ID prefix or executing script before the DOM element is parsed:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ❌ Script runs before <body> is parsed, and target selector lacks '#' prefix -->
+  <script src="./src/main.app.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>
+```
+
+```javascript
+// ❌ Invalid selector missing ID hash symbol
+const app = new AvenxApp({
+  target: 'app'
+});
+```
+
+**Correct**
+
+Using `type="module"` and a valid CSS selector matching the DOM element:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Avenx Application</title>
+</head>
+<body>
+  <!-- ✅ Matching container element -->
+  <div id="app"></div>
+
+  <!-- ✅ Deferred module script executes when DOM is available -->
+  <script type="module" src="./src/main.app.js"></script>
+</body>
+</html>
+```
+
+```javascript
+// ✅ Valid ID selector matching <div id="app"></div>
+const app = new AvenxApp({
+  target: '#app'
+});
+```
+
+**Defensive Coding Example**
+
+Ensuring DOM readiness before initializing the application:
+
+```javascript
+function bootstrap() {
+  const targetSelector = '#app';
+  if (!document.querySelector(targetSelector)) {
+    console.error(`Mount container "${targetSelector}" not found. App initialization aborted.`);
+    return;
+  }
+
+  const app = new AvenxApp({ target: targetSelector });
+  app.registerPage('Home', HomePage);
+  app.initRouter({ '/': 'Home' });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  bootstrap();
+}
+```
+
+### AVX_R02 — PAGE_NOT_FOUND
+
+**Error Message**
+
+```text
+[AVX_R02] Page "{0}" is not registered. Ensure page class is named correctly.
+```
+
+**Cause:** This error is thrown at runtime during routing or manual page mounting when `AvenxApp.mountPage(name)` is called with a page name that does not exist in the application's page registry (`app.pages.get(name)` returns `undefined`).
+
+This typically happens for a few common reasons:
+
+- **Unregistered Route Target**: A route in `app.initRouter(routes)` maps a URL path to a page name that was never registered via `app.registerPage(name, PageClass)`.
+- **Unregistered Layout**: A route definition specifies a `layout` (e.g. `{ page: 'Profile', layout: 'AdminLayout' }`) but the layout class was not registered with `app.registerPage('AdminLayout', AdminLayoutPage)`.
+- **Name Mismatch or Typo**: The string identifier used in the route map (e.g. `'/dashboard': 'Dashboard'`) does not exactly match the name passed to `app.registerPage('dashboard', DashboardPage)` (case sensitivity mismatch).
+- **Missing Import**: The page class file was created but not imported into the application bootstrap file (`src/main.app.js`).
+
+**Resolution:** To resolve this error:
+
+1. Import and register every page component with `app.registerPage('PageName', PageClass)` before calling `app.initRouter()`.
+2. Verify that the page name strings in the router configuration match the registered page names exactly, including casing.
+3. If using layouts for nested routing, ensure both the page component and the layout component are registered with `app.registerPage()`.
+4. Inspect the list of registered pages during development using `app.getRegisteredPages()`.
+
+**Incorrect**
+
+Defining a route without registering the corresponding page class:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import HomePage from './pages/home.page.js';
+// ❌ DashboardPage is not imported or registered
+
+const app = new AvenxApp({ target: '#app' });
+
+app.registerPage('Home', HomePage);
+
+// ❌ Navigating to '#/dashboard' throws AVX_R02: Page "Dashboard" is not registered.
+app.initRouter({
+  '/': 'Home',
+  '/dashboard': 'Dashboard'
+});
+```
+
+**Correct**
+
+Registering all routed pages and layouts before initializing the router:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import HomePage from './pages/home.page.js';
+import DashboardPage from './pages/dashboard.page.js';
+import AdminLayout from './layouts/admin.page.js';
+
+const app = new AvenxApp({ target: '#app' });
+
+// ✅ Register all pages and layouts
+app.registerPage('Home', HomePage);
+app.registerPage('Dashboard', DashboardPage);
+app.registerPage('AdminLayout', AdminLayout);
+
+// ✅ All mapped page identifiers are registered
+app.initRouter({
+  '/': 'Home',
+  '/dashboard': { page: 'Dashboard', layout: 'AdminLayout' }
+});
+```
+
+**Defensive Coding Example**
+
+Validating registered pages before router initialization:
+
+```javascript
+const app = new AvenxApp({ target: '#app' });
+
+app.registerPage('Home', HomePage);
+app.registerPage('Dashboard', DashboardPage);
+
+const routes = {
+  '/': 'Home',
+  '/dashboard': 'Dashboard',
+  '/settings': 'Settings'
+};
+
+// Check for missing registrations before starting router
+const registeredPages = new Set(app.getRegisteredPages());
+for (const [path, def] of Object.entries(routes)) {
+  const pageName = typeof def === 'string' ? def : def.page;
+  if (!registeredPages.has(pageName)) {
+    console.warn(`[Config Warning] Route "${path}" targets unregistered page "${pageName}".`);
+  }
+}
+
+app.initRouter(routes);
+```
+
+### AVX_R03 — COMPONENT_NOT_FOUND
+
+**Error Message**
+
+```text
+[AVX_R03] Component "{0}" is not registered. Registered components: {1}
+```
+
+**Cause:** This error is thrown at runtime when `app.mount(name, targetSelector)` is invoked or when the runtime attempts to instantiate a component by name, but the requested component class cannot be found in the component registry (`app.components.get(name)` returns `undefined`).
+
+This typically happens for a few common reasons:
+
+- **Unregistered Custom Component**: Attempting to mount a component with `app.mount('MyComponent')` without first registering it with `app.register('MyComponent', MyComponentClass)`.
+- **Typo in Component Name**: A spelling or casing mismatch between the component name passed to `app.mount()` and the name registered with `app.register()`.
+- **Missing Component Import**: Forgetting to import the compiled component class into the main application file.
+
+**Resolution:** To resolve this error:
+
+1. Import the component class and register it on the application instance using `app.register('ComponentName', ComponentClass)`.
+2. Check the `Registered components: {1}` list provided in the error message to identify whether the component was registered under a different name or omitted entirely.
+3. Ensure component registration takes place before calling `app.mount()`.
+
+**Incorrect**
+
+Attempting to mount a component without registering it:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+// ❌ UserCard component is not imported or registered
+
+const app = new AvenxApp({ target: '#app' });
+
+// ❌ Throws AVX_R03: Component "UserCard" is not registered. Registered components: VirtualList
+app.mount('UserCard', '#card-slot');
+```
+
+**Correct**
+
+Registering the component before mounting:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import UserCardComponent from './components/user-card.component.js';
+
+const app = new AvenxApp({ target: '#app' });
+
+// ✅ Register component class
+app.register('UserCard', UserCardComponent);
+
+// ✅ Mount registered component
+app.mount('UserCard', '#card-slot');
+```
+
+**Defensive Coding Example**
+
+Centralizing component registration and checking availability:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+import HeaderComponent from './components/header.component.js';
+import FooterComponent from './components/footer.component.js';
+import UserCardComponent from './components/user-card.component.js';
+
+const app = new AvenxApp({ target: '#app' });
+
+const componentRegistry = {
+  Header: HeaderComponent,
+  Footer: FooterComponent,
+  UserCard: UserCardComponent,
+};
+
+// Register all components systematically
+for (const [name, compClass] of Object.entries(componentRegistry)) {
+  app.register(name, compClass);
+}
+
+// Safe mount helper
+function safeMount(componentName, selector) {
+  if (!app.components.has(componentName)) {
+    console.error(`Cannot mount unregistered component "${componentName}".`);
+    return;
+  }
+  app.mount(componentName, selector);
+}
+
+safeMount('Header', '#header');
+```
+
 ### AVX_R04 / AVX_E01 — COMPUTED_CIRCULAR_DEPENDENCY
 
 **Error Message**
@@ -2696,3 +3102,297 @@ Initializing state with empty collections:
   value="profile?.avatar ?? '/images/default-avatar.png'" 
 />
 ```
+
+### AVX_R06 — ROUTER_GUARD_DENIED
+
+**Warning Message**
+
+```text
+[AVX_R06] Navigation guard denied transition to route "{0}".
+```
+
+**Cause:** This warning is emitted at runtime when a route navigation guard explicitly denies a route transition. In Avenx-JS, navigation guards (`AvenxGuard` classes with a `canActivate(to, from)` method, inline guard functions, or `router.beforeEach()` hooks) control access to protected routes. When a guard returns `false` or returns a control object `{ cancel: true }`, the router halts the navigation sequence, leaves or restores the previous route, and logs **AVX_R06**.
+
+This typically happens for a few common reasons:
+
+- **Authentication / Authorization Failure**: An unauthenticated user attempts to navigate to a protected page (e.g. `#/admin`), and the authentication guard returns `false`.
+- **Falsy Return Value**: A guard function inadvertently returns `null`, `0`, or `false` instead of returning `true` when access is intended to be permitted.
+- **Explicit Cancellation**: A guard returns `{ cancel: true }` without specifying `silent: true`.
+
+**Resolution:** To resolve or properly handle this warning:
+
+1. **Verify Guard Logic**: Ensure `canActivate(to, from)` returns `true` when all criteria are met.
+2. **Use Redirects Instead of Hard Denial**: To provide a seamless user experience, return a redirect path string (e.g. `'/login'`) or a redirect descriptor `{ redirect: '/login', query: { from: to.hash } }` rather than simply returning `false`.
+3. **Use Silent Cancellation**: If the navigation cancellation is intentional and expected (e.g. an unsaved changes confirmation dialog where the user chooses to stay), return `{ cancel: true, silent: true }` to cancel the navigation without emitting **AVX_R06**.
+
+**Incorrect**
+
+Returning `false` on unauthorized access without redirecting the user:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    const isLoggedIn = Boolean(localStorage.getItem('authToken'));
+    if (!isLoggedIn) {
+      // ❌ Returns false: stops transition and logs AVX_R06 warning, but leaves user on a dead-end
+      return false;
+    }
+    return true;
+  }
+}
+```
+
+**Correct**
+
+Returning a redirect path or control object to guide the user:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AuthGuard extends AvenxGuard {
+  canActivate(to, from) {
+    const isLoggedIn = Boolean(localStorage.getItem('authToken'));
+    if (!isLoggedIn) {
+      // ✅ Redirects unauthenticated users to the login route with return target
+      return {
+        redirect: '/login',
+        query: { redirect: to.hash }
+      };
+    }
+    return true;
+  }
+}
+```
+
+**Defensive Coding Example**
+
+Implementing silent cancellation and granular navigation control:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class UnsavedChangesGuard extends AvenxGuard {
+  canActivate(to, from) {
+    const formIsDirty = window.__formIsDirty;
+
+    if (formIsDirty) {
+      const confirmLeave = window.confirm('You have unsaved changes. Leave this page anyway?');
+      if (!confirmLeave) {
+        // ✅ Cancels navigation cleanly without emitting console warnings
+        return { cancel: true, silent: true };
+      }
+    }
+
+    return true;
+  }
+}
+```
+
+### AVX_R07 — ROUTER_GUARD_ERROR
+
+**Error Message**
+
+```text
+[AVX_R07] Navigation guard threw an error during evaluation for route "{0}": {1}
+```
+
+**Cause:** This error is emitted at runtime when an unhandled JavaScript exception is thrown or an unhandled Promise rejection occurs during the execution of a navigation guard (`canActivate()`), a global guard (`router.beforeEach()`), or a route after-hook (`router.afterHooks`). When an exception occurs inside a guard, Avenx-JS catches the error, logs **AVX_R07** to prevent an uncaught runtime crash, and automatically aborts the route transition to protect the application from entering an unstable state.
+
+This typically happens for a few common reasons:
+
+- **Unhandled API / Network Errors**: An asynchronous guard fetches user permissions from a backend endpoint without wrapping the call in a `try...catch` block.
+- **Null or Undefined Property Access**: Accessing properties on uninitialized state or missing objects inside `canActivate(to, from)` (e.g. `authBridge.user.role` when `user` is `null`).
+- **Synchronous Exceptions**: Throwing an explicit `Error` or invoking non-existent utility functions within the guard logic.
+
+**Resolution:** To resolve this error:
+
+1. **Wrap Asynchronous Logic in `try...catch`**: Always catch network errors, failed authentication tokens, or rejected promises inside async guards.
+2. **Defensive Property Access**: Use optional chaining (`?.`) and nullish coalescing (`??`) when inspecting user profiles, permissions, or route parameters.
+3. **Return Fallback Actions**: When an error is caught, return a fallback redirect (e.g. `return '/error'` or `return '/login'`) rather than letting the exception bubble up.
+
+**Incorrect**
+
+Unprotected property access and unhandled API fetch inside a guard:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AdminGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    // ❌ If the API call fails or user is null, unhandled exception emits AVX_R07
+    const response = await fetch('/api/user/me');
+    const data = await response.json();
+
+    // ❌ TypeError if data.permissions is undefined
+    return data.permissions.includes('admin');
+  }
+}
+```
+
+**Correct**
+
+Guarding against exceptions with `try...catch` and safe navigation fallbacks:
+
+```javascript
+import { AvenxGuard } from 'avenx-core/runtime';
+
+export class AdminGuard extends AvenxGuard {
+  async canActivate(to, from) {
+    try {
+      const response = await fetch('/api/user/me');
+      if (!response.ok) {
+        return { redirect: '/login' };
+      }
+
+      const data = await response.json();
+      const hasAdminRole = data?.permissions?.includes('admin') ?? false;
+
+      if (!hasAdminRole) {
+        return { redirect: '/unauthorized' };
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Guard evaluation failed:', err);
+      // ✅ Return fallback redirect rather than throwing
+      return { redirect: '/error' };
+    }
+  }
+}
+```
+
+**Defensive Coding Example**
+
+Global navigation guard with timeout protection and exception handling:
+
+```javascript
+import { AvenxApp } from 'avenx-core/runtime';
+
+const app = new AvenxApp({ target: '#app' });
+
+const router = app.initRouter({
+  '/': 'Home',
+  '/dashboard': { page: 'Dashboard', guards: [AdminGuard] }
+});
+
+router.beforeEach(async (to, from) => {
+  try {
+    // Perform global telemetry or auth checks safely
+    if (to.hash.startsWith('#/protected')) {
+      const sessionValid = await checkSessionTimeout();
+      if (!sessionValid) {
+        return { redirect: '/login' };
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error('Global guard error:', error);
+    return { redirect: '/login' };
+  }
+});
+```
+
+### AVX_R09 — EVENT_HANDLER_ERROR
+
+**Error Message**
+
+```text
+[AVX_R09] Event handler execution failed for statement "{0}". Error: {1}
+[Context] Element: <{TAG}>, Event: '{type}'
+```
+
+**Cause:** This error is raised at runtime by `EventExecutor` (`lib/core/events/eventExecutor.js`) when an inline event handler expression (e.g. `@click="handleSubmit"`, `@input="onQueryChange(event)"`) throws an unhandled JavaScript exception during execution.
+
+To streamline debugging in complex component hierarchies, `EventExecutor` captures diagnostic metadata from the triggering DOM event, wraps the underlying error in an internal `AvenxEventExecutionError`, and outputs:
+- **`Statement`**: The exact handler expression or action method string defined in the template.
+- **`Error`**: The root cause exception message and stack trace.
+- **`Context`**: The triggering element's tag name (e.g. `<BUTTON>`, `<FORM>`) and the event type (e.g. `'click'`, `'submit'`).
+- **`Component Context`**: The originating component instance and source location if diagnostic logging is enabled.
+
+This typically happens for a few common reasons:
+
+- **Undefined Method or Property Reference**: Calling a method or accessing a property that does not exist on the component instance or active state.
+- **Runtime Exceptions in Action Methods**: An unhandled exception occurs inside a component method invoked by an event (e.g. accessing properties of `null` or `undefined`).
+- **Invalid Event Argument Passing**: Passing invalid arguments in inline expressions (e.g. `@click="deleteItem(item.id)"` where `item` is `null`).
+
+**Resolution:** To resolve this error:
+
+1. Inspect the context metadata (`Element: <TAG>`, `Event: 'type'`) and statement string in the console output to pinpoint the failing template binding.
+2. Ensure the method referenced in `@eventName="methodName"` is declared in the component's `actions` or instance methods.
+3. Protect against uninitialized state values inside action methods using optional chaining (`?.`) and safe default values.
+4. Wrap asynchronous operations (such as form submission network requests) inside `try...catch` blocks.
+
+**Incorrect**
+
+Accessing nested properties of null state inside an event callback:
+
+```html
+<state user="null" />
+
+<action name="saveUser">
+  // ❌ Throws TypeError: Cannot read properties of null (reading 'name')
+  console.log("Saving user:", user.name.toUpperCase());
+</action>
+
+<!-- ❌ Emits AVX_R09 with Context: Element: <BUTTON>, Event: 'click' -->
+<button @click="saveUser()">Save User</button>
+```
+
+**Correct**
+
+Safely validating state before performing operations:
+
+```html
+<state user="null" />
+
+<action name="saveUser">
+  if (!user || !user.name) {
+    console.warn("Cannot save: User data is not loaded yet.");
+    return;
+  }
+  console.log("Saving user:", user.name.toUpperCase());
+</action>
+
+<!-- ✅ Safe event handler execution -->
+<button @click="saveUser()">Save User</button>
+```
+
+**Defensive Coding Example**
+
+Handling asynchronous operations and capturing user feedback in action handlers:
+
+```html
+<state isLoading="false" errorMessage="null" />
+
+<action name="handleFormSubmit" args="event">
+  event.preventDefault();
+
+  try {
+    isLoading = true;
+    errorMessage = null;
+
+    const formData = new FormData(event.target);
+    const payload = Object.fromEntries(formData.entries());
+
+    if (!payload.email) {
+      throw new Error("Email address is required.");
+    }
+
+    await submitFormData(payload);
+  } catch (err) {
+    errorMessage = err.message || "Failed to submit form. Please try again.";
+    console.error("[Form Error]", err);
+  } finally {
+    isLoading = false;
+  }
+</action>
+
+<form @submit="handleFormSubmit(event)">
+  <input name="email" type="email" placeholder="Enter your email" required />
+  <button type="submit" :disabled="isLoading">Submit</button>
+  <p class="error" data-ax-show="Boolean(errorMessage)">{{ errorMessage }}</p>
+</form>
+```
+

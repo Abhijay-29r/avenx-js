@@ -24,19 +24,122 @@ The following flags can be passed globally to `avenx` commands:
 | `--no-color` | | Disables colored terminal output. | Global |
 | `--version` | `-v` | Displays the installed version of the Avenx-JS CLI package. | Global |
 
-### Colored Output
+## Terminal Formatting & CI Environment
 
-CLI output is color-coded to make results easier to scan: successful actions are green, warnings (including compiler warnings such as `AVX_W03`) are yellow, errors are red, and headings are bold.
+The Avenx-JS CLI features a zero-dependency ANSI styling system (implemented in `bin/colors.js`) that provides color-coded terminal diagnostics, clear section headings, and status badges across all commands (`build`, `serve`, `doctor`, `inspect`, `check`, etc.).
 
-Colors are emitted only when the terminal can render them. They are disabled automatically when output is piped or redirected, when running in a non-TTY environment such as CI, and when `TERM=dumb`. They can also be controlled explicitly:
+### Automatic TTY & Color Support Detection
 
-| Control | Effect |
-| :--- | :--- |
-| `--no-color` | Disables colors for a single command. |
-| `NO_COLOR=1` | Disables colors for the environment ([no-color.org](https://no-color.org)). |
-| `FORCE_COLOR=1` | Forces colors on even without a TTY. |
+By default, the CLI automatically detects whether the active output stream can render ANSI escape sequences using standard terminal detection heuristics:
 
-Machine-readable output is never colored: `avenx check --json` always emits clean JSON diagnostics regardless of these settings.
+- **Interactive TTY**: If `process.stdout.isTTY` is `true` and the terminal reports color capability (`stdout.hasColors()`), ANSI colors are enabled automatically.
+- **Pipes & Non-TTY Streams**: When output is redirected to a file (e.g. `avenx build > build.log`) or piped to another process (e.g. `avenx build | grep error`), ANSI color codes are automatically stripped to keep the output clean and parseable.
+- **Dumb Terminals**: When `TERM=dumb` is detected, ANSI styling is disabled.
+- **Machine-Readable Modes**: Commands producing structured output (e.g. `avenx check --json` or `avenx inspect --json`) always emit uncolored, valid JSON regardless of environment settings.
+
+---
+
+### Environment Variables & CI/CD Integration
+
+You can customize or override automatic terminal color detection in automated CI/CD pipelines (such as GitHub Actions, GitLab CI, CircleCI, Jenkins), scripts, and log collectors:
+
+| Variable / Flag | Behavior & Purpose | Examples |
+| :--- | :--- | :--- |
+| `NO_COLOR` | Disables all ANSI styling according to the [no-color.org](https://no-color.org) standard when set to any non-empty string. | `NO_COLOR=1 avenx build` |
+| `FORCE_COLOR` | Forces ANSI color codes on non-TTY streams and CI runners (unless explicitly set to `'0'` or `'false'`). Useful for preserving color output in GitHub Actions log viewers. | `FORCE_COLOR=1 avenx build`<br />`FORCE_COLOR=0 avenx build` (disables) |
+| `TERM=dumb` | Disables ANSI escape codes for basic or restricted terminal emulators. | `TERM=dumb avenx serve` |
+| `--no-color`<br />`--no-colors` | CLI argument to disable colored output for a single invocation. | `npx avenx build --no-color` |
+
+#### GitHub Actions Workflow Example
+
+Preserve colored build diagnostics in GitHub Actions summary logs:
+
+```yaml
+name: Build and Check
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      # Force colored CLI output in CI console logs
+      - name: Build Project
+        run: npx avenx build
+        env:
+          FORCE_COLOR: '1'
+      # Machine-readable checks without color
+      - name: Validate Templates
+        run: npx avenx check --json > report.json
+```
+
+---
+
+### Programmatic Color API (`bin/colors.js`)
+
+Developers creating custom CLI extensions, pre-build scripts, or build plugins on top of Avenx-JS can import and use the programmatic styling utilities:
+
+```javascript
+import {
+  detectColorSupport,
+  isColorEnabled,
+  setColorEnabled,
+  bold,
+  dim,
+  red,
+  green,
+  yellow,
+  blue,
+  cyan,
+  gray,
+  createSeverityFormatter
+} from './bin/colors.js';
+```
+
+#### API Methods
+
+| Method | Return Type | Description |
+| :--- | :--- | :--- |
+| `detectColorSupport()` | `boolean` | Re-evaluates CLI flags (`--no-color`), environment variables (`NO_COLOR`, `FORCE_COLOR`, `TERM`), and `stdout.isTTY` to determine color capability. |
+| `isColorEnabled()` | `boolean` | Returns whether ANSI color styling is currently active in the process. |
+| `setColorEnabled(value?)` | `boolean` | Manually enables (`true`) or disables (`false`) ANSI escape code generation. Calling without arguments re-runs automatic detection. |
+| `createSeverityFormatter()` | `function` | Creates a logging formatter for `AvenxLogger` that tints warnings in yellow and errors in red while preserving plain text and objects. |
+
+#### ANSI Styling Helpers
+
+When color styling is active, styling helpers wrap strings with their corresponding ANSI open/close escape codes. When disabled, they return the input string unchanged:
+
+```javascript
+import { bold, green, red, yellow, cyan } from './bin/colors.js';
+
+console.log(bold(cyan('=== Avenx Custom Build Step ===')));
+console.log(green('✔ Assets compiled successfully.'));
+console.log(yellow('⚠ Bundle budget threshold reached.'));
+console.log(red('✖ Critical compilation failure.'));
+```
+
+#### Custom Script Example
+
+```javascript
+import { setColorEnabled, isColorEnabled, green, red } from './bin/colors.js';
+
+// Explicitly configure color emission for custom tool
+if (process.argv.includes('--plain')) {
+  setColorEnabled(false);
+}
+
+function logStatus(taskName, success) {
+  const statusBadge = success ? green('PASS') : red('FAIL');
+  console.log(`[${statusBadge}] ${taskName}`);
+}
+
+logStatus('Linting templates', true);
+logStatus('Checking bundle size', false);
+```
 
 ---
 
@@ -195,6 +298,10 @@ Be sure to reference the customized bundle filenames in your `index.html` entry 
 <link rel="stylesheet" href="dist/app.bundle.css" />
 <script src="dist/app.bundle.js"></script>
 ```
+
+#### Output Directory Resolution & Troubleshooting
+
+The build pipeline automatically creates the distribution output directory (`dist/` by default or as configured in `avenx.config.json`) if it does not already exist. If directory creation fails due to insufficient filesystem permissions or an existing blocking file, the compiler logs `[AVX_C01] Could not create dist directory`. See [AVX_C01 Troubleshooting](/troubleshooting/errors/#avx_c01--compiler_dist_creation_failed) for troubleshooting guidelines.
 
 #### Usage Examples
 

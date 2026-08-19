@@ -81,6 +81,33 @@ import { AvenxMock } from 'avenx-core/runtime';
 AvenxMock.trigger(buttonElement, 'click');
 ```
 
+### `AvenxMock.triggerEvent(target, eventName, detailOrOptions)`
+
+Dispatches native or synthetic DOM events with full support for input values and keyboard/mouse options.
+
+```javascript
+import { AvenxMock } from 'avenx-core/runtime';
+
+AvenxMock.triggerEvent(inputElement, 'input', { value: 'test@example.com' });
+```
+
+### `AvenxMock.createMockRouter(options)`
+
+Creates and attaches an isolated in-memory router to `window.__avenx_routers` for testing components that access route parameters or perform navigation.
+
+```javascript
+import { AvenxMock } from 'avenx-core/runtime';
+
+const router = AvenxMock.createMockRouter({
+  hash: '#/users/42?tab=settings',
+  page: 'UserProfile',
+  params: { id: '42' },
+  queryParams: { tab: 'settings' }
+});
+```
+
+---
+
 ## `AvenxSandbox`
 
 A container for registering components and bridges, then mounting them in isolation for testing.
@@ -236,64 +263,99 @@ console.log(mockUserBridge.$stateChanges);
 
 ## Component Unit Testing Helpers
 
-Avenx-JS provides built-in component mounting and event dispatching helpers to simplify isolated unit testing in Vitest, Jest, or Playwright.
+Avenx-JS exports helper functions (`mountTestComponent`, `fireEvent`) from `avenx-core/runtime` (and alias `avenx-js/testing`) to simplify isolated unit testing with test runners like Vitest, Jest, Node Test Runner, or Playwright.
 
 ### `mountTestComponent(ComponentClass, options)`
 
-Mounts an Avenx Single File Component in an isolated DOM container with custom initial props, state overrides, and slot content.
+Instantiates and mounts an Avenx component or page into a test container, pre-configuring props, reactive state overrides, transcluded slots, and mock bridges.
 
-**Parameters**
+```typescript
+function mountTestComponent<C extends AvenxComponent>(
+  ComponentClass: new (...args: any[]) => C,
+  options?: MountTestComponentOptions
+): Promise<MountTestComponentResult<C>>
+```
 
-- `ComponentClass` (`typeof AvenxComponent`): Component class or definition object to instantiate.
-- `options` (`object`, optional):
-  - `props` (`object`): Initial component prop values.
-  - `state` (`object`): State property overrides.
-  - `slots` (`object`): HTML string or node content for default and named slots.
-  - `target` (`HTMLElement`): DOM target container (defaults to dynamically created div).
+#### Options (`MountTestComponentOptions`)
 
-**Return Value**
+| Option | Type | Description |
+| :--- | :--- | :--- |
+| `props` | `object` | Initial property values passed to the component constructor. |
+| `state` / `initialState` | `object` | Reactive state overrides assigned before mounting. |
+| `slots` | `string \| object \| Element` | Slot transclusion content (HTML string or slot map e.g. `{ default: '<p>...</p>', header: '...' }`). |
+| `container` / `target` | `Element` | Target DOM element to mount into. Defaults to an auto-created `<div>`. |
+| `bridges` | `object` | Map of mock or real bridges injected into the component. |
+| `components` | `object` | Map of child components registered with the instance. |
+| `route` | `object` | Mock route configuration passed to `AvenxMock.createMockRouter()`. |
 
-Returns a `TestWrapper` object with the following properties and methods:
+#### Return Value (`MountTestComponentResult`)
 
-- `component`: The mounted `AvenxComponent` instance.
-- `element`: Root DOM element of the mounted component.
-- `update()`: Method to flush pending asynchronous updates.
-- `unmount()`: Cleans up DOM nodes and invokes lifecycle teardown.
+| Property / Method | Type | Description |
+| :--- | :--- | :--- |
+| `instance` / `component` | `AvenxComponent` | The mounted component instance. |
+| `element` | `Element` | The root DOM element rendered by the component. |
+| `container` | `Element` | The parent container hosting the mounted component. |
+| `html` | `string` | Getter returning the current serialized inner HTML markup of the container. |
+| `update()` | `() => void` | Manually triggers a synchronous component update cycle. |
+| `unmount()` | `() => void` | Invokes component unmounting, cleanup watchers, and lifecycle hooks (`onBeforeUnmount`, `onUnmounted`). |
 
-### `fireEvent(element, eventName, detail)`
+---
 
-Dispatches synthetic browser events (e.g. `click`, `input`, `change`, `submit`) on rendered DOM elements and triggers component update cycles.
+### `fireEvent(element, eventType, detail)`
 
-**Parameters**
+Dispatches synthetic DOM events (e.g. `click`, `input`, `change`, `submit`, `keydown`) on rendered DOM elements, applies form control values, and automatically awaits microtask scheduler completion via `nextTick()`.
 
-- `element` (`HTMLElement`): Target DOM node to receive the event.
-- `eventName` (`string`): Event type (e.g. `'click'`, `'input'`, `'submit'`).
-- `detail` (`object`, optional): Custom event detail payload.
+```typescript
+function fireEvent(
+  element: Element,
+  eventType: string,
+  detail?: { value?: any; checked?: boolean; [key: string]: any }
+): Promise<void>
+```
 
-**Return Value**
+**Parameters:**
+- `element` (`Element`): The target DOM node to receive the event.
+- `eventType` (`string`): The event type name (e.g. `'click'`, `'input'`, `'submit'`).
+- `detail` (`object`, optional): Payload or options. If `detail.value` is provided, `element.value` is updated before firing `'input'`/`'change'`. If `detail.checked` is provided, `element.checked` is set.
 
-- `Promise<void>` (resolves after event dispatch and component re-render).
+**Returns:** `Promise<void>` — Resolves after the event has dispatched and all queued microtask DOM updates have flushed.
 
-### Full Unit Test Example
+---
+
+### Complete Component Unit Test Example
 
 ```javascript
 import { describe, it, expect } from 'vitest';
-import { mountTestComponent, fireEvent } from 'avenx-js/testing';
-import CounterComponent from '../src/components/Counter.component.js';
+import { mountTestComponent, fireEvent } from 'avenx-core/runtime';
+import SearchBoxComponent from '../src/components/SearchBox.component.js';
 
-describe('CounterComponent', () => {
-  it('increments count when button is clicked', async () => {
-    const wrapper = await mountTestComponent(CounterComponent, {
-      props: { initialCount: 5 },
+describe('SearchBoxComponent Unit Test', () => {
+  it('updates query and triggers search on submit', async () => {
+    // 1. Mount component with props and initial state overrides
+    const wrapper = await mountTestComponent(SearchBoxComponent, {
+      props: { placeholderText: 'Search articles...' },
+      state: { query: 'Initial query' }
     });
 
-    expect(wrapper.element.querySelector('.count').textContent).toBe('Count: 5');
+    // 2. Assert initial rendered DOM
+    expect(wrapper.element.querySelector('input').value).toBe('Initial query');
+    expect(wrapper.element.querySelector('input').placeholder).toBe('Search articles...');
 
-    const button = wrapper.element.querySelector('button.increment');
-    await fireEvent(button, 'click');
+    // 3. Simulate user typing into input field with fireEvent
+    const input = wrapper.element.querySelector('input');
+    await fireEvent(input, 'input', { value: 'Avenx Reactivity' });
 
-    expect(wrapper.element.querySelector('.count').textContent).toBe('Count: 6');
+    // 4. Assert reactive state updated
+    expect(wrapper.instance.state.query).toBe('Avenx Reactivity');
 
+    // 5. Simulate form submission
+    const form = wrapper.element.querySelector('form');
+    await fireEvent(form, 'submit');
+
+    // 6. Assert rendered output via wrapper.html
+    expect(wrapper.html).toContain('Results for: Avenx Reactivity');
+
+    // 7. Clean up component instance
     wrapper.unmount();
   });
 });

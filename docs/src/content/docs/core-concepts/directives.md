@@ -99,12 +99,16 @@ Directives are applied to HTML elements in component templates using the `data-a
 
 Custom directives can be registered globally on your application instance using `app.directive(name, definition)` or via `AvenxComponent.directive(name, definition)`:
 
+```typescript
+app.directive(name: string, definition: DirectiveDefinition | DirectiveFunction): AvenxApp
+```
+
 ```javascript
 import { AvenxApp } from 'avenx-core/runtime';
 
 const app = new AvenxApp({ target: '#app' });
 
-// Register a custom directive globally
+// 1. Register with lifecycle hooks object
 app.directive('focus', {
   mounted(el) {
     if (typeof el.focus === 'function') {
@@ -112,12 +116,18 @@ app.directive('focus', {
     }
   },
 });
+
+// 2. Register with shorthand function (executes for both mounted and updated)
+app.directive('color', (el, binding) => {
+  el.style.color = binding.value;
+});
 ```
 
 You can then use the custom directive in any component template:
 
 ```html
 <input data-ax-focus type="text" placeholder="Auto-focused input..." />
+<p data-ax-color="state.themeColor">Dynamic theme text</p>
 ```
 
 ---
@@ -128,9 +138,9 @@ A custom directive definition provides three primary lifecycle hooks (both stand
 
 | Hook | Alias | Parameters | When Invoked |
 | --- | --- | --- | --- |
-| `mounted` | `bind` | `(el, binding)` | Called when the bound element is inserted into the DOM. Ideal for initial setup and attaching listeners. |
-| `updated` | `update` | `(el, binding)` | Called after the containing component updates and the bound expression value changes. |
-| `unmounted` | `unbind` | `(el, binding)` | Called when the bound element is removed from the DOM. Essential for cleanup and teardown. |
+| `mounted` | `bind` | `(el: Element, binding: DirectiveBinding)` | Called when the bound element is inserted into the DOM. Ideal for initial setup and attaching listeners. |
+| `updated` | `update` | `(el: Element, binding: DirectiveBinding)` | Called after the containing component updates and the bound expression value changes (`binding.value !== binding.oldValue`). |
+| `unmounted` | `unbind` | `(el: Element, binding: DirectiveBinding)` | Called when the bound element is removed from the DOM. Essential for cleanup and teardown. |
 
 ### The `binding` Object
 
@@ -141,7 +151,7 @@ The `binding` parameter provides metadata and values associated with the directi
 | `value` | `any` | The current evaluated result of the directive expression. |
 | `oldValue` | `any` | The previous evaluated value before the update (available in `updated` / `update` and `unmounted` / `unbind`). |
 | `expression` | `string` | The raw string expression assigned to the directive attribute in the template. |
-| `modifiers` | `object` | An object containing boolean flags for dot-notation modifiers (e.g. `data-ax-dir.once.passive` -> `{ once: true, passive: true }`). |
+| `modifiers` | `object` | An object containing boolean flags for dot-notation modifiers (e.g. `data-ax-tooltip.top.lazy` -> `{ top: true, lazy: true }`). |
 
 ---
 

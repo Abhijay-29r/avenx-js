@@ -142,6 +142,20 @@ try {
   onceEl.trigger('click', { type: 'click' });
   assert.strictEqual(executionCount, 1, 'Second trigger should NOT run handler');
 
+  // 3b. Test .self modifier
+  const childEl = createMockElement('BUTTON', {});
+  const selfEl = createMockElement('DIV', { '@click.self': 'handleSelf' }, [childEl]);
+  binder.bind(selfEl, dispatcher);
+  resetDispatcher();
+
+  // Triggering on child element should NOT invoke handleSelf
+  childEl.trigger('click', { type: 'click' });
+  assert.strictEqual(executedSource, null, 'Clicking child should not invoke handler with .self');
+
+  // Triggering directly on selfEl SHOULD invoke handleSelf
+  selfEl.trigger('click', { type: 'click' });
+  assert.strictEqual(executedSource, 'handleSelf', 'Clicking target directly should invoke handler with .self');
+
   // 4. Test keyup/keydown modifiers (.enter)
   const enterEl = createMockElement('INPUT', { '@keyup.enter': 'handleEnter' });
   binder.bind(enterEl, dispatcher);

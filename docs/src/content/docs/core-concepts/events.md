@@ -60,7 +60,8 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 |---|---|---|
 | `.prevent` | Any event | Calls `event.preventDefault()` before invoking the handler. Ignored when combined with `.passive` (browsers disallow `preventDefault` on passive listeners). |
 | `.stop` | Any event | Calls `event.stopPropagation()` before invoking the handler. |
-| `.once` | Any event | Automatically removes the listener after it fires a single time. |
+| `.self` | Any event | Only triggers the handler if `event.target === event.currentTarget` (i.e. click originates directly on the bound element itself, not on nested children). |
+| `.once` | Any event | Automatically removes or deactivates the listener after it fires a single time. |
 | `.passive` | Any event | Registers the listener with `{ passive: true }`, improving scroll/touch performance. |
 | `.capture` | Any event | Registers the listener with `{ capture: true }` so it runs in the capture phase. |
 | `.ctrl` | Mouse & Keyboard events | Only invokes handler if the `Control` key (`event.ctrlKey`) is held down. |
@@ -74,26 +75,42 @@ Event bindings support dot-suffixed **modifiers** that adjust how the underlying
 | `.tab` | Keyboard events | Only invokes the handler if the pressed key is `Tab`. |
 | `.delete` | Keyboard events | Only invokes the handler if the pressed key is `Delete`. |
 
-### DOM Modifiers (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`)
+### DOM Modifiers (`.prevent`, `.stop`, `.self`, `.once`, `.passive`, `.capture`)
 
 `.prevent` and `.stop` wrap the handler with the corresponding DOM method call:
 
 ```html
+<!-- Form submission without page reload -->
 <form @submit.prevent="save()">
   <button type="submit">Save</button>
 </form>
+
+<!-- Stop event bubbling up to parent containers -->
 <div @click.stop="toggleMenu()">
-  <!-- Click here won't bubble up to parent listeners -->
+  <!-- Click here will not bubble up to parent listeners -->
 </div>
 ```
 
-`.once` detaches the listener after the first invocation, useful for one-time actions like dismissing a banner:
+`.self` ensures the handler only fires if the event target is the element itself, not a child element. Ideal for modal backdrop dismissals:
 
 ```html
-<button @click.once="dismissBanner()">Got it</button>
+<!-- Modal backdrop click dismissal: clicking .modal-dialog will NOT close the modal -->
+<div class="modal-backdrop" @click.self="closeModal()">
+  <div class="modal-dialog">
+    <h2>Modal Header</h2>
+    <p>Interacting with modal content does not trigger closeModal().</p>
+    <button @click="confirmAction()">Confirm</button>
+  </div>
+</div>
 ```
 
-`.passive` and `.capture` map to `addEventListener` options. Chain them with other modifiers (for example `@scroll.passive.once`):
+`.once` executes the handler at most once:
+
+```html
+<button @click.once="claimReward()">Claim Reward (Single Click Only)</button>
+```
+
+`.passive` and `.capture` map to native `addEventListener` options:
 
 ```html
 <div @scroll.passive="onScroll()">Scroll container</div>
@@ -127,7 +144,8 @@ System key modifiers filter mouse and keyboard event execution based on whether 
 Key modifiers act as key filters on keyboard events, so the handler only runs when the matching key is pressed:
 
 ```html
-<input @keydown.enter="submit()" placeholder="Press Enter to submit" />
+<!-- Search input triggered on Enter key -->
+<input @keyup.enter="performSearch()" placeholder="Search items and press Enter..." />
 <input @keydown.esc="clearInput()" placeholder="Press Esc to clear" />
 <input @keydown.space="togglePlay()" placeholder="Press Space to toggle" />
 <input @keydown.tab.prevent="focusNext()" placeholder="Press Tab to navigate" />
@@ -135,7 +153,7 @@ Key modifiers act as key filters on keyboard events, so the handler only runs wh
 ```
 
 :::note
-**Combining modifiers:** Modifiers can be chained together. For example, `@keydown.cmd.enter.prevent="submit()"` verifies the Command key and Enter key are pressed and calls `event.preventDefault()` before executing `submit()`.
+**Combining modifiers:** Modifiers can be chained together. For example, `@submit.prevent.stop="save()"` prevents standard form submission and stops bubbling, while `@keydown.cmd.enter.prevent="submit()"` verifies the Command key and Enter key are pressed and calls `event.preventDefault()` before executing `submit()`.
 :::
 
 ## Scoped Slot Event Handling
@@ -164,12 +182,13 @@ When rendering into a `DocumentFragment`, Avenx falls back to direct event bindi
 
 When multiple modifiers are chained together, they execute in the following order:
 
-1. `.once`
-2. System key modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)
-3. Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`)
-4. `.prevent`
-5. `.stop`
-6. Execute the event handler
+1. `.self` (filters out events originating from child elements)
+2. `.once` (checks and sets execution flags)
+3. System key modifiers (`.ctrl`, `.alt`, `.shift`, `.meta`, `.cmd`)
+4. Key modifiers (`.enter`, `.esc`, `.escape`, `.space`, `.tab`, `.delete`)
+5. `.prevent` (`event.preventDefault()`)
+6. `.stop` (`event.stopPropagation()`)
+7. Execute the event handler
 
 For example:
 
