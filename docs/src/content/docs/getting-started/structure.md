@@ -27,9 +27,12 @@ my-avenx-app/
 │   │   └── auth.guard.js
 │   └── main.app.js       # Main application bootstrap and configuration
 ├── index.html            # Application entry document
+├── eslint.config.mjs     # ESLint flat config (optional template tag validation)
 └── package.json          # Node dependencies and project scripts
 ```
 
 :::note
 **Compilation Note:** During builds, Avenx-JS bundles the core runtime files, your components, pages, bridges, and guards into a single `dist/bundle.js` and stylesheet `dist/bundle.css`. No runtime bundler like Webpack/Vite is needed.
+
+For IDE and CI/CD component tag casing validation, configure `eslint.config.mjs` with `avenxTemplateParser` and `componentTagNamingRule`. See the [ESLint Template Validation Guide](/guides/eslint) for setup instructions.
 :::

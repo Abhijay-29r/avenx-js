@@ -258,6 +258,9 @@ Parses and validates all project templates without writing build outputs to disk
 npx avenx check
 ```
 
+For editor-integrated real-time linting and ESLint rule enforcement (PascalCase tag naming), see the [ESLint Template Validation Guide](/guides/eslint).
+
+
 ---
 
 ### 8. `avenx inspect` (alias: `i`)

@@ -69,6 +69,7 @@ export default defineConfig({
 					label: 'Guides',
 					items: [
 						{ label: 'VirtualList Performance Guide', slug: 'guides/virtual-list' },
+						{ label: 'ESLint Template Validation', slug: 'guides/eslint' },
 					],
 				},
 				{
