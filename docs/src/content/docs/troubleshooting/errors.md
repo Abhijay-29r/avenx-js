@@ -400,6 +400,119 @@ const app = new AvenxApp({
 | `[AVX_C02]` | "src" directory not found at "{path}". Run "avenx init" to scaffold a project. | **Identifier:** `COMPILER_SRC_DIR_MISSING`.<br />**Cause:** Running `avenx build` or `avenx watch` in a project directory where the `src/` folder is missing.<br />**Resolution:** Run `npx avenx init` to scaffold a valid project directory, or manually create the `src/` directory with the required application files. |                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `[AVX_C03]` | Duplicate component name(s) detected. These files compile to the same class name: {details} | **Cause:** Two or more component files (e.g. `card.component.js` in different directories) resolve to the same generated class name, since Avenx-JS derives a component's class name from its file name. This causes a naming collision when the components are bundled together.<br />**Resolution:** Rename one of the conflicting files, or move it to a location that produces a distinct class name — for example, renaming `card.component.js` to `profile-card.component.js`. The build halts and lists every conflicting file path so you can identify exactly which components need to be renamed. |
 
+### AVX_C01 — COMPILER_DIST_CREATION_FAILED
+
+**Error Message**
+
+```text
+[AVX_C01] Could not create dist directory at "{0}".
+```
+
+**Diagnostic Output Format (CLI)**
+
+```text
+❌ [AVX_C01] Could not create dist directory at "/path/to/project/dist".
+```
+
+**Cause:** This error is emitted during the compiler initialization phase (`AvenxCompiler.init()`) when the build pipeline attempts to create the distribution output directory (`dist/` by default or custom path) via recursive directory creation, but the filesystem operation fails.
+
+This typically happens for a few common reasons:
+
+- **Insufficient File System Permissions**: The user or process executing `avenx build` or `avenx watch` lacks write permissions in the project root directory or the specified distribution path.
+- **File Name Conflict**: A regular non-directory file named `dist` (or matching the configured output directory name) already exists in the project root, blocking directory creation.
+- **Restricted CI/CD or Docker Environments**: Running the build inside a read-only filesystem, an unprivileged Docker container, or a CI worker without directory write access.
+- **Invalid Output Path in Configuration**: The `avenx.config.json` configuration specifies an invalid, inaccessible, or restricted custom directory path.
+
+**Resolution:** To resolve this error:
+
+1. **Verify and Grant Directory Permissions**: Ensure the active user account has write permissions to the project directory:
+   ```bash
+   # Grant write permissions to the current user (macOS/Linux)
+   chmod -R u+w .
+   ```
+   If files were previously created with root privileges (e.g., via `sudo`), restore ownership:
+   ```bash
+   sudo chown -R $(whoami) .
+   ```
+2. **Remove Conflicting Files**: Check if a regular file named `dist` exists in the workspace. If present, delete or rename it:
+   ```bash
+   rm dist
+   ```
+3. **Configure CI/CD Pipelines and Dockerfiles**: In automated environments, verify that the working directory is writable and pre-create the output directory if necessary:
+   ```dockerfile
+   # Dockerfile best practice
+   WORKDIR /app
+   RUN mkdir -p dist && chown -R node:node /app
+   USER node
+   ```
+4. **Inspect Build Configuration**: Verify that `avenx.config.json` does not point output files to restricted system paths.
+
+**Incorrect**
+
+Attempting to build when the project directory is read-only or a conflicting file blocks directory creation:
+
+```bash
+# ❌ Conflicting file named 'dist' blocks mkdir
+touch dist
+npx avenx build
+# Emits: ❌ [AVX_C01] Could not create dist directory at ".../dist".
+```
+
+```dockerfile
+# ❌ Container running as unprivileged user without write access to /app
+FROM node:20-alpine
+WORKDIR /app
+COPY . .
+USER node
+# Fails with AVX_C01 if /app is owned by root
+RUN npx avenx build
+```
+
+**Correct**
+
+Ensuring proper directory permissions and ownership in build pipelines:
+
+```bash
+# ✅ Ensure workspace is writable and output directory is clear
+rm -f dist
+npx avenx build
+```
+
+```dockerfile
+# ✅ Proper ownership setup in Docker build
+FROM node:20-alpine
+WORKDIR /app
+COPY --chown=node:node . .
+USER node
+RUN npx avenx build
+```
+
+**Defensive Coding Example**
+
+Pre-validating directory write permissions in custom automated build scripts:
+
+```javascript
+import fs from 'fs';
+import path from 'path';
+import { AvenxCompiler } from 'avenx-core';
+
+const distPath = path.resolve(process.cwd(), 'dist');
+
+try {
+  if (!fs.existsSync(distPath)) {
+    fs.mkdirSync(distPath, { recursive: true });
+  }
+  // Verify write access
+  fs.accessSync(distPath, fs.constants.W_OK);
+  
+  const compiler = new AvenxCompiler({ rootDir: process.cwd() });
+  compiler.build();
+} catch (err) {
+  console.error(`[Build Setup Error] Cannot initialize dist directory at "${distPath}":`, err.message);
+  process.exit(1);
+}
+```
+
 ## Compiler Warnings
 
 Unlike the error codes above, which halt compilation, Avenx-JS also emits **warnings** during the build step. Warnings do not stop the build, but they flag potential mistakes in your templates that are worth fixing.

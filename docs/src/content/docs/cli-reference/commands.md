@@ -196,6 +196,10 @@ Be sure to reference the customized bundle filenames in your `index.html` entry 
 <script src="dist/app.bundle.js"></script>
 ```
 
+#### Output Directory Resolution & Troubleshooting
+
+The build pipeline automatically creates the distribution output directory (`dist/` by default or as configured in `avenx.config.json`) if it does not already exist. If directory creation fails due to insufficient filesystem permissions or an existing blocking file, the compiler logs `[AVX_C01] Could not create dist directory`. See [AVX_C01 Troubleshooting](/troubleshooting/errors/#avx_c01--compiler_dist_creation_failed) for troubleshooting guidelines.
+
 #### Usage Examples
 
 ```bash
