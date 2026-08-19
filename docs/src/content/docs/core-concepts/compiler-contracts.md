@@ -100,6 +100,7 @@ The compiler validates contracts during build time:
 
 - **`AVX_C04` (`COMPILER_CONTRACT_STATIC_VIOLATION`)**: Thrown when a node marked `static` contains dynamic interpolations, events, or bindings.
 - **`AVX_C05` (`COMPILER_CONTRACT_ISOLATED_VIOLATION`)**: Thrown when an `isolated` component accesses `$bridges` or `$parent`.
+- **`AVX_C06` (`COMPILER_CONTRACT_INVALID`)**: Thrown when a `<contract />` declaration uses an unknown contract name or malformed syntax.
 - **`AVX_W32` (`COMPILER_CONTRACT_PURE_VIOLATION`)**: Warning emitted when a `pure` contract encounters side-effecting operations.
 - **`AVX_W33` (`COMPILER_CONTRACT_DETERMINISTIC_VIOLATION`)**: Warning emitted when a `deterministic` contract calls non-deterministic APIs.
 - **`AVX_W34` (`COMPILER_CONTRACT_REDUNDANT`)**: Warning emitted when a child contract is redundant because its parent already enforces a stricter contract.
