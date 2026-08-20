@@ -3,7 +3,14 @@
  * @module plugins/avenx-charts/src/components/BaseChart
  */
 
-import { AvenxComponent } from 'avenx-core/runtime';
+let AvenxComponent;
+try {
+  const core = await import('avenx-core/runtime');
+  AvenxComponent = core.AvenxComponent;
+} catch {
+  const core = await import('../../../../lib/core/index.js');
+  AvenxComponent = core.AvenxComponent;
+}
 import { createLinearScale, createPointScale, getExtent } from '../core/scales.js';
 import { generateGridLines } from '../core/shapes.js';
 import { resolveTheme, formatValue } from '../core/theme.js';
