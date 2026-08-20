@@ -47,8 +47,12 @@ export function normalizeSeries(rawSeries, palette = 'default') {
   });
 }
 
-// Internal sync helper to access getColor
 let _getColor = null;
+
+/**
+ * Internal sync helper to access getColor without circular dependency.
+ * @returns {{ getColor: (palette: any, index: number) => string }}
+ */
 function awaitImportThemeSync() {
   if (!_getColor) {
     // Fallback simple palette in case of cycle

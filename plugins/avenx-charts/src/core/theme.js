@@ -84,7 +84,7 @@ export function getColor(palette, index = 0) {
 
 /**
  * Resolves theme configuration object from name or custom overrides.
- * @param {string|object} [theme='light'] - Theme name ('light'|'dark') or custom style object.
+ * @param {string|object} [theme] - Theme name ('light'|'dark') or custom style object.
  * @returns {typeof THEMES.light} Merged theme configuration.
  */
 export function resolveTheme(theme = 'light') {
@@ -99,8 +99,8 @@ export function resolveTheme(theme = 'light') {
  * Formats a numerical value nicely for axis labels and tooltips.
  * @param {number} value
  * @param {object} [options]
- * @param {string} [options.prefix='']
- * @param {string} [options.suffix='']
+ * @param {string} [options.prefix]
+ * @param {string} [options.suffix]
  * @param {number} [options.precision]
  * @returns {string} Formatted number string.
  */
@@ -112,7 +112,7 @@ export function formatValue(value, options = {}) {
 
   const num = Number(value);
 
-  let formatted = '';
+  let formatted;
   if (precision !== undefined) {
     formatted = num.toFixed(precision);
   } else if (Math.abs(num) >= 1_000_000) {

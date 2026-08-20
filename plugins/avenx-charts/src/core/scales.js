@@ -6,7 +6,7 @@
 /**
  * Calculates a "nice" rounded number approximately equal to x.
  * @param {number} x - The number to round.
- * @param {boolean} round - Whether to round or ceiling.
+ * @param {boolean} [round] - Whether to round or ceiling.
  * @returns {number}
  */
 export function niceNum(x, round = false) {
@@ -34,7 +34,7 @@ export function niceNum(x, round = false) {
  * Generates an array of "nice" tick values between min and max.
  * @param {number} min - Lower bound.
  * @param {number} max - Upper bound.
- * @param {number} [tickCount=5] - Target number of ticks.
+ * @param {number} [tickCount] - Target number of ticks.
  * @returns {number[]} Array of tick values.
  */
 export function generateLinearTicks(min, max, tickCount = 5) {
@@ -63,9 +63,9 @@ export function generateLinearTicks(min, max, tickCount = 5) {
  * @param {number[]} domain - [min, max] input domain.
  * @param {number[]} range - [start, end] output range (e.g. SVG pixel coordinates).
  * @param {object} [options]
- * @param {boolean} [options.clamp=false] - Whether to clamp output to the range.
- * @param {boolean} [options.nice=true] - Whether to extend domain to nice round numbers.
- * @param {number} [options.tickCount=5] - Number of ticks to target.
+ * @param {boolean} [options.clamp] - Whether to clamp output to the range.
+ * @param {boolean} [options.nice] - Whether to extend domain to nice round numbers.
+ * @param {number} [options.tickCount] - Number of ticks to target.
  * @returns {((val: number) => number) & { domain: number[], range: number[], ticks: (count?: number) => number[], invert: (val: number) => number }}
  */
 export function createLinearScale(domain, range, options = {}) {
@@ -115,7 +115,7 @@ export function createLinearScale(domain, range, options = {}) {
  * @param {string[]|number[]} domain - Array of category identifiers.
  * @param {number[]} range - [start, end] output pixel range.
  * @param {object} [options]
- * @param {number} [options.padding=0.5] - Relative outer padding (0 to 1).
+ * @param {number} [options.padding] - Relative outer padding (0 to 1).
  * @returns {((val: any) => number) & { domain: any[], range: number[], step: () => number, ticks: () => any[] }}
  */
 export function createPointScale(domain, range, options = {}) {
@@ -155,8 +155,8 @@ export function createPointScale(domain, range, options = {}) {
  * @param {string[]|number[]} domain - Array of category identifiers.
  * @param {number[]} range - [start, end] output pixel range.
  * @param {object} [options]
- * @param {number} [options.paddingInner=0.2] - Space between bands (0 to 1).
- * @param {number} [options.paddingOuter=0.1] - Space before first and after last band.
+ * @param {number} [options.paddingInner] - Space between bands (0 to 1).
+ * @param {number} [options.paddingOuter] - Space before first and after last band.
  * @returns {((val: any) => number) & { domain: any[], range: number[], bandwidth: () => number, step: () => number, ticks: () => any[] }}
  */
 export function createBandScale(domain, range, options = {}) {
@@ -197,7 +197,7 @@ export function createBandScale(domain, range, options = {}) {
  * @param {object[]} data - Dataset array.
  * @param {string|string[]} keys - One or more property keys.
  * @param {object} [options]
- * @param {boolean} [options.includeZero=true] - Whether to include 0 in the domain.
+ * @param {boolean} [options.includeZero] - Whether to include 0 in the domain.
  * @returns {[number, number]} [min, max]
  */
 export function getExtent(data, keys, options = {}) {

@@ -27,11 +27,9 @@ export class ChartLine extends BaseChart {
   /**
    * Renders the line series plot layer into SVG.
    * @param {object} layout - Layout metrics.
-   * @param {Function} xScale - Point scale for X.
-   * @param {Function} yScale - Linear scale for Y.
    * @returns {string} SVG markup for line and area paths.
    */
-  renderPlot(layout, xScale, yScale) {
+  renderPlot(layout) {
     if (!this.plotData || this.plotData.length === 0) {
       return '';
     }
@@ -60,7 +58,7 @@ export class ChartLine extends BaseChart {
       }
 
       // 2. Main line path
-      let lineD = '';
+      let lineD;
       if (curveType === 'linear') {
         lineD = generateLinearPath(points);
       } else if (curveType === 'step') {

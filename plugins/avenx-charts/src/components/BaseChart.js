@@ -168,7 +168,6 @@ export class BaseChart extends AvenxComponent {
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
     const svgX = ((clientX - rect.left) / rect.width) * this.viewBoxWidth;
-    const svgY = ((clientY - rect.top) / rect.height) * this.viewBoxHeight;
 
     const nearestIdx = findNearestIndex(svgX, this.plotData);
     if (nearestIdx >= 0 && nearestIdx !== this.state.activePointIndex) {
@@ -471,12 +470,9 @@ export class BaseChart extends AvenxComponent {
 
   /**
    * Abstract plot renderer. Overridden by specific chart components (ChartLine, etc.).
-   * @param {object} layout
-   * @param {Function} xScale
-   * @param {Function} yScale
    * @returns {string} SVG plot markup.
    */
-  renderPlot(layout, xScale, yScale) {
+  renderPlot() {
     return '';
   }
 

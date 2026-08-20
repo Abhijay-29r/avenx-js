@@ -33,6 +33,8 @@ export const avenxCharts = {
       throw new Error('[avenx-charts] Invalid AvenxApp instance passed to plugin install().');
     }
 
+    this.options = options;
+
     // Register all standard chart types under multiple aliases for flexibility
     for (const [typeName, CompClass] of Object.entries(CHART_TYPES)) {
       const dottedName = `chart.${typeName}`;

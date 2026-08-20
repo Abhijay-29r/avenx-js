@@ -31,7 +31,7 @@ export function generateLinearPath(points) {
  * @param {Point} p1 - Current start point.
  * @param {Point} p2 - Next end point.
  * @param {Point} p3 - Point after next.
- * @param {number} [tension=0.33] - Curve tension (0 = linear, 0.5 = loose, 0.33 = natural).
+ * @param {number} [tension] - Curve tension (0 = linear, 0.5 = loose, 0.33 = natural).
  * @returns {[Point, Point]} [controlPoint1, controlPoint2]
  */
 function getCatmullRomControlPoints(p0, p1, p2, p3, tension = 0.33) {
@@ -49,7 +49,7 @@ function getCatmullRomControlPoints(p0, p1, p2, p3, tension = 0.33) {
  * Generates a smooth cubic Bezier SVG path through the given points.
  * Uses Catmull-Rom interpolation for aesthetic, natural curve smoothing.
  * @param {Point[]} points - Array of [x, y] coordinate pairs.
- * @param {number} [tension=0.33] - Curve tension parameter.
+ * @param {number} [tension] - Curve tension parameter.
  * @returns {string} SVG path d attribute string.
  */
 export function generateSmoothPath(points, tension = 0.33) {
@@ -79,7 +79,7 @@ export function generateSmoothPath(points, tension = 0.33) {
 /**
  * Generates a stepped SVG path between points.
  * @param {Point[]} points - Array of [x, y] coordinate pairs.
- * @param {'after'|'before'|'middle'} [stepPosition='after'] - Position where step occurs.
+ * @param {'after'|'before'|'middle'} [stepPosition] - Position where step occurs.
  * @returns {string} SVG path d attribute string.
  */
 export function generateStepPath(points, stepPosition = 'after') {
@@ -112,13 +112,13 @@ export function generateStepPath(points, stepPosition = 'after') {
  * Generates a closed area SVG path for gradient fills under the line.
  * @param {Point[]} points - Array of [x, y] points.
  * @param {number} baselineY - Y coordinate of the baseline (e.g. bottom axis or 0 line).
- * @param {'smooth'|'linear'|'step'} [curve='smooth'] - Curve style.
+ * @param {'smooth'|'linear'|'step'} [curve] - Curve style.
  * @returns {string} SVG path string closed to baseline.
  */
 export function generateAreaPath(points, baselineY, curve = 'smooth') {
   if (!points || points.length === 0) return '';
 
-  let lineD = '';
+  let lineD;
   if (curve === 'smooth' && points.length > 2) {
     lineD = generateSmoothPath(points);
   } else if (curve === 'step') {
@@ -140,8 +140,8 @@ export function generateAreaPath(points, baselineY, curve = 'smooth') {
  * @param {[number, number]} xRange - [xMin, xMax] plot bounds.
  * @param {[number, number]} yRange - [yMin, yMax] plot bounds.
  * @param {object} [options]
- * @param {boolean} [options.horizontal=true] - Render horizontal grid lines.
- * @param {boolean} [options.vertical=false] - Render vertical grid lines.
+ * @param {boolean} [options.horizontal] - Render horizontal grid lines.
+ * @param {boolean} [options.vertical] - Render vertical grid lines.
  * @returns {string} SVG path d string of all grid lines combined.
  */
 export function generateGridLines(xCoords, yCoords, xRange, yRange, options = {}) {

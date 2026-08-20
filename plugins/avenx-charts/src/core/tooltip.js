@@ -75,8 +75,8 @@ export function renderTooltipContent(info, theme = {}) {
  * @param {number} targetY - Target point Y coordinate.
  * @param {number} containerWidth - Chart container width.
  * @param {number} containerHeight - Chart container height.
- * @param {number} [tooltipWidth=150] - Estimated or measured tooltip width.
- * @param {number} [tooltipHeight=80] - Estimated or measured tooltip height.
+ * @param {number} [tooltipWidth] - Estimated or measured tooltip width.
+ * @param {number} [tooltipHeight] - Estimated or measured tooltip height.
  * @returns {{ left: number, top: number }} Position coordinates in pixels.
  */
 export function calculateTooltipPosition(
