@@ -45,4 +45,29 @@ assert.deepStrictEqual(
 
 console.log('Registered page names returned correctly.');
 
+console.log('Testing registration and mounting of component created via AvenxComponent.extend()...');
+
+const ExtendedCard = AvenxComponent.extend({
+  name: 'ExtendedCard',
+  state: { theme: 'dark' },
+  methods: {
+    toggleTheme() {
+      this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+    },
+  },
+});
+
+app.register('ExtendedCard', ExtendedCard);
+assert.ok(
+  app.getRegisteredComponents().includes('ExtendedCard'),
+  'getRegisteredComponents() should include ExtendedCard',
+);
+
+const cardInstance = new ExtendedCard();
+assert.strictEqual(cardInstance.state.theme, 'dark');
+cardInstance.toggleTheme();
+assert.strictEqual(cardInstance.state.theme, 'light');
+
+console.log('AvenxComponent.extend() registration and instantiation test passed.');
+
 console.log('AvenxApp registration inspection tests passed.');
