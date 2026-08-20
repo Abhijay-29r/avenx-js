@@ -252,6 +252,72 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
      * @protected
      */
     _getTranscludedGroups(): Record<string, any>;
+
+    /**
+     * Helper method to programmatically create component subclasses without ES class boilerplate.
+     * @param options Component definition options.
+     * @returns A new component subclass.
+     */
+    static extend<
+        S extends Record<string, any> = Record<string, any>,
+        M extends Record<string, Function> = Record<string, Function>,
+        C extends Record<string, any> = Record<string, any>,
+        P extends Record<string, any> = Record<string, any>
+    >(
+        options?: ComponentExtendOptions<S, M, C, P>
+    ): typeof AvenxComponent & (new (bridges?: Record<string, any>, props?: P) => AvenxComponent<S> & M & C);
+
+    /**
+     * Registers a global mixin.
+     * @param mixin The mixin definition.
+     */
+    static mixin(mixin: Record<string, any>): void;
+
+    /**
+     * Resets/clears the global mixins list.
+     */
+    static clearMixins(): void;
+}
+
+/**
+ * Options accepted by {@link AvenxComponent.extend}.
+ */
+export interface ComponentExtendOptions<
+    S extends Record<string, any> = Record<string, any>,
+    M extends Record<string, Function> = Record<string, Function>,
+    C extends Record<string, any> = Record<string, any>,
+    P extends Record<string, any> = Record<string, any>
+> {
+    name?: string;
+    state?: S | (() => S);
+    data?: S | (() => S);
+    computed?: C;
+    methods?: M;
+    template?: string;
+    props?: P;
+    styles?: Record<string, string>;
+    resources?: Record<string, any>;
+    watch?: Record<
+        string,
+        | ((newVal: any, oldVal: any) => void)
+        | { handler: (newVal: any, oldVal: any) => void; immediate?: boolean; deep?: boolean }
+    >;
+    provide?: Record<string, any> | (() => Record<string, any>) | string[];
+    inject?: Record<string, string> | (() => Record<string, string>) | string[];
+    contracts?: string[] | Set<string>;
+    options?: Record<string, any>;
+    onBeforeMount?(): void;
+    onMount?(): void;
+    onBeforeUpdate?(): void;
+    onUpdate?(): void;
+    onUnmount?(): void;
+    onActivate?(params?: Record<string, any>): void;
+    onDeactivate?(): void;
+    onErrorCaptured?(error: Error): boolean | void;
+    onEnter?(): void;
+    onLeave?(): void;
+    onBeforeLeave?(): void | Promise<void>;
+    [key: string]: any;
 }
 
 /**
