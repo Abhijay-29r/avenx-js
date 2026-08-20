@@ -217,6 +217,30 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     ): AvenxWatcher;
 
     /**
+     * Reactively listens to changes in specific state values or getters.
+     * @param source State property key string, getter function, or array of sources.
+     * @param callback Triggered when value changes.
+     * @param options Config options.
+     */
+    $watch(
+        source: string | (() => any) | Array<string | (() => any)>,
+        callback: (newValue: any, oldValue: any) => void,
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number }
+    ): AvenxWatcher;
+
+    /**
+     * Reactively runs an immediate effect hook that automatically tracks dependencies and re-runs on state mutation.
+     * Automatically registers watcher in _watchers and tears it down on unmount.
+     * @param effect Effect function to run immediately and track.
+     * @param options Config options.
+     * @returns Stop handle function.
+     */
+    $watchEffect(
+        effect: () => void,
+        options?: { lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string }
+    ): () => void;
+
+    /**
      * Evaluates validation rules for an element and updates state.$validation.
      * @param el Element to validate.
      */
@@ -832,19 +856,25 @@ export class Resource<T = any> {
 
 export class AvenxWatcher {
     getter: () => any;
-    callback: (newValue: any, oldValue: any) => void;
-    options: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number };
+    callback: ((newValue: any, oldValue: any) => void) | null;
+    options: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string; isEffect?: boolean; effect?: boolean };
     value: any;
     dirty: boolean;
+    isEffect: boolean;
     constructor(
         getter: () => any,
-        callback?: ((newValue: any, oldValue: any) => void) | null,
-        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number }
+        callback?: ((newValue: any, oldValue: any) => void) | object | null,
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string; isEffect?: boolean; effect?: boolean }
     );
     get(): any;
     evaluate(): any;
     teardown(): void;
 }
+
+export function watchEffect(
+    effect: () => void,
+    options?: { lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string }
+): () => void;
 
 export interface MockBridgeStateChange {
     prop: string;
