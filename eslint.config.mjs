@@ -15,7 +15,7 @@ export default [
       "dev-docs/",
       "coverage/",
       "bench-results/",
-      "vite-plugin-avenx/example/"
+      "plugins/avenx-vite/example/"
     ]
   },
 

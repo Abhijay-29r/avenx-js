@@ -18,7 +18,7 @@ const version = pkg.version;
  * @param {boolean} [options.debug] - Enables debug logging.
  * @returns {import('vite').Plugin}
  */
-export default function avenxPlugin(options = {}) {
+export function avenxPlugin(options = {}) {
   const compiler = createCompiler(options);
   const debug = options.debug ?? false;
 
@@ -29,12 +29,12 @@ export default function avenxPlugin(options = {}) {
    */
   function log(...args) {
     if (debug) {
-      console.log('[vite-plugin-avenx]', ...args);
+      console.log('[avenx-vite]', ...args);
     }
   }
 
   return {
-    name: 'vite-plugin-avenx',
+    name: 'avenx-vite',
 
     enforce: 'pre',
 
@@ -43,7 +43,7 @@ export default function avenxPlugin(options = {}) {
      * @returns {void}
      */
     configResolved() {
-      console.log(`[vite-plugin-avenx] v${version} initialized`);
+      console.log(`[avenx-vite] v${version} initialized`);
     },
 
     /**
@@ -124,3 +124,5 @@ export default function avenxPlugin(options = {}) {
     },
   };
 }
+
+export { avenxPlugin as avenxVite, avenxPlugin as default };

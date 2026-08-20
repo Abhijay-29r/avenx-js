@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import avenxPlugin from '../../vite-plugin-avenx/src/index.js';
-import { isComponentFile, isPageFile } from '../../vite-plugin-avenx/src/utils.js';
-import { encodeVLQ } from '../../vite-plugin-avenx/src/sourcemap.js';
+import avenxPlugin, { avenxVite } from '../../plugins/avenx-vite/src/index.js';
+import { isComponentFile, isPageFile } from '../../plugins/avenx-vite/src/utils.js';
+import { encodeVLQ } from '../../plugins/avenx-vite/src/sourcemap.js';
 
-console.log('🧪 Testing Source Map Generation in vite-plugin-avenx...');
+console.log('🧪 Testing Source Map Generation in @avenx/vite (plugins/avenx-vite)...');
 
 // 1. Test VLQ Encoder
 assert.equal(encodeVLQ(0), 'A');
@@ -55,7 +55,9 @@ const componentSource = `<state
 fs.writeFileSync(componentFilePath, componentSource, 'utf-8');
 
 try {
+  assert.strictEqual(typeof avenxVite, 'function', 'avenxVite should be exported as a function');
   const plugin = avenxPlugin();
+  assert.strictEqual(plugin.name, 'avenx-vite', 'Plugin name should be avenx-vite');
   const transformResult = plugin.transform(componentSource, componentFilePath);
 
   assert.ok(transformResult, 'Plugin transform hook should return a result');

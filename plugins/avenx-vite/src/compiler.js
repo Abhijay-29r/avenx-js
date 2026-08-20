@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
-import ComponentParser from '../../lib/compiler/ComponentParser.js';
+import StyleProcessor from '../../../lib/compiler/StyleProcessor.js';
+import ComponentParser from '../../../lib/compiler/ComponentParser.js';
 import { wrapComponent, wrapPage } from './wrapper.js';
 import { generateTemplateSourceMap } from './sourcemap.js';
 

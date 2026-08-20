@@ -13,12 +13,12 @@ export default defineConfig({
     alias: {
       "avenx-core/core": path.resolve(
         __dirname,
-        "../../lib/core/index.js"
+        "../../../lib/core/index.js"
       ),
 
       "avenx-core/runtime": path.resolve(
         __dirname,
-        "../../lib/core/index.js"
+        "../../../lib/core/index.js"
       ),
     },
   },
