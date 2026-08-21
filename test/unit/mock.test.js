@@ -144,7 +144,13 @@ class CounterComponent extends AvenxComponent {
 
     // Test route mocking
     sandbox.setRoute({ hash: '#/users', page: 'users', params: { id: '99' } });
-    assert.deepStrictEqual(mounted.instance.$route, { hash: '#/users', page: 'users', params: { id: '99' } });
+    assert.deepStrictEqual(mounted.instance.$route, {
+      hash: '#/users',
+      path: '#/users',
+      page: 'users',
+      params: { id: '99' },
+      query: {},
+    });
 
     // ==========================================
     // 3. createMockRouter
