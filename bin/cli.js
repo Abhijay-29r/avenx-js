@@ -13,6 +13,7 @@ import { printHelp } from './commands/help.js';
 import { runDoctor } from './commands/doctor.js';
 import { runInspect } from './commands/inspect.js';
 import { runStats } from './commands/stats.js';
+import { runEnv } from './commands/env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,6 +157,9 @@ export class AvenxCLI {
         break;
       case 'doctor':
         runDoctor(this);
+        break;
+      case 'env':
+        runEnv(this, args);
         break;
       case 'inspect':
       case 'i':
