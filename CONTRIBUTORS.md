@@ -155,6 +155,7 @@ If you have questions or want to contribute, feel free to reach out.
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/deekshithasajja-maker"><img src="https://avatars.githubusercontent.com/u/252833550?v=4?s=100" width="100px;" alt="Sajja Deekshitha"/><br /><sub><b>Sajja Deekshitha</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=deekshithasajja-maker" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nighshift-labs"><img src="https://avatars.githubusercontent.com/u/316473592?v=4?s=100" width="100px;" alt="nighshift-labs"/><br /><sub><b>nighshift-labs</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=nighshift-labs" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/somcpp"><img src="https://avatars.githubusercontent.com/u/192063065?v=4?s=100" width="100px;" alt="Saubhagya Sharma"/><br /><sub><b>Saubhagya Sharma</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=somcpp" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
