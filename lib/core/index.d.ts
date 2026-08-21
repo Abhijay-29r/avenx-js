@@ -935,6 +935,8 @@ export class AvenxMock {
         eventType: string,
         detail?: Record<string, any>
     ): Promise<void>;
+
+    static flushPromises(): Promise<void>;
 }
 
 export interface MountTestComponentOptions {
@@ -968,6 +970,8 @@ export function fireEvent(
     eventType: string,
     detail?: Record<string, any>
 ): Promise<void>;
+
+export function flushPromises(): Promise<void>;
 
 export class AvenxSandbox {
     components: Map<string, typeof AvenxComponent>;
