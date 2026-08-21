@@ -925,6 +925,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "somcpp",
+      "name": "Saubhagya Sharma",
+      "avatar_url": "https://avatars.githubusercontent.com/u/192063065?v=4",
+      "profile": "https://github.com/somcpp",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
