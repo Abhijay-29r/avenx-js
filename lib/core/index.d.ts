@@ -112,8 +112,12 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
 
     /**
      * Keys or mappings injected from ancestor components.
+     * Object values may be provide-key strings or `{ from?, default }` configs.
      */
-    inject?: Record<string, string> | (() => Record<string, string>) | string[];
+    inject?:
+        | Record<string, string | { from?: string; default?: any }>
+        | (() => Record<string, string | { from?: string; default?: any }>)
+        | string[];
 
     /**
      * @param initialState Initial component state variables.
@@ -327,7 +331,10 @@ export interface ComponentExtendOptions<
         | { handler: (newVal: any, oldVal: any) => void; immediate?: boolean; deep?: boolean }
     >;
     provide?: Record<string, any> | (() => Record<string, any>) | string[];
-    inject?: Record<string, string> | (() => Record<string, string>) | string[];
+    inject?:
+        | Record<string, string | { from?: string; default?: any }>
+        | (() => Record<string, string | { from?: string; default?: any }>)
+        | string[];
     contracts?: string[] | Set<string>;
     options?: Record<string, any>;
     onBeforeMount?(): void;
