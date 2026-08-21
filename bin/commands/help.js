@@ -22,6 +22,7 @@ ${bold(cyan('Commands:'))}
   ${green('clean')}                     ${gray('Clear build output directory')}
   ${green('check (lint)')}              ${gray('Validate templates without building')}
   ${green('doctor')}                    ${gray('Diagnose environment, config, and project health')}
+  ${green('env')}                       ${gray('Print and validate active environment variables')}
   ${green('inspect (i)')}               ${gray('Inspect project route and component hierarchy')}
   ${green('stats (s)')}                ${gray('Display component & bundle footprint metrics')}
   ${green('serve [port]')}              ${gray('Start dev server with hot-reload (default: 3000)')}
