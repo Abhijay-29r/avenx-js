@@ -84,6 +84,8 @@ export default [
         clearTimeout: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        setImmediate: "readonly",
+        clearImmediate: "readonly",
         global: "writable",
         globalThis: "writable",
         Buffer: "readonly"

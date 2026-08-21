@@ -159,7 +159,7 @@ export class AvenxCLI {
         runDoctor(this);
         break;
       case 'env':
-        runEnv(this, args);
+        runEnv(this);
         break;
       case 'inspect':
       case 'i':

@@ -55,9 +55,8 @@ function readEnvFileMeta(rootDir) {
 /**
  * Prints active environment configuration (public vs private).
  * @param {{ baseDir: string }} cli
- * @param {string[]} [_args]
  */
-export function runEnv(cli, _args = []) {
+export function runEnv(cli) {
   const rootDir = cli.baseDir || process.cwd();
   loadEnv(rootDir);
 
