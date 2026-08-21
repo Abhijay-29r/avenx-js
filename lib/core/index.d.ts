@@ -64,6 +64,16 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     readonly $refs: Record<string, Element | AvenxComponent<any> | undefined>;
 
     /**
+     * True while the component is mounted in the DOM.
+     */
+    readonly $isMounted: boolean;
+
+    /**
+     * True after the component has been unmounted.
+     */
+    readonly $isUnmounted: boolean;
+
+    /**
      * Helpers for inspecting whether the parent provided slot content.
      */
     readonly $slots: {
