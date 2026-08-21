@@ -415,6 +415,21 @@ export interface AvenxRouterOptions {
     prefix?: string;
 
     /**
+     * Optional custom navigation delegate.
+     */
+    delegate?: NavigationDelegate;
+
+    /**
+     * Navigation mode ('hash' | 'memory').
+     */
+    mode?: 'hash' | 'memory' | string;
+
+    /**
+     * Initial hash string for memory navigation delegate.
+     */
+    initialHash?: string;
+
+    /**
      * The time in milliseconds to wait before a route guard execution times out (default is 5000ms).
      */
     guardTimeout?: number;
@@ -470,6 +485,53 @@ export interface AvenxRouteDefinition {
 }
 
 /**
+ * Base abstract class defining the navigation delegate interface.
+ */
+export class NavigationDelegate {
+    getHash(): string;
+    setHash(hash: string, options?: { replace?: boolean }): void;
+    back(): void;
+    forward(): void;
+    go(delta: number): void;
+    onHashChange(callback: (hash: string) => void): () => void;
+    onLinkClick(callback: (route: string) => void): () => void;
+    setTitle(title: string): void;
+    registerRouter(router: any): void;
+    unregisterRouter(router: any): void;
+    getActiveRouters(): Set<any>;
+    destroy(): void;
+}
+
+/**
+ * Browser navigation delegate interacting with window, location, and history.
+ */
+export class BrowserNavigationDelegate extends NavigationDelegate {
+    hashListeners: Set<(hash: string) => void>;
+    linkClickListeners: Set<(route: string) => void>;
+    onWindowHashChange: () => void;
+    onWindowClick: (e: any) => void;
+}
+
+/**
+ * In-memory navigation delegate for Node.js / SSR / headless environments.
+ */
+export class MemoryNavigationDelegate extends NavigationDelegate {
+    history: string[];
+    cursorIndex: number;
+    currentHash: string;
+    title: string;
+    hashListeners: Set<(hash: string) => void>;
+    linkClickListeners: Set<(route: string) => void>;
+    activeRouters: Set<any>;
+    constructor(initialHash?: string);
+}
+
+/**
+ * Factory function creating a navigation delegate based on options.
+ */
+export function createNavigationDelegate(options?: AvenxRouterOptions): NavigationDelegate;
+
+/**
  * AvenxRouter handles hash-based routing for the application.
  * It maps URL hashes to specific Page components.
  */
@@ -488,6 +550,11 @@ export class AvenxRouter {
      * Info about the currently loaded route.
      */
     currentRoute: { hash: string; page: string; params: Record<string, any> } | null;
+
+    /**
+     * Active navigation delegate.
+     */
+    delegate: NavigationDelegate;
 
     /**
      * @param app AvenxApp instance.
@@ -532,8 +599,25 @@ export class AvenxRouter {
     /**
      * Triggers a manual router navigation.
      * @param hash Target path hash (e.g. `#/profile/123`).
+     * @param options Navigation options.
      */
-    navigate(hash: string): void;
+    navigate(hash: string, options?: { replace?: boolean }): void;
+
+    /**
+     * Steps backward in navigation history.
+     */
+    back(): void;
+
+    /**
+     * Steps forward in navigation history.
+     */
+    forward(): void;
+
+    /**
+     * Moves to a specific history position relative to current position.
+     * @param delta Relative step count in history (e.g. -1 for back, 1 for forward).
+     */
+    go(delta: number): void;
 
     /**
      * Destroys the router and cleans up event listeners.
