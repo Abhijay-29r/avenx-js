@@ -90,7 +90,13 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     /**
      * The active route details.
      */
-    readonly $route: { hash: string; page: string; params: Record<string, any> };
+    readonly $route: {
+        hash: string;
+        path: string;
+        page: string;
+        params: Record<string, any>;
+        query: Record<string, string | boolean | number>;
+    };
 
     /**
      * Runs after the current reactive DOM update flush completes.
