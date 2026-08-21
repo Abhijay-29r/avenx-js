@@ -664,6 +664,15 @@ export class StateFactory {
     create<T extends Record<string, any> = Record<string, any>>(initialState?: T, options?: Record<string, any>): T;
 }
 
+/** Returns the underlying raw object for a reactive proxy. */
+export function toRaw<T>(target: T): T;
+
+/** Returns true when value is an Avenx reactive proxy. */
+export function isReactive(value: unknown): boolean;
+
+/** Marks an object so it will not be wrapped by reactive proxies. */
+export function markRaw<T extends object>(target: T): T;
+
 /**
  * Factory for creating state proxy traps.
  */
