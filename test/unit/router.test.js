@@ -263,6 +263,156 @@ async function testGetRoutesDoesNotBreakNavigation() {
   console.log('  ✅ getRoutes does not break navigation test passed!');
 }
 
+async function testProgrammaticHistoryNavigationMethods() {
+  console.log('🧪 Testing router.back(), router.forward(), and router.go(delta)...');
+  setupDOMMock();
+  setupWindowMock();
+
+  const historyActions = [];
+  global.window.history = {
+    back: () => historyActions.push('back'),
+    forward: () => historyActions.push('forward'),
+    go: (delta) => historyActions.push(`go:${delta}`),
+  };
+
+  const app = new AvenxApp({ target: 'div' });
+  app.registerPage('Home', PageHome);
+  app.registerPage('Profile', PageProfile);
+
+  const router = app.initRouter({
+    '#/': 'Home',
+    '#/profile': 'Profile',
+  });
+
+  assert.strictEqual(typeof router.back, 'function', 'router.back should be a function');
+  assert.strictEqual(typeof router.forward, 'function', 'router.forward should be a function');
+  assert.strictEqual(typeof router.go, 'function', 'router.go should be a function');
+
+  router.back();
+  router.forward();
+  router.go(-2);
+  router.go(3);
+
+  assert.deepStrictEqual(historyActions, ['back', 'forward', 'go:-2', 'go:3']);
+
+  router.destroy();
+  teardownWindowMock();
+  teardownDOMMock();
+  console.log('  ✅ Programmatic history navigation methods test passed!');
+}
+
+async function testBrowserNavigationDelegateHistoryMethods() {
+  console.log('🧪 Testing BrowserNavigationDelegate back, forward, and go directly...');
+  setupDOMMock();
+  setupWindowMock();
+
+  const historyCalls = [];
+  global.window.history = {
+    back: () => historyCalls.push({ type: 'back' }),
+    forward: () => historyCalls.push({ type: 'forward' }),
+    go: (d) => historyCalls.push({ type: 'go', delta: d }),
+  };
+
+  const { BrowserNavigationDelegate } = await import('../../lib/core/runtime/navigation/BrowserNavigationDelegate.js');
+  const delegate = new BrowserNavigationDelegate();
+
+  delegate.back();
+  delegate.forward();
+  delegate.go(-1);
+  delegate.go(2);
+
+  assert.strictEqual(historyCalls.length, 4);
+  assert.strictEqual(historyCalls[0].type, 'back');
+  assert.strictEqual(historyCalls[1].type, 'forward');
+  assert.deepStrictEqual(historyCalls[2], { type: 'go', delta: -1 });
+  assert.deepStrictEqual(historyCalls[3], { type: 'go', delta: 2 });
+
+  delegate.destroy();
+
+  // Test environment safety when window.history is undefined
+  delete global.window.history;
+  const noHistoryDelegate = new BrowserNavigationDelegate();
+  assert.doesNotThrow(() => noHistoryDelegate.back());
+  assert.doesNotThrow(() => noHistoryDelegate.forward());
+  assert.doesNotThrow(() => noHistoryDelegate.go(-1));
+  noHistoryDelegate.destroy();
+
+  teardownWindowMock();
+  teardownDOMMock();
+  console.log('  ✅ BrowserNavigationDelegate history methods test passed!');
+}
+
+async function testRouterProgrammaticNavigationWithHistorySimulation() {
+  console.log('🧪 Testing router navigation transitions via simulated browser history...');
+  setupDOMMock();
+  setupWindowMock();
+
+  const historyStack = ['#/'];
+  let historyIndex = 0;
+
+  global.window.history = {
+    back: () => {
+      if (historyIndex > 0) {
+        historyIndex--;
+        global.window.location.hash = historyStack[historyIndex];
+      }
+    },
+    forward: () => {
+      if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        global.window.location.hash = historyStack[historyIndex];
+      }
+    },
+    go: (delta) => {
+      const target = historyIndex + delta;
+      if (target >= 0 && target < historyStack.length) {
+        historyIndex = target;
+        global.window.location.hash = historyStack[historyIndex];
+      }
+    },
+  };
+
+  const app = new AvenxApp({ target: 'div' });
+  app.registerPage('Home', PageHome);
+  app.registerPage('Profile', PageProfile);
+
+  const router = app.initRouter({
+    '#/': 'Home',
+    '#/profile': 'Profile',
+  });
+
+  router.start();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.strictEqual(router.currentRoute.page, 'Home');
+
+  // Push new page to history
+  historyStack.push('#/profile');
+  historyIndex = 1;
+  global.window.location.hash = '#/profile';
+  await new Promise((r) => setTimeout(r, 0));
+  assert.strictEqual(router.currentRoute.page, 'Profile');
+
+  // Step backward
+  router.back();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.strictEqual(router.currentRoute.page, 'Home');
+
+  // Step forward
+  router.forward();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.strictEqual(router.currentRoute.page, 'Profile');
+
+  // Step via go(-1)
+  router.go(-1);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.strictEqual(router.currentRoute.page, 'Home');
+
+  router.destroy();
+  teardownWindowMock();
+  teardownDOMMock();
+  console.log('  ✅ Router navigation with simulated history test passed!');
+}
+
 (async () => {
   try {
     await testGetRoutesExists();
@@ -271,10 +421,13 @@ async function testGetRoutesDoesNotBreakNavigation() {
     await testGetRoutesMutationIsolation();
     await testGetRoutesPreservesStructure();
     await testGetRoutesDoesNotBreakNavigation();
-    console.log('🎉 All getRoutes tests passed!');
+    await testProgrammaticHistoryNavigationMethods();
+    await testBrowserNavigationDelegateHistoryMethods();
+    await testRouterProgrammaticNavigationWithHistorySimulation();
+    console.log('🎉 All router tests passed!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ getRoutes tests failed!');
+    console.error('❌ router tests failed!');
     console.error(error);
     process.exit(1);
   }
