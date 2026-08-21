@@ -956,6 +956,10 @@ export interface MountTestComponentResult<C = AvenxComponent<any>> {
     update(): void;
     unmount(): void;
     readonly html: string;
+    find(selector: string): any | null;
+    findAll(selector: string): any[];
+    findComponent(ComponentClassOrName: any): AvenxComponent<any> | null;
+    trigger(selectorOrEl: any, eventName: string, detail?: Record<string, any>): Promise<void>;
 }
 
 export function mountTestComponent<C extends AvenxComponent<any> = AvenxComponent<any>>(
