@@ -5,6 +5,7 @@ import path from 'path';
 import ComponentParser from '../../lib/compiler/ComponentParser.js';
 import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
 import { AvenxErrorCodes } from '../../lib/core/runtime/AvenxError.js';
+import { extractCompiledTemplate } from '../helpers/compiled-template.js';
 
 const tempDir = path.join(process.cwd(), 'test', 'temp_contract_parser_tests');
 
@@ -90,5 +91,5 @@ test('ComponentParser successfully compiles valid contracted components', () => 
   const result = cp.parse(filePath);
 
   assert.ok(result.includes('class ValidContracts extends AvenxComponent'));
-  assert.ok(result.includes('data-ax-static="true"'));
+  assert.ok(extractCompiledTemplate(result).includes('data-ax-static="true"'));
 });
