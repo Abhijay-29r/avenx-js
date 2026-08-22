@@ -474,6 +474,67 @@ Prints the CLI usage manual and command reference to the console.
 ```bash
 npx avenx help
 ```
+---
 
 
+### 12. `avenx stats` (alias: `s`)
 
+Analyzes the project's source files and reports component, page, bridge, and guard footprint metrics, including source file sizes, template sizes, scoped CSS payloads, and reactive state properties.
+
+#### Command Syntax
+
+```bash
+npx avenx stats [options]
+npx avenx s [options]
+#### Options
+
+| Flag / Option | Alias | Description |
+| --- | --- | --- |
+| `--json` | `-j` | Outputs structured JSON containing `summary` and `items` data for CI/CD, automated reporting, and analysis. |
+
+#### What It Analyzes
+
+The command scans JavaScript and TypeScript files under the configured `srcDir` and classifies them as:
+
+- **Component**: Component source files.
+- **Page**: Page source files.
+- **Bridge**: Shared state bridge files.
+- **Guard**: Navigation guard files.
+- **other**: Source files that do not match the recognized component, page, bridge, or guard patterns.
+
+For components and pages, `avenx stats` also analyzes template and scoped CSS payloads.
+
+#### Terminal Output
+
+Without `--json`, the command displays a table containing the following columns:
+
+| Column | Description |
+| --- | --- |
+| **Name** | PascalCase component or class name. |
+| **Type** | Source type: `Component`, `Page`, `Bridge`, `Guard`, or `other`. |
+| **File Size** | Size of the source file on disk. |
+| **Raw Tpl** | Size of the uncompiled template markup. |
+| **Comp Tpl** | Size of the compiled/minified template. |
+| **CSS Size** | Size of the scoped component CSS. |
+| **State** | Number of reactive state properties declared in `<state />`. |
+
+Template and scoped CSS metrics apply to components and pages where those resources are available.
+
+#### Summary Totals
+
+The terminal output includes summary metrics after the file table:
+
+- **Total Files**: Total number of source files analyzed.
+- **Components**: Number of component source files.
+- **Pages**: Number of page source files.
+- **Bridges**: Number of bridge source files.
+- **Total Source Size**: Combined size of all analyzed source files.
+- **Raw Template Payload**: Combined size of all raw template markup.
+- **Compiled Template**: Combined size of compiled templates and the calculated template size reduction.
+- **Scoped CSS Payload**: Combined size of scoped component CSS.
+- **State Properties**: Total number of reactive state properties detected.
+
+The template reduction percentage is calculated as:
+
+```text
+((Raw Template Payload - Compiled Template Payload) / Raw Template Payload) × 100
