@@ -4,6 +4,7 @@ import { AvenxComponent } from '../../lib/core/runtime/AvenxComponent.js';
 import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
 import { AvenxMock } from '../../lib/core/runtime/AvenxMock.js';
 import { MockDOMElement, setupDOMMock, teardownDOMMock } from '../helpers/dom-mock.js';
+// import { meta } from '@eslint/js';
 
 let hashListeners = [];
 
@@ -52,6 +53,7 @@ function teardownWindowMock() {
       page: '',
       params: {},
       query: {},
+      meta:{}
     });
     console.log('  ✅ Fallback $route test passed!');
 
