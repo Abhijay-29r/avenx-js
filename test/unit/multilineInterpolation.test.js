@@ -28,7 +28,6 @@ const scope = {
  * @returns {any}
  */
 function resolve(expression) {
-  // eslint-disable-next-line no-new-func
   return new Function('s', `with (s) { return (${expression}); }`)(scope);
 }
 

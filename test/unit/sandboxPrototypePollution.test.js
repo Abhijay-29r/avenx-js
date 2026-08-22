@@ -32,14 +32,14 @@ function testPrototypePollutionIsBlocked() {
   console.log('🧪 Testing prototype pollution routes are blocked...');
 
   const attempts = [
-    "Object.assign(Object.getPrototypeOf({}), { polluted: 1 })",
+    'Object.assign(Object.getPrototypeOf({}), { polluted: 1 })',
     "Object.defineProperty(Object.getPrototypeOf({}), 'polluted2', { value: 1 })",
-    "Object.assign(Object.getPrototypeOf([]), { polluted3: 1 })",
+    'Object.assign(Object.getPrototypeOf([]), { polluted3: 1 })',
     "Object['proto' + 'type']",
-    "Object.getPrototypeOf(Object.getPrototypeOf([]))",
+    'Object.getPrototypeOf(Object.getPrototypeOf([]))',
     "Object.getPrototypeOf('literal')",
-    "Object.getPrototypeOf(user)",
-    "Object.setPrototypeOf(Object.getPrototypeOf({}), null)",
+    'Object.getPrototypeOf(user)',
+    'Object.setPrototypeOf(Object.getPrototypeOf({}), null)',
   ];
 
   for (const attempt of attempts) {
@@ -85,7 +85,7 @@ function testLegitimateExpressionsStillWork() {
     ['items.filter((n) => n > 1).length', 2],
     ["Object.keys({ a: 1, b: 2 }).join(',')", 'a,b'],
     ['Object.entries({ a: 1 }).length', 1],
-    ["JSON.stringify(Object.assign({}, { a: 1 }))", '{"a":1}'],
+    ['JSON.stringify(Object.assign({}, { a: 1 }))', '{"a":1}'],
     ['Math.round(1.6) + count', 4],
     ["'ab'.toUpperCase()", 'AB'],
     ['new Date(0).getUTCFullYear()', 1970],

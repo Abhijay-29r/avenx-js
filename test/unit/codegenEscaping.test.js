@@ -50,7 +50,6 @@ function instantiate(generated, className) {
     }
   }
 
-  // eslint-disable-next-line no-new-func
   const factory = new Function(
     'AvenxComponent',
     'AvenxPage',
@@ -150,7 +149,6 @@ function testGeneratedSourceStaysParseable() {
   for (const [name, body] of cases) {
     const generated = compile(name, `<state x="1" />\n${body}\n`);
     assert.doesNotThrow(() => {
-      // eslint-disable-next-line no-new-func
       new Function('AvenxComponent', 'AvenxPage', generated);
     }, `generated source for ${name} should parse`);
   }
