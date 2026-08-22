@@ -1,9 +1,62 @@
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { buildProject } from './build.js';
 import { cyan, green, yellow, red } from '../colors.js';
+
+/**
+ * Checks whether a resolved path is the project root itself or sits beneath it.
+ * @param {string} root - Absolute, resolved project root.
+ * @param {string} target - Absolute, resolved candidate path.
+ * @returns {boolean}
+ */
+function isInsideRoot(root, target) {
+  return target === root || target.startsWith(root + path.sep);
+}
+
+/**
+ * Resolves an incoming request URL to a file path inside the project directory.
+ *
+ * The request target is parsed as a URL so query strings and fragments never
+ * leak into the filesystem path, percent-encoding is decoded before the
+ * containment check, and the resolved path is required to stay within the
+ * project root. Node does not normalize `req.url`, so `..` segments would
+ * otherwise be resolved by `path.join` and escape the project directory.
+ * @param {string} baseDir - The project root directory.
+ * @param {string} requestUrl - The raw request target from `req.url`.
+ * @returns {string|null} An absolute path inside the project, or null when the
+ *   request is malformed or attempts to escape the root.
+ */
+export function resolveRequestPath(baseDir, requestUrl) {
+  const root = path.resolve(baseDir);
+
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(requestUrl || '/', 'http://localhost').pathname);
+  } catch {
+    // Malformed percent-encoding.
+    return null;
+  }
+
+  if (pathname.includes('\0')) {
+    return null;
+  }
+
+  const relative = pathname.replace(/^\/+/, '');
+  let filePath = relative === '' ? path.join(root, 'index.html') : path.resolve(root, relative);
+
+  if (!isInsideRoot(root, filePath)) {
+    return null;
+  }
+
+  // SPA fallback: extensionless paths that do not exist serve the entry document.
+  if (!fs.existsSync(filePath) && !path.extname(filePath)) {
+    filePath = path.join(root, 'index.html');
+  }
+
+  return filePath;
+}
 
 /**
  * Formats an HTTP response status code with ANSI colors.
@@ -94,7 +147,9 @@ export function applyCustomHeaders(res, headers = {}) {
  */
 export function openBrowser(url) {
   const start = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-  exec(`${start} ${url}`);
+  // Pass the URL as an argument rather than interpolating it into a shell
+  // command, so characters in the configured host cannot reach the shell.
+  spawn(start, [url], { shell: process.platform === 'win32', stdio: 'ignore', detached: true }).unref();
 }
 
 /**
@@ -642,10 +697,12 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
       return;
     }
 
-    let filePath = path.join(cli.baseDir, req.url === '/' ? 'index.html' : req.url);
+    const filePath = resolveRequestPath(cli.baseDir, req.url);
 
-    if (!fs.existsSync(filePath) && !path.extname(filePath)) {
-      filePath = path.join(cli.baseDir, 'index.html');
+    if (filePath === null) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
     }
 
     const extname = String(path.extname(filePath)).toLowerCase();
