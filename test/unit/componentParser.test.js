@@ -193,14 +193,16 @@ try {
     'TestComp',
   );
 
+  // Templates are emitted as JSON string literals, so backticks no longer need
+  // escaping to survive code generation and must be preserved verbatim.
   assert.ok(
-    templateWithBackticks.includes('\\`active\\`'),
-    'Backticks inside interpolations should be escaped',
+    templateWithBackticks.includes('`active`'),
+    'Backticks inside interpolations should be preserved verbatim',
   );
 
   assert.ok(
-    templateWithBackticks.includes('\\`\\`'),
-    'Empty backtick template literals inside interpolations should be escaped',
+    !templateWithBackticks.includes('\\`'),
+    'Backticks inside interpolations should not be escaped',
   );
 
   console.log('  ✅ Backticks inside template interpolations tests passed!');

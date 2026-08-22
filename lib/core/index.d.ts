@@ -98,6 +98,84 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     clearKeepAliveCache(pageName?: string): boolean;
 
     /**
+     * The component's root DOM element, or null before mount / after unmount.
+     */
+    readonly $element: Element | null;
+
+    /**
+     * The application instance this component belongs to.
+     */
+    readonly $app?: AvenxApp;
+
+    /**
+     * Diagnostic context used when the component reports a warning or error.
+     */
+    readonly $logContext: {
+        componentName: string;
+        fileName: string | null;
+        component: AvenxComponent<any>;
+    };
+
+    /**
+     * Returns a diagnostic snapshot of the component for runtime debugging.
+     * Props and state are sanitized clones; `element` is the live root element.
+     * Computed properties are listed by key only, so inspecting never evaluates them.
+     */
+    $inspect(): {
+        componentName: string;
+        props: Record<string, any>;
+        state: Record<string, any>;
+        computed: string[];
+        slots: string[];
+        element: Element | null;
+    };
+
+    /**
+     * Emits a custom DOM event from the component's root element.
+     * @param eventName Name of the event to emit.
+     * @param detail Event detail payload.
+     * @param options Custom event options.
+     */
+    emit(eventName: string, detail?: any, options?: CustomEventInit): void;
+
+    /**
+     * Emits a composed custom event to parent components.
+     * @param eventName Name of the event to emit.
+     * @param detail Event detail payload.
+     */
+    $emit(eventName: string, detail?: any): void;
+
+    /**
+     * Schedules an asynchronous update in the next microtask flush.
+     */
+    scheduleUpdate(): void;
+
+    /**
+     * Performs the synchronous render and DOM patch for this component.
+     */
+    runUpdate(): void;
+
+    /**
+     * Unmounts the component and tears down watchers and resources.
+     * Alias for {@link AvenxComponent#unmount}.
+     */
+    $destroy(): void | Promise<void>;
+
+    /**
+     * Trips a named `<@deadlock>` boundary in this component's DOM tree,
+     * rendering its fallback template.
+     * @param boundaryName Boundary name, or null for the first boundary.
+     * @param error Error context passed to the fallback template.
+     */
+    $tripDeadlockBoundary(boundaryName?: string | null, error?: Error | object): void;
+
+    /**
+     * Resets a named `<@deadlock>` boundary in this component's DOM tree.
+     * @param boundaryName Boundary name, or null for the first boundary.
+     */
+    $resetDeadlockBoundary(boundaryName?: string | null): void;
+
+    /**
      * The active route details.
      */
     readonly $route: {
@@ -547,6 +625,11 @@ export class AvenxRouter {
     routes: Record<string, string | AvenxRouteDefinition>;
 
     /**
+     * Returns the registered routes as pattern/definition pairs.
+     */
+    getRoutes(): Array<{ pattern: string; definition: string | AvenxRouteDefinition }>;
+
+    /**
      * Info about the currently loaded route.
      */
     currentRoute: { hash: string; page: string; params: Record<string, any> } | null;
@@ -654,6 +737,21 @@ export class AvenxApp {
      * Active router instance.
      */
     router: AvenxRouter | null;
+
+    /**
+     * The currently active page component instance, or null when none is mounted.
+     */
+    readonly activePage: AvenxComponent<any> | null;
+
+    /**
+     * Returns the names of all registered components.
+     */
+    getRegisteredComponents(): string[];
+
+    /**
+     * Returns the names of all registered pages.
+     */
+    getRegisteredPages(): string[];
 
     /**
      * @param config Main app configurations.
@@ -1166,3 +1264,88 @@ export function getActiveCausationTrace(): string[];
 export function clearCausationTrace(): void;
 
 
+
+/**
+ * Queues a job to run in the next scheduler flush. Duplicate jobs are ignored.
+ */
+export function queueJob(job: Function): void;
+
+/**
+ * Queues a callback to run after the current flush completes.
+ */
+export function queueFlushCallback(callback: Function): void;
+
+/**
+ * Enables or disables reactivity debug logging.
+ */
+export function setDebugReactivity(enabled: boolean): void;
+
+/**
+ * Returns whether reactivity debug logging is currently enabled.
+ */
+export function isDebugReactivityEnabled(): boolean;
+
+export interface ValidationRule {
+    name: string;
+    param?: string;
+}
+
+/**
+ * Parses a `data-ax-validate` rule string into structured rules.
+ */
+export function parseValidationRules(ruleString: string): ValidationRule[];
+
+/**
+ * Validates a value against parsed rules, returning the resulting error messages.
+ */
+export function validateValue(
+    value: any,
+    rules: ValidationRule[],
+    options?: { state?: Record<string, any>; customMessages?: Record<string, string> }
+): string[];
+
+/**
+ * Resolves the field name used for validation state on an input element.
+ */
+export function getFieldName(element: Element): string;
+
+/**
+ * Writes validation errors for a field into the component's `$validation` state.
+ */
+export function updateValidationState(state: Record<string, any>, fieldName: string, errors: string[]): void;
+
+/**
+ * Matches hash routes against route definitions.
+ */
+export class RouteMatcher {
+    static normalizeHash(hash: string, prefix?: string): string | null;
+    static matches(routes: Record<string, any>, hash: string, options?: object): boolean;
+    static matchRoute(
+        routes: Record<string, any>,
+        hash: string,
+        options?: object,
+        activeRouters?: Iterable<object>,
+        currentRouter?: object | null
+    ): {
+        matchedRoute: { definition: any; parent?: any } | null;
+        params: Record<string, any>;
+        query?: Record<string, any>;
+        path?: string;
+        otherRouterMatches?: boolean;
+        normalizedHash: string | null;
+    };
+}
+
+/**
+ * Mounts and de-duplicates component `<style>` blocks in the document head.
+ */
+export class StyleMountManager {
+    mount(id: string, css: string): void;
+    unmount(id: string): void;
+    clear(): void;
+}
+
+/**
+ * Shared StyleMountManager instance used by the runtime.
+ */
+export const styleMountManager: StyleMountManager;

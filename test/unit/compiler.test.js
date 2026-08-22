@@ -206,8 +206,11 @@ try {
   pagesCompiler.srcDir = tempPagesDir;
 
   const pagesResult = pagesCompiler.processPages();
+  // The template is emitted as a JSON string literal, so its inner quotes are
+  // backslash-escaped in the generated source. Match either encoding so this
+  // asserts the tag transformation rather than the literal's quoting style.
   assert.ok(
-    pagesResult.pagesJs.includes('<div data-avenx-comp="MyCard"></div>'),
+    /<div data-avenx-comp=\\?"MyCard\\?"><\/div>/.test(pagesResult.pagesJs),
     'Self-closing component tag should be converted to a standard component element'
   );
 

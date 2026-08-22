@@ -72,7 +72,7 @@ export function avenxPlugin(options = {}) {
     load(id) {
       if (isComponentStyle(id) || isPageStyle(id)) {
         log('Load Style:', id);
-        return loadStyle(id);
+        return loadStyle(id, compiler);
       }
 
       if (isComponentFile(id) || isPageFile(id)) {
