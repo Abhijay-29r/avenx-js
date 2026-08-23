@@ -58,6 +58,21 @@ const brandingRouter = AvenxApp.initRouter(
 - ### `navigate(hash)`
   Programs a programmatic navigation to the specified route hash. It updates the browser history and triggers the matching route lifecycle.
 
+- ### `back()`
+  Navigates backward one step in the browser / session history stack. Equivalent to `router.go(-1)` (and, under `BrowserNavigationDelegate`, `window.history.back()`).
+  - **Returns:** `void`
+
+- ### `forward()`
+  Navigates forward one step in the history stack. Equivalent to `router.go(1)` (and, under `BrowserNavigationDelegate`, `window.history.forward()`).
+  - **Returns:** `void`
+
+- ### `go(delta)`
+  Moves to a relative position in the history stack, `delta` steps away from the current entry.
+  - **Arguments:** `delta: number` — negative values move backward, positive values move forward, `0` is a no-op.
+  - **Returns:** `void`
+
+  All three methods delegate to the router's underlying `NavigationDelegate` — see [Pluggable Navigation Delegates](#pluggable-navigation-delegates-navigationdelegate) below for how `back`/`forward`/`go` differ between `BrowserNavigationDelegate` and `MemoryNavigationDelegate`.
+
 - ### `beforeEach(callback)`
   Registers a global guard callback or `AvenxGuard` instance/class that runs before every route transition.
   - **Arguments:** `callback: Function | typeof AvenxGuard | AvenxGuard`
@@ -408,6 +423,9 @@ The base `NavigationDelegate` class defines the contract for all navigation adap
 | :--- | :--- | :--- |
 | `getHash()` | `string` | Returns the current location hash string (e.g. `'#/home'`). |
 | `setHash(hash: string)` | `void` | Navigates/sets the current location hash string and notifies registered listeners. |
+| `back()` | `void` | Navigates backward one step in history. |
+| `forward()` | `void` | Navigates forward one step in history. |
+| `go(delta: number)` | `void` | Moves to a history position `delta` steps relative to the current one. |
 | `onHashChange(callback: (hash: string) => void)` | `Function` | Subscribes to location hash change events. Returns an unregister function. |
 | `onLinkClick(callback: (route: string) => void)` | `Function` | Subscribes to link click events (e.g. `[data-ax-link]`). Returns an unregister function. |
 | `setTitle(title: string)` | `void` | Updates document or in-memory page title. |
@@ -420,8 +438,8 @@ The base `NavigationDelegate` class defines the contract for all navigation adap
 
 Avenx-JS provides two built-in navigation delegates:
 
-1. **`BrowserNavigationDelegate`**: The default delegate in browser environments. Binds directly to `window.location.hash`, `hashchange` events, document link clicks (`[data-ax-link]`), and `document.title`.
-2. **`MemoryNavigationDelegate`**: An in-memory delegate for Node.js, SSR, and headless test environments. Manages route location state, active subscriptions, and page titles purely in memory without DOM or window dependencies.
+1. **`BrowserNavigationDelegate`**: The default delegate in browser environments. Binds directly to `window.location.hash`, `hashchange` events, document link clicks (`[data-ax-link]`), and `document.title`. Its `back()`, `forward()`, and `go(delta)` methods forward directly to `window.history.back()`, `window.history.forward()`, and `window.history.go(delta)`, so history traversal is driven by the real browser history stack.
+2. **`MemoryNavigationDelegate`**: An in-memory delegate for Node.js, SSR, and headless test environments. Manages route location state, active subscriptions, and page titles purely in memory without DOM or window dependencies. It tracks its own `history` array and a `cursorIndex` pointer rather than delegating to `window.history`; `back()` and `forward()` are implemented as `go(-1)` / `go(1)`, and `go(delta)` moves `cursorIndex` by `delta` (clamped to the array bounds, a no-op past either end) and re-emits the resulting hash to subscribers. This gives predictable, synchronous back/forward simulation for unit and integration tests.
 
 ### Configuring Navigation Delegates
 
@@ -452,6 +470,12 @@ class MemoryNavigationDelegate extends NavigationDelegate {
   /** Current hash string held in memory */
   currentHash: string;
 
+  /** Ordered stack of hashes visited via setHash() */
+  history: string[];
+
+  /** Index of currentHash within history */
+  cursorIndex: number;
+
   /** Active in-memory title */
   title: string;
 
@@ -460,6 +484,15 @@ class MemoryNavigationDelegate extends NavigationDelegate {
 
   /** Updates currentHash and invokes registered hash listeners */
   setHash(hash: string): void;
+
+  /** Moves cursorIndex back one entry; equivalent to go(-1) */
+  back(): void;
+
+  /** Moves cursorIndex forward one entry; equivalent to go(1) */
+  forward(): void;
+
+  /** Moves cursorIndex by delta steps (no-op if out of bounds) */
+  go(delta: number): void;
 
   /** Registers a hash listener; returns unsubscribe function */
   onHashChange(callback: (hash: string) => void): Function;
