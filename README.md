@@ -65,10 +65,10 @@ Fetch data seamlessly with `<resource>` declarations and handle loading & error 
 
 ### 🛡️ Reactive Deadlock Boundary (`<@deadlock>`)
 
-Protect sections of your component tree against circular update loops ($A \rightarrow B \rightarrow A$) and infinite reactive cascades:
+Define a named fallback boundary for reactive-cycle recovery:
 
 ```html
-<@deadlock name="dashboard-boundary" maxDepth="8" action="fallback">
+<@deadlock name="dashboard-boundary">
   <Sidebar />
   <Content />
   <Stats />
@@ -80,9 +80,11 @@ Protect sections of your component tree against circular update loops ($A \right
 </@deadlock>
 ```
 
-- **Cycle Detection:** Automatically monitors recursive microtask and watcher execution to prevent thread freezes.
-- **Diagnostics (`AVX_R18`):** Emits clear causation chain traces (e.g. `Counter -> Stats -> Counter`).
-- **Declarative Recovery:** Unmounts cyclically deadlocked child components and renders an isolated `<@fallback>` UI.
+- **Global Detection:** Scheduler and watcher guards stop runaway reactive work and log `AVX_R18` diagnostics.
+- **Manual Recovery:** Call `$tripDeadlockBoundary('dashboard-boundary', error)` to replace that boundary's active content with its fallback.
+- **Explicit Integration:** Use `onSchedulerDeadlock()` when you want to connect global scheduler detection to a particular component boundary.
+
+Detection does not automatically trip the nearest boundary. The compiled `maxDepth`, `action`, and `isolated` attributes are currently metadata rather than active per-boundary controls. See the [reactive deadlock boundary guide](docs/src/content/docs/core-concepts/deadlock.md) for current behavior and limitations.
 
 ### 🛠️ CLI-First Workflow
 
