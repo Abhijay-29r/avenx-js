@@ -934,6 +934,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "ayc43210-ops",
+      "name": "ayc43210-ops",
+      "avatar_url": "https://avatars.githubusercontent.com/u/229576079?v=4",
+      "profile": "https://github.com/ayc43210-ops",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
