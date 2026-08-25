@@ -297,6 +297,128 @@ function testUnexpectedErrorExitsNonZero() {
   console.log('  ✅ Unexpected fatal errors exit non-zero.');
 }
 
+
+/**
+ * A failed build leaves no staging directory behind.
+ *
+ * Output is written to a staging directory inside distDir and renamed into
+ * place only on success. If cleanup ever regressed, distDir would accumulate
+ * partial builds that a deploy step would happily upload.
+ */
+function testNoStagingLeftovers() {
+  console.log('🧪 Testing that failed builds leave no staging directory...');
+
+  const root = makeValidProject({ 'src/components/other/hello.component.js': VALID_COMPONENT });
+  try {
+    assert.notStrictEqual(runBuild(root).status, 0, 'the build fails');
+
+    const distDir = path.join(root, 'dist');
+    const leftovers = fs.existsSync(distDir)
+      ? fs.readdirSync(distDir).filter((entry) => entry.includes('staging'))
+      : [];
+    assert.deepStrictEqual(leftovers, [], 'no staging directory survives a failed build');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  console.log('  ✅ Staging directories are always cleaned up.');
+}
+
+/**
+ * A failure raised after the artifacts are staged still promotes nothing.
+ *
+ * Escalating AVX_W01 makes the bundle-size check throw, which happens after
+ * staging is written and before promotion. It is the closest thing to a
+ * failure "in the middle of writing", and the previous output must survive it
+ * whole rather than being half replaced.
+ */
+function testFailureAfterStagingDoesNotPromote() {
+  console.log('🧪 Testing that a late failure promotes nothing...');
+
+  const root = makeValidProject();
+  try {
+    assert.strictEqual(runBuild(root).status, 0, 'the first build succeeds');
+
+    const bundlePath = path.join(root, 'dist', 'bundle.js');
+    const cssPath = path.join(root, 'dist', 'bundle.css');
+    const beforeJs = fs.readFileSync(bundlePath, 'utf-8');
+    const beforeCss = fs.readFileSync(cssPath, 'utf-8');
+
+    fs.writeFileSync(path.join(root, 'avenx.config.json'), '{ "warnings": { "AVX_W01": "error" } }');
+
+    const result = runBuild(root);
+    assertFailed(result, 'AVX_W01 escalated to an error');
+    assert.ok(result.output.includes('AVX_W01'), 'the size violation is reported');
+
+    assert.strictEqual(fs.readFileSync(bundlePath, 'utf-8'), beforeJs, 'the previous script is untouched');
+    assert.strictEqual(fs.readFileSync(cssPath, 'utf-8'), beforeCss, 'the previous stylesheet is untouched');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  console.log('  ✅ A failure after staging leaves the previous build whole.');
+}
+
+/**
+ * Failures are rendered as diagnoses, not stack traces.
+ *
+ * A compiler error that prints an internal stack trace tells a developer
+ * nothing and buries the message that would.
+ */
+function testFailureOutputIsUseful() {
+  console.log('🧪 Testing the failure output...');
+
+  const root = makeValidProject({ 'src/components/other/hello.component.js': VALID_COMPONENT });
+  try {
+    const result = runBuild(root);
+
+    assert.ok(/Build failed/i.test(result.output), 'the output says the build failed');
+    assert.ok(result.output.includes('AVX_C03'), 'the output carries the error code');
+    assert.ok(
+      /non-zero status/i.test(result.output),
+      'the output states that the command failed',
+    );
+    assert.ok(
+      !result.output.includes('at AvenxCompiler.'),
+      'a diagnosed error prints no internal stack frames',
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  console.log('  ✅ Failures print a diagnosis, not a stack trace.');
+}
+
+/**
+ * Errors raised asynchronously reach the exit code.
+ *
+ * The original bug was structural: bin/avenx.js called an async run() without
+ * awaiting it, so a rejection resolved into nothing. This drives the CLI
+ * through a command whose failure is raised after the async entry point has
+ * returned, which is exactly the shape that used to be lost.
+ */
+function testAsyncFailurePropagates() {
+  console.log('🧪 Testing that async failures propagate...');
+
+  // The git-status prompt makes run() genuinely await before building, so the
+  // failure is raised from a later microtask rather than synchronously.
+  const root = makeValidProject({ 'src/components/other/hello.component.js': VALID_COMPONENT });
+  try {
+    const result = spawnSync(process.execPath, [BIN, 'build'], {
+      cwd: root,
+      encoding: 'utf8',
+      input: '',
+    });
+    const output = (result.stdout || '') + (result.stderr || '');
+    assert.notStrictEqual(result.status, 0, 'an async failure must not exit 0');
+    assert.ok(!/Build successful/i.test(output), 'and must not claim success');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  console.log('  ✅ Async failures reach the exit code.');
+}
+
 /**
  * Runs the suite.
  */
@@ -307,6 +429,10 @@ function run() {
   testStaleArtifactCannotBeDeployed();
   testHookFailures();
   testUnexpectedErrorExitsNonZero();
+  testNoStagingLeftovers();
+  testFailureAfterStagingDoesNotPromote();
+  testFailureOutputIsUseful();
+  testAsyncFailurePropagates();
   console.log('\n✅ All build exit-code tests passed!');
 }
 
