@@ -21,6 +21,8 @@ The following flags can be passed globally to `avenx` commands:
 | :--- | :--- | :--- | :--- |
 | `--dry-run` | `-d` | Previews file creation, modification, or deletion actions without modifying disk. | `generate`, `destroy` |
 | `--force` | `-f` | Forces command execution by bypassing uncommitted Git working tree status checks. | `init`, `generate`, `destroy`, `build` |
+| `--dev` | | Builds in development mode: readable runtime, inline CSS source maps. | `build`, `serve`, `watch` |
+| `--prod` | | Builds in production mode: minified runtime. The default for `build`. | `build`, `serve`, `watch` |
 | `--no-color` | | Disables colored terminal output. | Global |
 | `--version` | `-v` | Displays the installed version of the Avenx-JS CLI package. | Global |
 
@@ -265,12 +267,25 @@ npx avenx d p dashboard --dry-run
 
 Compiles all component templates, scoped stylesheets, page components, and global bridges into single distribution bundle files in `distDir`.
 
+**`avenx build` is a production build.** It bundles the minified runtime and links the CSS source map as a separate file. Pass `--dev` for a development build, which bundles the readable runtime and inlines the CSS source map:
+
+```bash
+npx avenx build
+```
+
+```bash
+npx avenx build --dev
+```
+
+The active mode appears in the build header, and can also be set with `mode` in `avenx.config.json` or via `NODE_ENV=development`. See the [deployment guide](/guides/deployment#build-modes) for what the two modes differ in.
+
 #### Features & Distribution Files
 
 - Compiles `.component.js` files and extracts `<state>`, `<action>`, and `<computed>` tags.
 - Bundles and scopes component CSS rules.
 - Performs automatic component tree-shaking when `treeShakeComponents: true`.
 - Evaluates build-time template validation rules.
+- Minifies the bundled runtime in production mode.
 - Generates JavaScript (`<outputName>.js`) and CSS (`<outputName>.css`) distribution bundles.
 
 #### Custom Output Bundle Names (`outputName`)

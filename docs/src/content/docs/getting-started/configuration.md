@@ -24,6 +24,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 
 | Option         | Type       | Default              | Rules                                                                 |
 | -------------- | ---------- | --------------------- | ---------------------------------------------------------------------- |
+| `mode`         | `string`   | `"production"`       | Build mode: `"production"` or `"development"`. Overridden by `--dev` / `--prod`; `avenx serve` and `avenx watch` default to development. See [Build modes](#build-mode-mode). |
 | `srcDir`       | `string`   | `"src"`              | Non-empty relative path to application source files.                  |
 | `distDir`      | `string`   | `"dist"`              | Non-empty relative path where compiled output is written.             |
 | `outputName`   | `string`   | `"bundle"`         | Base name used for generated JavaScript and CSS bundles. The compiler generates <outputName>.js and <outputName>.css. Must be a non-empty filename without an extension.|
@@ -39,6 +40,33 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 
 Path options must be relative paths. Absolute paths are rejected during configuration loading.
 
+
+## Build mode (`mode`)
+
+`avenx build` produces a production build by default: it bundles the minified runtime and writes the CSS source map as a separate linked file. Development builds bundle the readable runtime and inline the CSS source map instead.
+
+Pin the mode in `avenx.config.json` when a project should always build one way:
+
+```json
+{
+  "mode": "production"
+}
+```
+
+Resolution order, first match wins:
+
+1. `--dev` / `--prod` on the command line.
+2. `mode` in `avenx.config.json`.
+3. `NODE_ENV=development`.
+4. The command's default — development for `avenx serve` and `avenx watch`, production for everything else.
+
+The active mode is printed in the build header, so it is never ambiguous which one ran:
+
+```text
+--- Avenx-JS Compiler (production) ---
+```
+
+Both modes compile the same application and ship the same runtime features. Production is that runtime, minified — no feature is stripped and no behaviour differs. See the [deployment guide](/guides/deployment#build-modes) for the full comparison.
 
 ## Custom void tags
 

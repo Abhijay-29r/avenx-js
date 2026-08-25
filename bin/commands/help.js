@@ -18,7 +18,7 @@ ${bold(cyan('Commands:'))}
   ${green('destroy page <name>')}       ${gray('Delete a page (alias: d p)')}
   ${green('destroy bridge <name>')}     ${gray('Delete a shared reactive bridge')}
   ${green('destroy guard <name>')}      ${gray('Delete a route guard')}
-  ${green('build (b)')}                 ${gray('Build the project using configured output directory')}
+  ${green('build (b)')}                 ${gray('Build for production: minified runtime, optimized output')}
   ${green('clean')}                     ${gray('Clear build output directory')}
   ${green('check (lint)')}              ${gray('Validate templates without building')}
   ${green('doctor')}                    ${gray('Diagnose environment, config, and project health')}
@@ -30,6 +30,8 @@ ${bold(cyan('Commands:'))}
   ${green('help')}                      ${gray('Show this help message')}
 
 ${bold(cyan('Options:'))}
+  ${green('--dev')}                     ${gray('Build for development: readable runtime, inline CSS source maps')}
+  ${green('--prod')}                    ${gray('Build for production (the default for "build")')}
   ${green('--dry-run, -d')}             ${gray('Preview actions without writing or deleting any files')}
   ${green('--template, -t <name>')}     ${gray('Use a custom scaffold template for code generation')}
   ${green('--json, -j')}                ${gray('Output check/lint validation diagnostics in JSON format')}

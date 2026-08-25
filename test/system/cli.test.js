@@ -176,15 +176,19 @@ async function runTest() {
 
     const bundleContent = fs.readFileSync(bundleJsPath, 'utf-8');
 
-    assert.ok(bundleContent.includes('HtmlEscaper'), 'bundle.js should contain HtmlEscaper');
+    // Assert on the contract, not on internal identifiers: `avenx build` is a
+    // production build, so class names inside the runtime are minified away.
+    // Export names survive because the bundle publishes them by name.
+    assert.ok(
+      bundleContent.includes('AvenxComponent'),
+      'bundle.js should publish AvenxComponent, which compiled components extend',
+    );
 
-    assert.ok(bundleContent.includes('SafeHtml'), 'bundle.js should contain SafeHtml');
-
-    assert.ok(bundleContent.includes('html'), 'bundle.js should contain html function');
+    assert.ok(bundleContent.includes('AvenxApp'), 'bundle.js should publish AvenxApp');
 
     assert.ok(
-      bundleContent.includes('ListManager = class'),
-      'bundle.js should contain ListManager runtime dependency',
+      bundleContent.includes('globalThis'),
+      'bundle.js should install the runtime on the global object',
     );
 
     assert.match(buildOutput, /Asset sizes:/, 'prints asset size');
