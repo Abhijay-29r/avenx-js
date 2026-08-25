@@ -187,7 +187,7 @@ async function runTest() {
     assert.ok(bundleContent.includes('AvenxApp'), 'bundle.js should publish AvenxApp');
 
     assert.ok(
-      /Object\.assign\((?:globalThis|window|global)/.test(bundleContent),
+      bundleContent.includes('globalThis'),
       'bundle.js should install the runtime on the global object',
     );
 

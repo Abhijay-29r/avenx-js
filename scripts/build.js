@@ -2,6 +2,7 @@ import esbuild from 'esbuild';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { PUBLIC_GLOBALS, NAMESPACE_GLOBAL } from '../lib/core/globals.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,16 +19,27 @@ if (!fs.existsSync(distDir)) {
  *
  * Compiled applications are concatenated into one script and reference the
  * runtime by name, so the bundle has to publish itself somewhere reachable.
+ * The complete surface goes on one namespace; only the names in
+ * lib/core/globals.js are also published bare. See that file for why.
  * @type {string}
  */
 const GLOBAL_FOOTER = `
-if (typeof globalThis !== 'undefined') {
-  Object.assign(globalThis, Avenx);
-} else if (typeof window !== 'undefined') {
-  Object.assign(window, Avenx);
-} else if (typeof global !== 'undefined') {
-  Object.assign(global, Avenx);
-}
+(function (root) {
+  if (!root) return;
+  root.${NAMESPACE_GLOBAL} = ${NAMESPACE_GLOBAL};
+  var bare = ${JSON.stringify(PUBLIC_GLOBALS)};
+  for (var i = 0; i < bare.length; i++) {
+    root[bare[i]] = ${NAMESPACE_GLOBAL}[bare[i]];
+  }
+})(
+  typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof window !== 'undefined'
+      ? window
+      : typeof global !== 'undefined'
+        ? global
+        : null,
+);
 `;
 
 /**
