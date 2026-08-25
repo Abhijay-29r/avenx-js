@@ -3,26 +3,56 @@ import path from 'path';
 import { execSync } from 'child_process';
 import AvenxCompiler from '../../lib/compiler.js';
 import { cyan, gray, green, red } from '../colors.js';
+import { BuildError } from '../../lib/compiler/errors/index.js';
+import { AvenxErrorCodes } from '../../lib/core/runtime/AvenxError.js';
+
+/**
+ * Runs a configured lifecycle hook.
+ *
+ * A hook is part of the build, so a non-zero exit from one fails the build.
+ * execSync throws a generic "Command failed" error; it is re-thrown as a coded
+ * BuildError so the reason is legible and the CLI can render it like any other
+ * build failure.
+ * @param {string} phase - 'prebuild' or 'postbuild'.
+ * @param {string} command - The shell command to run.
+ * @param {string} baseDir - Working directory for the hook.
+ * @throws {BuildError} When the hook exits non-zero.
+ */
+function runHook(phase, command, baseDir) {
+  if (typeof command !== 'string' || command.trim() === '') {
+    return;
+  }
+
+  console.log(gray(`🏃 Running ${phase} hook: ${command}...`));
+
+  try {
+    execSync(command, { stdio: 'inherit', cwd: baseDir });
+  } catch (err) {
+    const reason = typeof err.status === 'number' ? `exited with code ${err.status}` : err.message;
+    throw new BuildError(AvenxErrorCodes.COMPILER_HOOK_FAILED, phase, reason, command);
+  }
+}
 
 /**
  * Runs the compiler build along with optional prebuild and postbuild lifecycle hooks.
+ *
+ * Throws on any failure. The caller turns that into an exit code; nothing here
+ * may report success for a build that did not complete.
  * @param {object} cli - AvenxCLI instance containing config and baseDir.
+ * @returns {object} The compiler's build result.
+ * @throws {BuildError} When a hook or the compilation fails.
  */
 export function buildProject(cli) {
   const hooks = (cli && cli.config && cli.config.hooks) || {};
   const baseDir = (cli && cli.baseDir) || process.cwd();
 
-  if (hooks.prebuild && typeof hooks.prebuild === 'string' && hooks.prebuild.trim() !== '') {
-    console.log(gray(`🏃 Running prebuild hook: ${hooks.prebuild}...`));
-    execSync(hooks.prebuild, { stdio: 'inherit', cwd: baseDir });
-  }
+  runHook('prebuild', hooks.prebuild, baseDir);
 
-  new AvenxCompiler(cli.config).build();
+  const result = new AvenxCompiler(cli.config).build();
 
-  if (hooks.postbuild && typeof hooks.postbuild === 'string' && hooks.postbuild.trim() !== '') {
-    console.log(gray(`🏃 Running postbuild hook: ${hooks.postbuild}...`));
-    execSync(hooks.postbuild, { stdio: 'inherit', cwd: baseDir });
-  }
+  runHook('postbuild', hooks.postbuild, baseDir);
+
+  return result;
 }
 
 /**
