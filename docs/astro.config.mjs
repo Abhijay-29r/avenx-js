@@ -79,6 +79,7 @@ export default defineConfig({
 					items: [
 						{ label: 'VirtualList Performance Guide', slug: 'guides/virtual-list' },
 						{ label: 'ESLint Template Validation', slug: 'guides/eslint' },
+						{ label: 'Deployment & Production Builds', slug: 'guides/deployment' },
 					],
 				},
 				{
