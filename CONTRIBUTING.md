@@ -53,6 +53,19 @@ npm test
 
 Make sure all tests pass successfully.
 
+## Contributing to the Documentation
+
+The documentation site lives in `docs/` and is a separate npm project with its own dependencies — it is **not** installed by running `npm install` at the repo root.
+
+```bash
+cd docs
+npm ci
+npm run dev      # local dev server at localhost:4321
+npm run build    # production build — run this before opening a docs PR
+```
+
+See [`docs/README.md`](docs/README.md) for the full guide: where page content lives, the required frontmatter, how to add and register a new page in the sidebar, and house style conventions.
+
 ## Pull Request Process
 
 1. Fork the repository.
