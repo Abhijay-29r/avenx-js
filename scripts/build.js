@@ -13,52 +13,24 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
 
+/**
+ * Bundles the browser runtime.
+ *
+ * The entry is lib/core/index.js and nothing else. Its graph is browser-only:
+ * the testing utilities and the Node-side tooling live behind their own entry
+ * points, so this build needs no shims for `fs` or `path`. If a Node builtin
+ * ever appears in this bundle, something was re-exported from the runtime
+ * barrel that does not belong there — fix the import, do not add a stub.
+ */
 async function build() {
   console.log('Building Avenx runtime...');
   await esbuild.build({
     entryPoints: [path.join(rootDir, 'lib/core/index.js')],
+    platform: 'browser',
     bundle: true,
     outfile: path.join(distDir, 'runtime.js'),
     format: 'iife',
     globalName: 'Avenx',
-    plugins: [
-      {
-        name: 'node-builtins-stub',
-        setup(build) {
-          build.onResolve({ filter: /^(fs|path|node:fs|node:path)$/ }, (args) => {
-            return { path: args.path, namespace: 'node-stub' };
-          });
-          build.onLoad({ filter: /.*/, namespace: 'node-stub' }, (args) => {
-            if (args.path.includes('path')) {
-              return {
-                contents: `
-                  export function basename(p, ext) {
-                    let b = String(p).replace(/^.*[/\\\\]/, '');
-                    if (ext && b.endsWith(ext)) b = b.slice(0, -ext.length);
-                    return b;
-                  }
-                  export function resolve(...pts) { return pts.join('/'); }
-                  export function join(...pts) { return pts.join('/'); }
-                  export function dirname(p) { return String(p).replace(/[/\\\\][^/\\\\]*$/, ''); }
-                  export function isAbsolute(p) { return p.startsWith('/') || /^[a-zA-Z]:/.test(p); }
-                  export function relative(from, to) { return to; }
-                  export default { basename, resolve, join, dirname, isAbsolute, relative };
-                `,
-              };
-            }
-            return {
-              contents: `
-                export function existsSync() { return false; }
-                export function statSync() { return { isDirectory: () => false }; }
-                export function readdirSync() { return []; }
-                export function readFileSync() { return ''; }
-                export default { existsSync, statSync, readdirSync, readFileSync };
-              `,
-            };
-          });
-        },
-      },
-    ],
     footer: {
       js: `
 if (typeof globalThis !== 'undefined') {
