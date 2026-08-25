@@ -463,16 +463,21 @@ To share logic between bridges, put it in a bridge and import that. Bridges init
 
 **Dispose between tests.** `bridge.$dispose()` in `afterEach` gives every test a clean slate.
 
-## Migrating from class bridges
+## Converting a class bridge
 
-Bridges built on `AvenxBridge` still work, are still registered ambiently under their `PascalCase` name, and still need no changes to keep running. They are deprecated: they cannot be typed, cannot be tree-shaken, and give the compiler nothing to check, because a template referencing `AuthBridge` never says where it came from.
+Earlier versions let a bridge be a class extending `AvenxBridge`, registered ambiently under its `PascalCase` name. That form has been removed. It could not be typed, could not be tree-shaken, and gave the compiler nothing to check, because a template referencing `AuthBridge` never said where it came from.
+
+A `*.bridge.js` file that is not built on `bridge()` now fails the build with `AVX_C12`:
+
+```text
+[AVX_C12] "src/global/auth.bridge.js" is not a bridge module. A bridge imports
+the bridge() factory from the Avenx runtime and exports the definition it returns
+```
 
 The conversion is mechanical:
 
 ```javascript
-// Before
-import { AvenxBridge } from 'avenx-core/runtime';
-
+// Before — no longer compiles
 export default class AuthBridge extends AvenxBridge {
   constructor() {
     super();
@@ -511,6 +516,8 @@ import auth from '../global/auth.bridge.js';
 
 <p>{{ auth.user.name }}</p>
 ```
+
+A template that still names `AuthBridge` without importing it now reports `AVX_W03` as an undeclared reference, so nothing fails silently.
 
 Two things change in behaviour. State becomes read-only outside the bridge, so any component that assigned to it directly needs an action instead. And the bridge is only in scope where it is imported, so a component that used it without saying so has to say so.
 

@@ -27,7 +27,7 @@ Both Svelte and Avenx-JS favor compiler-assisted reactivity over heavy virtual D
 | **Event Modifiers** | `on:submit\|preventDefault` | `@submit.prevent="save()"` |
 | **Component Props** | `export let name = 'default'` / `$props()` | Top-level `<props name="default" />` / `this.props` |
 | **Slots** | `<slot />` / `<slot name="header" />` | `<slot />` / `<slot name="header" />` |
-| **Global State** | Writable/Readable Stores (`writable()`, `$store`) | **Bridges** (`AvenxBridge` in `src/global/*.bridge.js`) |
+| **Global State** | Writable/Readable Stores (`writable()`, `$store`) | **Bridges** (`bridge()` in `src/bridges/*.bridge.js`) |
 
 ---
 
@@ -312,7 +312,7 @@ Both frameworks use the `<slot>` element:
 
 In Svelte, shared reactive state is managed using `writable()` / `readable()` stores and the `$store` auto-subscription syntax.
 
-In Avenx-JS, shared global state is encapsulated in **Bridges** (`src/global/*.bridge.js`), which inherit from `AvenxBridge`:
+In Avenx-JS, shared global state is encapsulated in **Bridges** (`src/bridges/*.bridge.js`), created with the `bridge()` factory:
 
 #### Before — Svelte Store (`authStore.js`)
 
@@ -345,41 +345,42 @@ export const auth = createAuthStore();
 {/if}
 ```
 
-#### After — Avenx-JS Global Bridge (`auth.bridge.js`)
+#### After — Avenx-JS Bridge (`auth.bridge.js`)
 
 ```javascript
-// src/global/auth.bridge.js
-import { AvenxBridge } from 'avenx-core/runtime';
+// src/bridges/auth.bridge.js
+import { bridge } from 'avenx-core/runtime';
 
-export default class AuthBridge extends AvenxBridge {
-  constructor() {
-    super();
-    this.user = null;
-    this.token = null;
-  }
+export default bridge({
+  state: {
+    user: null,
+    token: null,
+  },
 
   login(user, token) {
     this.user = user;
     this.token = token;
-  }
+  },
 
   logout() {
     this.user = null;
     this.token = null;
-  }
-}
+  },
+});
 ```
 
 ```html
-<!-- Consuming Avenx-JS Component (No manual import needed!) -->
+<!-- Consuming Avenx-JS Component -->
+import auth from '../bridges/auth.bridge.js';
+
 <div class="auth-box">
-  <p data-ax-show="AuthBridge.user">Welcome, {{ AuthBridge.user.name }}!</p>
-  <button data-ax-show="AuthBridge.user" @click="AuthBridge.logout()">Log out</button>
+  <p data-ax-show="auth.user">Welcome, {{ auth.user.name }}!</p>
+  <button data-ax-show="auth.user" @click="auth.logout()">Log out</button>
 </div>
 ```
 
 > [!TIP]
-> Registered bridges in `src/global/*.bridge.js` are automatically exposed to all component templates and actions under their class name, without requiring manual imports or subscriptions.
+> The import is the subscription. Like Svelte's `$store`, reading a bridge member in a template tracks it — but because the import names the dependency, the compiler drops bridges nothing imports and catches a mistyped member before you run the app.
 
 ---
 
@@ -406,5 +407,5 @@ When converting a Svelte component to Avenx-JS:
 5. [ ] Replace `bind:value` with `data-ax-bind="state.field"`.
 6. [ ] Replace `on:click={fn}` with `@click="fn()"` (ensure parentheses are present).
 7. [ ] Replace `on:event|modifier` with `@event.modifier`.
-8. [ ] Replace `writable()` stores with `AvenxBridge` classes in `src/global/`.
+8. [ ] Replace `writable()` stores with `bridge()` modules in `src/bridges/`, and import them where they are used.
 9. [ ] Move scoped CSS styles into `<@css>` blocks in the companion `.component.css`.

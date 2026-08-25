@@ -375,27 +375,35 @@ export default class CartHeader extends AvenxComponent {
 
 ---
 
-### 2. Global State Bridge Pattern (`AvenxBridge`)
+### 2. Global State Bridge Pattern (`bridge()`)
 
-For state-driven cross-component communication, extending `AvenxBridge` is the recommended Avenx-JS architectural approach. Instead of managing manual event listeners, a global bridge holds shared reactive state that updates consuming components automatically:
+For state-driven cross-component communication, a [Bridge](/core-concepts/bridges) is the recommended Avenx-JS architectural approach. Instead of managing manual event listeners, a bridge holds shared reactive state that updates consuming components automatically:
 
 ```javascript
 // src/bridges/cart.bridge.js
-import { AvenxBridge } from 'avenx-core/runtime';
+import { bridge } from 'avenx-core/runtime';
 
-export default class CartBridge extends AvenxBridge {
-  constructor() {
-    super();
-    this.items = [];
-    this.count = 0;
-  }
+export default bridge({
+  state: {
+    items: [],
+  },
+
+  get count() {
+    return this.items.length;
+  },
 
   addItem(product) {
-    this.items.push(product);
-    this.count = this.items.length;
-  }
-}
+    this.items = [...this.items, product];
+    this.emit('added', product);
+  },
+});
 ```
 
-Components consume the bridge via `this.bridges.cart` and automatically receive reactive updates whenever `addItem()` is called from anywhere in the application.
+Components import the bridge and read it straight from the template, receiving reactive updates whenever `addItem()` is called from anywhere in the application:
+
+```html
+import cart from '../bridges/cart.bridge.js';
+
+<span>{{ cart.count }}</span>
+```
 
