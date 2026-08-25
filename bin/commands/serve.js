@@ -3,6 +3,7 @@ import path from 'path';
 import http from 'http';
 import { spawn } from 'child_process';
 import { buildProject } from './build.js';
+import { reportRebuildFailure } from '../fatal.js';
 import { cyan, green, yellow, red } from '../colors.js';
 
 /**
@@ -621,7 +622,16 @@ export function watchProject(cli) {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         console.log(`\n${cyan(`📄 Change detected: ${filename}. Rebuilding...`)}`);
-        buildProject(cli);
+
+        try {
+          buildProject(cli);
+        } catch (error) {
+          // A watch session keeps going: the next save usually fixes it. The
+          // browser is not reloaded, so it keeps showing the last good build
+          // rather than a blank page.
+          reportRebuildFailure(error);
+          return;
+        }
 
         if (cli.liveReloadClients) {
           cli.liveReloadClients.forEach((client) => {

@@ -1,4 +1,4 @@
-import { red, gray, bold } from './colors.js';
+import { red, gray, bold, yellow } from './colors.js';
 
 /**
  * Marks the process as failed.
@@ -28,22 +28,52 @@ export function failProcess(code = 1) {
  * @param {string} [action] - What was being attempted, for the headline.
  */
 export function reportFatal(error, action = 'Build') {
-  const isDiagnosed = Boolean(error && typeof error.code === 'string' && error.code.startsWith('AVX_'));
-
   console.error('');
   console.error(bold(red(`✖ ${action} failed`)));
   console.error('');
 
-  if (isDiagnosed) {
-    console.error(red(error.message));
-  } else if (error instanceof Error) {
-    console.error(red(error.stack || error.message));
-  } else {
-    console.error(red(String(error)));
-  }
+  console.error(red(describe(error)));
 
   console.error('');
   console.error(gray('The command exits with a non-zero status.'));
 
   failProcess(1);
+}
+
+/**
+ * Formats a failure for display, without the stack for diagnosed errors.
+ * @param {Error|any} error - The failure.
+ * @returns {string} The text to print.
+ */
+function describe(error) {
+  const isDiagnosed = Boolean(error && typeof error.code === 'string' && error.code.startsWith('AVX_'));
+  if (isDiagnosed) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.stack || error.message;
+  }
+  return String(error);
+}
+
+/**
+ * Reports a failed rebuild inside a watch loop.
+ *
+ * A watch session is interactive and long-running: the next save usually fixes
+ * the problem. So the error is shown and watching continues, and crucially the
+ * process exit code is left alone — a typo at 11am must not make the eventual
+ * Ctrl-C report failure.
+ *
+ * This is the one place a build error does not fail the process, and it is
+ * safe precisely because `avenx serve` and `avenx watch` never gate a
+ * deployment. `avenx build` is unaffected.
+ * @param {Error|any} error - The failure.
+ */
+export function reportRebuildFailure(error) {
+  console.error('');
+  console.error(bold(yellow('✖ Rebuild failed — the previous output is still in place')));
+  console.error('');
+  console.error(red(describe(error)));
+  console.error('');
+  console.error(gray('Watching for changes...'));
 }
