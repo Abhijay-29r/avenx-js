@@ -777,7 +777,7 @@ export class AvenxApp {
      * @param name Bridge global identifier (e.g. `AuthBridge`).
      * @param bridgeData Raw object schema or instance.
      */
-    registerBridge(name: string, bridgeData: Record<string, any> | Function): void;
+    registerBridge(name: string, bridgeData: Record<string, any>): void;
 
     /**
      * Forces updates on all active component nodes.
@@ -852,16 +852,6 @@ export class AvenxApp {
         updated?(el: any, binding: { value: any; oldValue: any; expression: string }): void;
         unmounted?(el: any, binding: { value: any; oldValue: any; expression: string }): void;
     }): this;
-}
-
-/**
- * Base class for global reactive bridges.
- * @deprecated Use the `bridge()` factory instead. Class bridges register
- * ambiently under a global template name; `bridge()` bridges are imported,
- * which is what lets the compiler see who consumes them.
- */
-export class AvenxBridge {
-    constructor();
 }
 
 /** Releases a bridge subscription. Safe to call more than once. */

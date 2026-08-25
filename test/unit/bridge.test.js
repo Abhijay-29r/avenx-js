@@ -923,10 +923,10 @@ function testAppRegistration() {
     'registering the same name twice',
   );
 
-  // Legacy plain-object bridges still register and stay writable.
-  app.registerBridge('legacy', { value: 1 });
-  app.bridges.legacy.value = 2;
-  assert.strictEqual(app.bridges.legacy.value, 2, 'legacy bridges are unaffected');
+  // Plain-object bridges register and stay writable.
+  app.registerBridge('plain', { value: 1 });
+  app.bridges.plain.value = 2;
+  assert.strictEqual(app.bridges.plain.value, 2, 'plain-object bridges are unaffected');
 
   console.log('  ✅ Registration indexes bridges without changing them.');
 }
