@@ -90,6 +90,12 @@ Detection does not automatically trip the nearest boundary. The compiled `maxDep
 
 Generate components, pages, and bridges with a single command. The built-in dev server provides hot-reloading for a seamless development experience.
 
+### 📦 Production Builds
+
+`avenx build` produces a production bundle: the minified runtime, with no testing or lint infrastructure and no Node shims in the graph. Testing helpers live behind `avenx-core/testing` and the ESLint tooling behind `avenx-core/tooling`, so neither can reach an application bundle. `avenx build --dev` builds the readable runtime instead, which is what `avenx serve` uses.
+
+The runtime publishes `globalThis.Avenx` plus seven named globals, rather than copying its whole export surface onto the global object.
+
 ---
 
 ## 🚀 Quick Start
@@ -111,6 +117,9 @@ npx avenx g counter
 
 # Start development server
 npx avenx serve
+
+# Build for production
+npx avenx build
 ```
 
 Your app will be running at `http://localhost:3000`.

@@ -7,9 +7,58 @@ Avenx-JS applications can be built into static JavaScript and CSS assets and ser
 
 ---
 
-## Anatomy of a Production Build
+## Build Modes
 
-To create a production build, run the `npx avenx build` command. This executes the production compiler build.
+Avenx builds in one of two modes.
+
+| | Development | Production |
+| :--- | :--- | :--- |
+| Command | `npx avenx build --dev` | `npx avenx build` |
+| Also used by | `avenx serve`, `avenx watch` | — |
+| Runtime bundled | `runtime.js`, readable | `runtime.min.js`, minified |
+| CSS source map | Inline, for the browser devtools | Emitted as `bundle.css.map` and linked |
+| Hello World bundle | ~403 KB | ~154 KB |
+
+**Production is the default.** `npx avenx build` is what a deploy script runs, so it produces optimised output without a flag. `avenx serve` and `avenx watch` build in development mode, because a readable stack trace matters more than size while you are working. Either default can be overridden with `--dev` or `--prod`, or pinned in `avenx.config.json`:
+
+```json
+{
+  "mode": "production"
+}
+```
+
+`NODE_ENV=development` also selects development mode. The active mode is printed in the build header:
+
+```text
+--- Avenx-JS Compiler (production) ---
+```
+
+### What the production build does
+
+- **Bundles the minified runtime.** Both runtime variants are built from the same module graph, so they cannot differ in behaviour — only in readability.
+- **Excludes development infrastructure.** The testing utilities (`avenx-core/testing`) and the lint and build helpers (`avenx-core/tooling`) are separate entry points and are never part of an application bundle. Neither are Node built-ins: the runtime graph is browser-only and needs no `fs` or `path` shim.
+- **Keeps the global surface small.** See below.
+
+Nothing is removed from the runtime in production. Both modes ship the same features; production is the same code, minified.
+
+### What the bundle puts on `globalThis`
+
+A compiled application is one concatenated script, so the runtime has to publish itself somewhere the generated code can reach. It installs:
+
+- **`Avenx`** — a namespace carrying the complete runtime surface. Anything the runtime exports is available as `Avenx.<name>`.
+- **Seven named globals** — `AvenxComponent`, `AvenxPage`, `defineBridgeName`, `AvenxApp`, `AvenxGuard`, `AvenxRouter` and `bridge`. The first three are emitted into generated code; the rest are authoring entry points a project may reference without importing.
+
+Your own `import` statements keep working regardless of that list. The compiler rewrites runtime imports into destructuring from the namespace, so
+
+```javascript
+import { logger, LruCache } from 'avenx-core/runtime';
+```
+
+becomes `const { logger, LruCache } = Avenx;` in the bundle. Import what you use; nothing depends on a name happening to be global.
+
+If your page loads other scripts, note that these eight names are the only ones Avenx claims.
+
+## Anatomy of a Production Build
 
 By default, the compiler uses the following configuration:
 
