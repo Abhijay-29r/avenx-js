@@ -113,7 +113,7 @@ function testAnalysis() {
 
   const descriptor = analyzeBridge('/p/src/bridges/auth.bridge.js', AUTH_BRIDGE);
 
-  assert.strictEqual(descriptor.modern, true, 'a bridge() module is recognised');
+  assert.ok(descriptor, 'a bridge() module is recognised');
   assert.strictEqual(descriptor.name, 'auth', 'the name comes from the file name');
   assert.strictEqual(descriptor.binding, '__avx_bridge_auth', 'the bundle identifier is derived');
   assert.deepStrictEqual(descriptor.stateKeys, ['user', 'status'], 'state keys are read');
@@ -132,21 +132,35 @@ function testAnalysis() {
 }
 
 /**
- * A legacy class bridge is recognised but not treated as a bridge() module.
+ * Only modules built on the bridge() factory analyse as bridges.
  */
-function testLegacyDetection() {
-  console.log('🧪 Testing legacy bridge detection...');
+function testNonBridgeModuleDetection() {
+  console.log('🧪 Testing non-bridge module detection...');
 
-  const legacy = `import { AvenxBridge } from 'avenx-core/runtime';
-export default class AuthBridge extends AvenxBridge {
-  constructor() { super(); this.isLoggedIn = false; }
+  const classModule = `export default class AuthBridge {
+  constructor() { this.isLoggedIn = false; }
 }`;
-  const descriptor = analyzeBridge('/p/src/global/auth.bridge.js', legacy);
+  assert.strictEqual(
+    analyzeBridge('/p/src/global/auth.bridge.js', classModule),
+    null,
+    'a class module is not a bridge',
+  );
 
-  assert.strictEqual(descriptor.modern, false, 'a class bridge is not a bridge() module');
-  assert.deepStrictEqual(descriptor.stateKeys, [], 'no members are claimed for it');
+  const plainObject = `export default { isLoggedIn: false };`;
+  assert.strictEqual(
+    analyzeBridge('/p/src/global/auth.bridge.js', plainObject),
+    null,
+    'a plain object export is not a bridge',
+  );
 
-  console.log('  ✅ Legacy class bridges are told apart.');
+  const noFactoryImport = `export default bridge({ state: { a: 1 } });`;
+  assert.strictEqual(
+    analyzeBridge('/p/src/bridges/auth.bridge.js', noFactoryImport),
+    null,
+    'bridge() must be imported from the runtime',
+  );
+
+  console.log('  ✅ Modules that are not bridge() modules are rejected.');
 }
 
 /**
@@ -578,33 +592,58 @@ function testIsolatedImportIsFatal() {
 }
 
 // ---------------------------------------------------------------------------
-// Compatibility
+// Module validity
 // ---------------------------------------------------------------------------
 
 /**
- * Legacy class bridges keep working exactly as before, alongside new ones.
+ * A *.bridge.js file that is not a bridge() module fails the build with a
+ * message that says how to write one, rather than compiling to nothing.
  */
-function testLegacyCompatibility() {
-  console.log('🧪 Testing legacy bridge compatibility...');
+function testNonBridgeModuleIsRejected() {
+  console.log('🧪 Testing rejection of non-bridge modules...');
 
-  const { bundle, error } = build({
-    'src/global/theme.bridge.js': `import { AvenxBridge } from 'avenx-core/runtime';
-export default class ThemeBridge extends AvenxBridge {
-  constructor() { super(); this.mode = 'light'; }
+  const { error } = build({
+    'src/global/theme.bridge.js': `export default class ThemeBridge {
+  constructor() { this.mode = 'light'; }
 }`,
     'src/bridges/auth.bridge.js': AUTH_BRIDGE,
-    'src/components/navbar.component.js': `import auth from '../bridges/auth.bridge.js';
+    'src/pages/home.page.js': `<div>home</div>`,
+    'src/main.app.js': `const app = new AvenxApp({ target: '#app' });`,
+  });
 
-<div>{{ auth.displayName }} {{ ThemeBridge.mode }}</div>`,
+  assert.ok(error, 'the build fails');
+  assert.ok(
+    error.message.includes(AvenxErrorCodes.COMPILER_BRIDGE_INVALID_MODULE),
+    'the failure carries the AVX_C12 code',
+  );
+  assert.ok(error.message.includes('theme.bridge.js'), 'the message names the offending file');
+  assert.ok(error.message.includes('bridge('), 'the message shows the supported form');
+
+  console.log('  ✅ Non-bridge modules are rejected with a usable message.');
+}
+
+/**
+ * An ambient bridge name is no longer in template scope: only imports are.
+ */
+function testAmbientBridgeNamesAreNotDeclared() {
+  console.log('🧪 Testing that ambient bridge names are gone...');
+
+  const { output } = build({
+    'src/global/theme.bridge.js': `import { bridge } from 'avenx-core/runtime';
+
+export default bridge({ state: { mode: 'light' } });`,
+    'src/components/navbar.component.js': `<div>{{ ThemeBridge.mode }}</div>`,
     'src/pages/home.page.js': `<div><Navbar /></div>`,
     'src/main.app.js': `const app = new AvenxApp({ target: '#app' });`,
   });
 
-  assert.strictEqual(error, null, 'both styles compile together');
-  assert.ok(bundle.includes("app.registerBridge('ThemeBridge'"), 'the legacy bridge keeps its ambient registration');
-  assert.ok(bundle.includes("app.registerBridge('auth', __avx_bridge_auth)"), 'the new bridge registers too');
+  assert.ok(
+    output.includes(AvenxErrorCodes.COMPILER_UNDECLARED_REFERENCE),
+    'referencing a bridge by its PascalCase name is now an undeclared reference',
+  );
+  assert.ok(output.includes('ThemeBridge'), 'the warning names the reference');
 
-  console.log('  ✅ Legacy and new bridges coexist.');
+  console.log('  ✅ Bridges reach a template only through an import.');
 }
 
 /**
@@ -692,7 +731,7 @@ export default bridge({
 async function run() {
   console.log('=== Bridge compiler tests ===\n');
   testAnalysis();
-  testLegacyDetection();
+  testNonBridgeModuleDetection();
   testScannerRobustness();
   testNameDerivation();
   testSpecifierResolution();
@@ -709,7 +748,8 @@ async function run() {
   testUnsupportedImportIsFatal();
   testCircularBridgeImportIsFatal();
   testIsolatedImportIsFatal();
-  testLegacyCompatibility();
+  testNonBridgeModuleIsRejected();
+  testAmbientBridgeNamesAreNotDeclared();
   testStandaloneParsing();
   await testCompiledBundleRuns();
   console.log('\n✅ All bridge compiler tests passed!');
