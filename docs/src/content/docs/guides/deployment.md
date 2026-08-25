@@ -58,6 +58,70 @@ becomes `const { logger, LruCache } = Avenx;` in the bundle. Import what you use
 
 If your page loads other scripts, note that these eight names are the only ones Avenx claims.
 
+## Build Failures and Exit Codes
+
+`avenx build` exits `0` only when the application compiled and the output was written. Any fatal error exits non-zero, so a chained deployment step never runs after a failed build:
+
+```bash
+npx avenx build && ./deploy.sh
+```
+
+If compilation fails, `deploy.sh` does not execute and CI marks the job as failed.
+
+### What fails the build
+
+| Condition | Code |
+| :--- | :--- |
+| The source directory is missing | `AVX_C02` |
+| Two components compile to the same class name | `AVX_C03` |
+| A bridge cannot be resolved, is duplicated, is circular, or is not a `bridge()` module | `AVX_C07`–`AVX_C12` |
+| A warning escalated to `"error"` in `avenx.config.json` | that warning's code |
+| A `prebuild` or `postbuild` hook exits non-zero | `AVX_C14` |
+| The output directory cannot be written | `AVX_C01` |
+| Any unexpected error during compilation | — |
+
+Warnings that are not escalated stay warnings: they are printed and the build still exits `0`. To make one fatal, set its severity in `avenx.config.json`:
+
+```json
+{
+  "warnings": {
+    "AVX_W03": "error"
+  }
+}
+```
+
+### What a failure looks like
+
+```text
+--- Avenx-JS Compiler (production) ---
+
+✖ Build failed
+
+[AVX_C03] Duplicate component name(s) detected. These files compile to the same class name:
+  "Card":
+    - src/components/card/card.component.js
+    - src/components/widgets/card.component.js
+Fix by renaming or moving one of the files.
+
+The command exits with a non-zero status.
+```
+
+A diagnosed error prints its message alone; an unexpected error prints its stack, because that is the only useful thing it carries.
+
+### Output is written atomically
+
+Artifacts are compiled in full, written to a staging directory inside `distDir`, and renamed into place only once the entire build succeeds. A build that fails at any point — including after the artifacts are staged — promotes nothing, so `distDir` never holds a mix of a new script and a stale stylesheet.
+
+A failed build does **not** delete the previous output. The exit code is what stops the deployment; removing a working bundle would break anything still serving it. The previous artifacts stay exactly as they were, byte for byte.
+
+:::caution
+This guarantee depends on your pipeline respecting the exit code. `npm run build && deploy` and any CI job that fails on a non-zero step are safe. A pipeline that ignores the exit code — `npm run build || true`, or a deploy job that runs regardless of whether the build job passed — can still publish the previous bundle.
+:::
+
+### `serve` and `watch` are the exception
+
+`avenx serve` and `avenx watch` keep running when a rebuild fails. The error is printed, the browser is not reloaded so it keeps showing the last good build, and watching continues — the next save usually fixes it. Neither command gates a deployment, and neither sets a failing exit code for a rebuild error.
+
 ## Anatomy of a Production Build
 
 By default, the compiler uses the following configuration:

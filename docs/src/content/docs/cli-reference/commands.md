@@ -279,6 +279,8 @@ npx avenx build --dev
 
 The active mode appears in the build header, and can also be set with `mode` in `avenx.config.json` or via `NODE_ENV=development`. See the [deployment guide](/guides/deployment#build-modes) for what the two modes differ in.
 
+**Exit codes.** `avenx build` exits `0` only on a successful build. Any fatal compiler error, a warning escalated to `"error"`, or a failing lifecycle hook exits non-zero, so `avenx build && deploy` never deploys a failed build. See [Build Failures and Exit Codes](/guides/deployment#build-failures-and-exit-codes).
+
 #### Features & Distribution Files
 
 - Compiles `.component.js` files and extracts `<state>`, `<action>`, and `<computed>` tags.
