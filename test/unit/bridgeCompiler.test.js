@@ -576,7 +576,7 @@ export default bridge({ state: { y: 2 }, peek() { return a.x; } });`,
 function testIsolatedImportIsFatal() {
   console.log('🧪 Testing isolated contract enforcement...');
 
-  const { output } = build({
+  const { error } = build({
     'src/bridges/auth.bridge.js': AUTH_BRIDGE,
     'src/components/iso.component.js': `import auth from '../bridges/auth.bridge.js';
 <contract isolated />
@@ -585,8 +585,11 @@ function testIsolatedImportIsFatal() {
     'src/main.app.js': `const app = new AvenxApp({ target: '#app' });`,
   });
 
-  assert.ok(output.includes(AvenxErrorCodes.COMPILER_BRIDGE_ISOLATED_IMPORT), 'the violation is reported');
-  assert.ok(output.includes('isolated'), 'the message explains the contract');
+  // The violation propagates as a thrown BuildError rather than a log line, so
+  // that the command that started the build can fail on it.
+  assert.ok(error, 'the build fails');
+  assert.strictEqual(error.code, AvenxErrorCodes.COMPILER_BRIDGE_ISOLATED_IMPORT, 'with the right code');
+  assert.ok(error.message.includes('isolated'), 'the message explains the contract');
 
   console.log('  ✅ Isolated components may not import bridges.');
 }
