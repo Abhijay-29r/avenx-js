@@ -204,7 +204,7 @@ Generates boilerplate code for components, pages, global state bridges, and navi
 
 - **Component (`component`, `c`)**: Creates `src/components/<name>/<name>.component.js` and `.css`, and registers it in `main.app.js`.
 - **Page (`page`, `p`)**: Creates `src/pages/<name>.page.js` and `.css` for client-side routing.
-- **Bridge (`bridge`)**: Creates a shared reactive domain state class at `src/global/<name>.bridge.js` extending `AvenxBridge`.
+- **Bridge (`bridge`)**: Creates a shared reactive state module at `src/global/<name>.bridge.js` built with the `bridge()` factory.
 - **Guard (`guard`)**: Creates a navigation guard class at `src/guards/<name>.guard.js` extending `AvenxGuard`.
 
 #### Options

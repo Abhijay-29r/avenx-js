@@ -17,7 +17,7 @@ Vue single file components (`.vue`) encapsulate `<template>`, `<script>`, and `<
 | **Reactivity** | `ref()` / `reactive()` | Top-level `<state key="val" />` Proxy tag |
 | **Computed Values** | `computed(() => fn)` | `<computed name="x" value="..." />` tag |
 | **Loops & Directives** | `v-for`, `v-model`, `v-show`, `v-if` | `<@for>`, `data-ax-bind`, `data-ax-show`, ternary HTML |
-| **Global Store** | Pinia (`defineStore`) / Vuex | **Bridges** (`AvenxBridge` in `src/global/*.bridge.js`) |
+| **Global Store** | Pinia (`defineStore`) / Vuex | **Bridges** (`bridge()` in `src/bridges/*.bridge.js`) |
 
 ---
 
@@ -421,9 +421,9 @@ If you genuinely need to run a side effect when a value changes, Avenx does offe
 
 ## 5. Global Stores & Pinia to Bridges
 
-Vue applications typically rely on **Pinia** (`defineStore`) or Vuex to share reactive state and business logic across components. In Avenx-JS, shared global state is managed through **Bridges**—class-based or plain object modules located in `src/global/*.bridge.js` that extend `AvenxBridge`.
+Vue applications typically rely on **Pinia** (`defineStore`) or Vuex to share reactive state and business logic across components. In Avenx-JS, shared global state is managed through **Bridges** — modules in `src/bridges/*.bridge.js` created with the `bridge()` factory.
 
-Avenx-JS automatically registers all bridges in `src/global/` and makes them directly accessible in **every component template and action** without requiring store providers, composition imports, or `useStore()` hooks. See the [Bridges](/core-concepts/bridges) guide for complete details and the [Migration Overview](/migration/overview) for paradigm comparisons.
+A bridge is reached by importing it, much as a Pinia store is reached through `useAuthStore()`. There are no store providers and no root plugin to install: the import alone puts the bridge in the component's template scope. See the [Bridges](/core-concepts/bridges) guide for complete details and the [Migration Overview](/migration/overview) for paradigm comparisons.
 
 ---
 
@@ -435,7 +435,7 @@ You can generate a new bridge using the Avenx CLI command:
 npx avenx g bridge auth
 ```
 
-This creates a new `src/global/auth.bridge.js` scaffold extending `AvenxBridge`.
+This creates a new `src/global/auth.bridge.js` scaffold built on the `bridge()` factory.
 
 ---
 
@@ -480,37 +480,37 @@ const auth = useAuthStore();
 </template>
 ```
 
-#### After — Avenx.js Bridge Class (`src/global/auth.bridge.js` & Component Template)
+#### After — Avenx.js Bridge (`src/bridges/auth.bridge.js` & Component Template)
 
 ```javascript
-// src/global/auth.bridge.js
-import { AvenxBridge } from 'avenx-core/runtime';
+// src/bridges/auth.bridge.js
+import { bridge } from 'avenx-core/runtime';
 
-export default class AuthBridge extends AvenxBridge {
-  constructor() {
-    super();
-    this.isLoggedIn = false;
-    this.user = { name: 'Guest' };
-  }
+export default bridge({
+  state: {
+    isLoggedIn: false,
+    user: { name: 'Guest' },
+  },
 
   login(username) {
     this.isLoggedIn = true;
     this.user.name = username;
-  }
+  },
 
   logout() {
     this.isLoggedIn = false;
     this.user.name = 'Guest';
-  }
-}
+  },
+});
 ```
 
 ```html
 <!-- src/components/user-nav/user-nav.component.js -->
-<!-- Available automatically in any component template or action — no import needed! -->
+import auth from '../../bridges/auth.bridge.js';
+
 <div>
-  <p>Current User: {{ AuthBridge.user.name }}</p>
-  <button @click="AuthBridge.logout()">Log Out</button>
+  <p>Current User: {{ auth.user.name }}</p>
+  <button @click="auth.logout()">Log Out</button>
 </div>
 ```
 
@@ -518,35 +518,34 @@ export default class AuthBridge extends AvenxBridge {
 
 ### Key Conceptual Differences & Migration Pitfalls
 
-#### 1. No Store Providers or `useStore()` Hooks
+#### 1. No Store Providers, but Still an Import
 
-In Vue, components must explicitly import store modules and invoke store composition functions (e.g. `const auth = useAuthStore()`).
+In Vue, components import the store module and invoke a composition function (e.g. `const auth = useAuthStore()`). In Avenx-JS the import stays, and the call does not: importing the bridge is what binds it into the template scope.
 
-In Avenx-JS, the build system automatically inspects `src/global/*.bridge.js` at compile time and injects each bridge into the global template scope under its class or file name (`AuthBridge`). You never import bridges inside `.component.js` files or wrap root components in store providers.
+There is no root plugin to install and no provider to wrap the app in. The import is also what the compiler reads — a bridge nothing imports is left out of the bundle, and a template member the bridge does not declare is reported at build time.
 
-#### 2. Class Constructor & Inheriting `AvenxBridge`
+#### 2. State Is Read-Only Outside the Bridge
 
-Class-based bridges must extend `AvenxBridge` from `avenx-core/runtime` and call `super()` inside the `constructor()`:
+Pinia lets a component write `auth.isLoggedIn = true` directly. A bridge does not: assigning to state from outside throws `AVX_R22`. Every mutation goes through an action, which keeps one origin for each change.
 
 ```javascript
-import { AvenxBridge } from 'avenx-core/runtime';
+import { bridge } from 'avenx-core/runtime';
 
-export default class CartBridge extends AvenxBridge {
-  constructor() {
-    super(); // ⚠️ Mandatory: initializes reactive bridge Proxy tracking
-    this.items = [];
-  }
+export default bridge({
+  state: { items: [] },
 
   addItem(item) {
-    this.items.push(item);
-  }
-}
+    this.items = [...this.items, item];
+  },
+});
 ```
 
 #### 3. `export default` Compiler Requirement
 
-The Avenx compiler processes `.bridge.js` files starting at `export default`. Ensure your bridge class or object is the default export:
+The Avenx compiler reads the definition object passed to `bridge()` in the default export, so a `.bridge.js` file must export one:
 
-:::caution
-Do **not** place standalone helper variable declarations above `export default` inside `.bridge.js` files, as the compiler parser extracts state and methods directly from the default export declaration.
-:::
+```javascript
+export default bridge({ /* ... */ });
+```
+
+Helper constants and functions declared above `export default` are preserved — the module body is emitted inside its own scope. A `.bridge.js` file that is not built on `bridge()` fails the build with `AVX_C12`.

@@ -5,6 +5,7 @@ import { AvenxWatcher } from '../../lib/core/reactive/watcher.js';
 import { DisposalScope, runInScope, getScope } from '../../lib/core/reactive/scope.js';
 import { AvenxErrorCodes } from '../../lib/core/runtime/AvenxError.js';
 import { AvenxApp } from '../../lib/core/runtime/AvenxApp.js';
+import * as runtime from '../../lib/core/index.js';
 
 /**
  * Builds the bridge used across most cases: some state, a derived getter,
@@ -923,10 +924,10 @@ function testAppRegistration() {
     'registering the same name twice',
   );
 
-  // Legacy plain-object bridges still register and stay writable.
-  app.registerBridge('legacy', { value: 1 });
-  app.bridges.legacy.value = 2;
-  assert.strictEqual(app.bridges.legacy.value, 2, 'legacy bridges are unaffected');
+  // Plain-object bridges register and stay writable.
+  app.registerBridge('plain', { value: 1 });
+  app.bridges.plain.value = 2;
+  assert.strictEqual(app.bridges.plain.value, 2, 'plain-object bridges are unaffected');
 
   console.log('  ✅ Registration indexes bridges without changing them.');
 }
@@ -1002,7 +1003,35 @@ async function run() {
   testAppRegistration();
   testNaming();
   testUnknownMembers();
+  testNoClassBridgeApi();
   console.log('\n✅ All bridge core tests passed!');
+}
+
+/**
+ * The class-based Bridge API is gone. bridge() is the only way to declare one.
+ *
+ * This guards the removal: re-exporting AvenxBridge, or teaching
+ * registerBridge to construct a class again, would resurrect an API that
+ * cannot be typed, tree-shaken or checked by the compiler.
+ */
+function testNoClassBridgeApi() {
+  console.log('🧪 Testing that the class Bridge API is gone...');
+
+  assert.ok(!('AvenxBridge' in runtime), 'AvenxBridge is not exported from the runtime');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(AvenxErrorCodes, 'BRIDGE_CONSTRUCTION_FAILED'),
+    'the class-construction error code is retired',
+  );
+
+  document.body.innerHTML = '<div id="no-class-root"></div>';
+  const app = new AvenxApp({ target: '#no-class-root' });
+
+  // bridge() instances stay the supported path and are indexed untouched.
+  const auth = makeAuthBridge();
+  app.registerBridge('auth', auth);
+  assert.strictEqual(app.bridges.auth, auth, 'bridge() instances register as-is');
+
+  console.log('  ✅ Only bridge() declares a bridge.');
 }
 
 run().catch((error) => {
