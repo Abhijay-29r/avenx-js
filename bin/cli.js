@@ -57,6 +57,19 @@ export class AvenxCLI {
     const dryRun = args.includes('--dry-run') || args.includes('-d');
     const force = args.includes('--force') || args.includes('-f');
 
+    // `avenx build` is production by default; `--dev` opts out. `--prod` is
+    // accepted so a script can state the intent it relies on. `serve` and
+    // `watch` are development unless the flag says otherwise.
+    const explicitDev = args.includes('--dev') || args.includes('--development');
+    const explicitProd = args.includes('--prod') || args.includes('--production');
+    if (explicitDev) {
+      this.config.mode = 'development';
+    } else if (explicitProd) {
+      this.config.mode = 'production';
+    } else if (command === 'serve' || command === 'watch' || command === 'w') {
+      this.config.mode = 'development';
+    }
+
     let templateName = null;
     const templateIndex = args.findIndex((arg) => arg === '--template' || arg === '-t');
     if (templateIndex !== -1 && templateIndex + 1 < args.length) {
@@ -76,6 +89,10 @@ export class AvenxCLI {
         arg !== '-f' &&
         arg !== '--no-color' &&
         arg !== '--no-colors' &&
+        arg !== '--dev' &&
+        arg !== '--development' &&
+        arg !== '--prod' &&
+        arg !== '--production' &&
         arg !== '--template' &&
         arg !== '-t' &&
         !(templateIndex !== -1 && idx === templateIndex + 1) &&

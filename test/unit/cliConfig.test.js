@@ -182,7 +182,7 @@ try {
         `Unexpected warning: ${warnings[0]}`
       );
       assert.ok(
-        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors, alias, hooks.'),
+        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, mode, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors, alias, hooks.'),
         `Unexpected warning options list: ${warnings[0]}`
       );
       warnings.length = 0;
