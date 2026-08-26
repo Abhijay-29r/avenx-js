@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { parseName, fail } from '../utils.js';
-import { cyan, gray, green } from '../colors.js';
 
 /**
  * Automatically removes imports, registrations, and mount statements for a class from src/main.app.js.
@@ -59,7 +58,7 @@ export function unregisterFromMainApp(cli, className, folderName) {
 
   if (content !== newContent) {
     fs.writeFileSync(mainPath, newContent);
-    console.log(green(`✅ Cleaned up imports and registrations for '${className}' in ${cli.config.srcDir}/main.app.js`));
+    console.log(`✅ Cleaned up imports and registrations for '${className}' in ${cli.config.srcDir}/main.app.js`);
   }
 }
 
@@ -77,26 +76,30 @@ export function destroyComponent(cli, name, dryRun = false) {
 
   const { capitalizedName, folderFileName: lowerName } = parseName(name);
   const compDir = path.join(cli.baseDir, cli.config.srcDir, 'components', lowerName);
+  const jsPath = path.join(compDir, `${lowerName}.component.js`);
+  const cssPath = path.join(compDir, `${lowerName}.component.css`);
+  const testPath = path.join(compDir, `${lowerName}.component.test.js`);
 
   if (dryRun) {
-    console.log(cyan(`🧪 [Dry Run] Component '${lowerName}' files would be deleted:`));
-    console.log(gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`));
+    console.log(`🧪 [Dry Run] Component '${lowerName}' files would be deleted:`);
+    console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`);
+    console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`);
+    if (fs.existsSync(testPath)) {
+      console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.test.js`);
+    }
+    console.log(`  ${cli.config.srcDir}/components/${lowerName}/`);
     console.log(
-      gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`),
+      `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove registrations/imports for '${capitalizedName}'.`,
     );
-    console.log(gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/components/${lowerName}/`));
-    console.log(
-      cyan(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove registrations/imports for '${capitalizedName}'.`),
-    );
-    console.log(cyan('🧪 [Dry Run] No files were deleted or modified.'));
+    console.log('🧪 [Dry Run] No files were deleted or modified.');
     return;
   }
 
   if (fs.existsSync(compDir)) {
     fs.rmSync(compDir, { recursive: true, force: true });
-    console.log(green(`✅ Component '${lowerName}' directory deleted at ${cli.config.srcDir}/components/${lowerName}/`));
+    console.log(`✅ Component '${lowerName}' directory deleted at ${cli.config.srcDir}/components/${lowerName}/`);
   } else {
-    console.log(gray(`ℹ️ Component '${lowerName}' directory was not found.`));
+    console.log(`ℹ️ Component '${lowerName}' directory was not found.`);
   }
 
   unregisterFromMainApp(cli, capitalizedName, lowerName);
@@ -120,13 +123,13 @@ export function destroyPage(cli, name, dryRun = false) {
   const cssPath = path.join(pageDir, `${lowerName}.page.css`);
 
   if (dryRun) {
-    console.log(cyan(`🧪 [Dry Run] Page '${lowerName}' files would be deleted:`));
-    console.log(gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/pages/${lowerName}.page.js`));
-    console.log(gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/pages/${lowerName}.page.css`));
+    console.log(`🧪 [Dry Run] Page '${lowerName}' files would be deleted:`);
+    console.log(`  ${cli.config.srcDir}/pages/${lowerName}.page.js`);
+    console.log(`  ${cli.config.srcDir}/pages/${lowerName}.page.css`);
     console.log(
-      cyan(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations/routes for '${capitalizedName}'.`),
+      `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations/routes for '${capitalizedName}'.`,
     );
-    console.log(cyan('🧪 [Dry Run] No files were deleted or modified.'));
+    console.log('🧪 [Dry Run] No files were deleted or modified.');
     return;
   }
 
@@ -143,9 +146,9 @@ export function destroyPage(cli, name, dryRun = false) {
   }
 
   if (deletedAny) {
-    console.log(green(`✅ Page '${capitalizedName}' files deleted.`));
+    console.log(`✅ Page '${capitalizedName}' files deleted.`);
   } else {
-    console.log(gray(`ℹ️ Page '${capitalizedName}' files were not found.`));
+    console.log(`ℹ️ Page '${capitalizedName}' files were not found.`);
   }
 
   unregisterFromMainApp(cli, capitalizedName, lowerName);
@@ -169,22 +172,20 @@ export function destroyBridge(cli, name, dryRun = false) {
   const bridgePath = path.join(globalDir, `${lowerName}.bridge.js`);
 
   if (dryRun) {
-    console.log(cyan(`🧪 [Dry Run] Bridge '${capitalizedName}' file would be deleted:`));
-    console.log(gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/global/${lowerName}.bridge.js`));
+    console.log(`🧪 [Dry Run] Bridge '${capitalizedName}' file would be deleted:`);
+    console.log(`  ${cli.config.srcDir}/global/${lowerName}.bridge.js`);
     console.log(
-      cyan(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations for '${capitalizedName}'.`),
+      `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations for '${capitalizedName}'.`,
     );
-    console.log(cyan('🧪 [Dry Run] No files were deleted or modified.'));
+    console.log('🧪 [Dry Run] No files were deleted or modified.');
     return;
   }
 
   if (fs.existsSync(bridgePath)) {
     fs.rmSync(bridgePath, { force: true });
-    console.log(
-      green(`✅ Bridge '${capitalizedName}' file deleted at ${cli.config.srcDir}/global/${lowerName}.bridge.js`),
-    );
+    console.log(`✅ Bridge '${capitalizedName}' file deleted at ${cli.config.srcDir}/global/${lowerName}.bridge.js`);
   } else {
-    console.log(gray(`ℹ️ Bridge '${capitalizedName}' file was not found.`));
+    console.log(`ℹ️ Bridge '${capitalizedName}' file was not found.`);
   }
 
   unregisterFromMainApp(cli, capitalizedName, lowerName);
@@ -208,22 +209,20 @@ export function destroyGuard(cli, name, dryRun = false) {
   const guardPath = path.join(guardDir, `${lowerName}.guard.js`);
 
   if (dryRun) {
-    console.log(cyan(`🧪 [Dry Run] Guard '${capitalizedName}' file would be deleted:`));
-    console.log(gray(`[DRY-RUN] Would delete: ${cli.config.srcDir}/guards/${lowerName}.guard.js`));
+    console.log(`🧪 [Dry Run] Guard '${capitalizedName}' file would be deleted:`);
+    console.log(`  ${cli.config.srcDir}/guards/${lowerName}.guard.js`);
     console.log(
-      cyan(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations for '${capitalizedName}'.`),
+      `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove imports/registrations for '${capitalizedName}'.`,
     );
-    console.log(cyan('🧪 [Dry Run] No files were deleted or modified.'));
+    console.log('🧪 [Dry Run] No files were deleted or modified.');
     return;
   }
 
   if (fs.existsSync(guardPath)) {
     fs.rmSync(guardPath, { force: true });
-    console.log(
-      green(`✅ Guard '${capitalizedName}' file deleted at ${cli.config.srcDir}/guards/${lowerName}.guard.js`),
-    );
+    console.log(`✅ Guard '${capitalizedName}' file deleted at ${cli.config.srcDir}/guards/${lowerName}.guard.js`);
   } else {
-    console.log(gray(`ℹ️ Guard '${capitalizedName}' file was not found.`));
+    console.log(`ℹ️ Guard '${capitalizedName}' file was not found.`);
   }
 
   unregisterFromMainApp(cli, capitalizedName, lowerName);
