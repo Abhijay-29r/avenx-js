@@ -323,28 +323,60 @@ Pass an object whose **truthy** keys become class names (quote keys that are not
 
 ## 7. Loops (`<@for>`)
 
-Render arrays using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM list updates:
+Render lists, objects, sets, maps, or numeric ranges using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM updates:
 
 ```html
 <@for item in state.todos key="item.id">
-    <li class="todo-item">{{ item.text }}</li>
+  <li>{{ item.title }}</li>
 </@for>
 ```
 
-### The implicit `index` variable
+### Supported Data Sources
 
-In addition to your item variable, every `<@for>` loop automatically injects a zero-indexed `index` variable into the template scope. You don't need to declare it — `ListManager` adds it for you on each iteration — so it's available anywhere inside the loop body, for example to number items or apply alternating styles:
+The `<@for>` loop can iterate over various sources:
+
+1. **Arrays**: Iterates over array elements.
+2. **Objects**: Iterates over the object's enumerable properties (entries). Use destructuring syntax to get `[key, value]`:
+   ```html
+   <@for [key, value] in state.settings key="key">
+     <li>{{ key }}: {{ value }}</li>
+   </@for>
+   ```
+3. **Maps and Sets**: Iterates in insertion order. For maps, destructuring works just like objects: `[key, value]`.
+4. **Numeric Ranges**: Iterates `N` times from `0` to `N-1`.
+   ```html
+   <!-- Renders 0, 1, 2, 3, 4 -->
+   <@for n in 5 key="n">
+     <li>Item #{{ n }}</li>
+   </@for>
+   ```
+
+### The Implicit `index` Variable
+
+In addition to your item variable, every `<@for>` loop automatically injects a zero-indexed `index` variable into the template scope. You don't need to declare it — `ListManager` adds it for you on each iteration:
 
 ```html
 <@for item in state.todos key="item.id">
-    <li class="todo-item">
-      <span class="index">{{ index + 1 }}</span>
-      {{ item.text }}
-    </li>
+  <li class="{{ index % 2 === 0 ? 'even' : 'odd' }}">
+    {{ index + 1 }}. {{ item.title }}
+  </li>
 </@for>
 ```
 
-> **Note:** `index` starts at `0`. Add `1` (as shown above) if you want a human-readable, 1-based count.
+### Empty States (`<@empty>`)
+
+When the iterable source is empty (e.g. `[]`, `{}`, or `0`), you can display a fallback block using the `<@empty>` tag inside the loop:
+
+```html
+<@for item in state.todos key="item.id">
+  <li>{{ item.title }}</li>
+  <@empty>
+    <li class="empty-state">No todos left!</li>
+  </@empty>
+</@for>
+```
+
+### Keys (`key="..."`)
 
 ## 8. Slots & Transclusion
 
