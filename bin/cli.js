@@ -223,6 +223,12 @@ export class AvenxCLI {
         });
         break;
       case 'help':
+      case 'explain': {
+        const asJson = args.includes('--json');
+        const codeArg = args.find((a) => !a.startsWith('-'));
+        explainDiagnostic(this, codeArg, asJson);
+        break;
+      }
       default:
         printHelp();
         break;
