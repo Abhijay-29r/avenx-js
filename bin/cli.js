@@ -10,6 +10,7 @@ import { buildProject, cleanProject, checkProject } from './commands/build.js';
 import { serveProject, watchProject } from './commands/serve.js';
 import { printHelp } from './commands/help.js';
 import { runDoctor } from './commands/doctor.js';
+import { explainDiagnostic } from './commands/explain.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,6 +157,12 @@ export class AvenxCLI {
         });
         break;
       case 'help':
+      case 'explain': {
+        const asJson = args.includes('--json');
+        const codeArg = args.find((a) => !a.startsWith('-'));
+        explainDiagnostic(this, codeArg, asJson);
+        break;
+      }
       default:
         printHelp();
         break;

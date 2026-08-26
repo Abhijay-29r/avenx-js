@@ -23,8 +23,9 @@ ${bold(cyan('Commands:'))}
   ${green('check (lint)')}              ${gray('Validate templates without building')}
   ${green('doctor')}                    ${gray('Diagnose environment, config, and project health')}
   ${green('env')}                       ${gray('Print and validate active environment variables')}
+  ${green('explain <CODE>')}            ${gray('Explain a compiler/runtime error or warning code')}
   ${green('inspect (i)')}               ${gray('Inspect project route and component hierarchy')}
-  ${green('stats (s)')}                ${gray('Display component & bundle footprint metrics')}
+  ${green('stats (s)')}                 ${gray('Display component & bundle footprint metrics')}
   ${green('serve [port]')}              ${gray('Start dev server with hot-reload (default: 3000)')}
   ${green('watch (w)')}                 ${gray('Watch for file changes and rebuild automatically')}
   ${green('help')}                      ${gray('Show this help message')}
@@ -33,6 +34,8 @@ ${bold(cyan('Options:'))}
   ${green('--dev')}                     ${gray('Build for development: readable runtime, inline CSS source maps')}
   ${green('--prod')}                    ${gray('Build for production (the default for "build")')}
   ${green('--dry-run, -d')}             ${gray('Preview actions without writing or deleting any files')}
+  ${green('--with-test')}               ${gray('Generate a colocated unit test file alongside the component')}
+  ${green('--no-test')}                 ${gray('Skip generating unit test files')}
   ${green('--template, -t <name>')}     ${gray('Use a custom scaffold template for code generation')}
   ${green('--json, -j')}                ${gray('Output check/lint validation diagnostics in JSON format')}
   ${green('--watch, -w')}               ${gray('Watch project component files for continuous template linting')}
