@@ -54,7 +54,6 @@ export default defineConfig({
 					],
 				},
 
-
 				{
 					label: 'CLI Reference',
 					items: [
@@ -107,10 +106,10 @@ export default defineConfig({
 					],
 				},
 				{
-  					label: 'Contributing',
-  					items: [
-    					{ label: 'Architecture Guide', slug: 'contributing/architecture' }
-  					]
+					label: 'Contributing',
+					items: [
+						{ label: 'Architecture Guide', slug: 'contributing/architecture' },
+					],
 				},
 			],
 		}),
