@@ -3,7 +3,7 @@ title: 'CLI Commands'
 description: 'Explore the command-line interface of Avenx-JS to create, compile, run, and watch projects.'
 ---
 
-The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, project architecture inspection, template validation, and environment health diagnostics.
+The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, project architecture inspection, template validation, environment health diagnostics, and environment inspection/configuration.
 
 ## Command Syntax
 
@@ -503,6 +503,8 @@ Analyzes the project's source files and reports component, page, bridge, and gua
 ```bash
 npx avenx stats [options]
 npx avenx s [options]
+```
+
 #### Options
 
 | Flag / Option | Alias | Description |
@@ -555,3 +557,98 @@ The template reduction percentage is calculated as:
 
 ```text
 ((Raw Template Payload - Compiled Template Payload) / Raw Template Payload) × 100
+```
+
+---
+
+### 13. `avenx env`
+
+Inspects the project's environment variables and reports active configuration, separating public variables (which are inlined into the build) from system variables (which are kept private and masked).
+
+#### Command Syntax
+
+```bash
+npx avenx env
+```
+
+#### Options
+
+The command accepts **no flags or aliases** and does not support structured/machine-readable (`--json`) output.
+
+#### How It Resolves Configuration
+
+The command scans the project root directory and reads configuration files through the following mechanism:
+1. It loads local environment variables from the `.env` file using the `loadEnv()` helper against the resolved project root (does not overwrite existing environment variables in `process.env`).
+2. It separately parses the project's `.env` file using `parseEnv()` to identify local keys.
+3. It compares keys in `.env` with keys in `process.env` to classify each variable as public or private/system.
+
+#### Output Groups
+
+The command organizes variables and file statuses into three distinct groups:
+
+##### 1. Source Files
+Reports the path and parsing status of the project's `.env` file:
+* **Successful read**: Displays the absolute path of the `.env` file prefixed with a green checkmark (`✔`).
+* **Missing file**: Prints a warning prefixed with a yellow warning symbol (`⚠ No .env file found (only process env AVX_PUBLIC_* shown)`).
+* **Unparseable/Invalid file**: Displays an error prefixed with a yellow cross (`✖ Failed to read <absolute-path-to-.env>: <error-message>`) and sets a non-zero exit code (`1`).
+
+##### 2. Public Variables
+Lists variables prefixed with `AVX_PUBLIC_`.
+* **Source**: Collected from all keys in `process.env` (system environment) and keys in the project's `.env` file. Sorted alphabetically.
+* **Display**: Values are displayed in full and unmasked.
+* **Notes**:
+  * `inlined` (gray): Indicates the variable contains a non-empty string and will be stringified and inlined into build outputs.
+  * `empty` (yellow): Indicates the variable is empty (`""`).
+
+##### 3. System Variables
+Lists private or non-public variables.
+* **Source**: Collected **only** from the project's local `.env` file (keys not starting with `AVX_PUBLIC_`). Shell environment variables present in `process.env` but absent from `.env` are excluded from this list. Sorted alphabetically.
+* **Display**: Values are masked for security.
+
+#### Security Boundary & Best Practices
+
+Avenx enforces a strict build-time security boundary for environment variables:
+* Only variables prefixed with `AVX_PUBLIC_` are exposed to client-side compiled outputs. The compiler replaces occurrences of `process.env.AVX_PUBLIC_<KEY>` in code with their stringified value.
+* Any other variables (e.g. database credentials, server API keys) placed in the `.env` file are kept private. They are **not** replaced in code or bundled into compiled assets.
+* Developers should run `avenx env` to verify that no sensitive credentials have been accidentally prefixed with `AVX_PUBLIC_`.
+
+#### Secret Masking Rules
+
+For private system variables, Avenx masks the values using a deterministic `maskSecret()` rule:
+* **Short Values (4 characters or fewer, including empty values)**: The value is completely replaced with asterisks (`*`), with a minimum of 4 asterisks (e.g., an empty value or `key` is displayed as `****`).
+* **Long Values (more than 4 characters)**: The first 4 characters are preserved in plaintext, and the remaining characters are replaced by asterisks up to a maximum of 8. The total output length will be `4 + Math.min(8, value.length - 4)`, resulting in a maximum total output length of 12 characters.
+
+| Original Value | Masked Output | Description |
+| :--- | :--- | :--- |
+| `""` (empty) | `****` | Length 0, replaced by 4 asterisks. |
+| `key` | `****` | Length 3, replaced by 4 asterisks. |
+| `pass` | `****` | Length 4, replaced by 4 asterisks. |
+| `hello` | `hell*` | Length 5. First 4 characters preserved (`hell`), remaining 1 masked (`*`). |
+| `secret` | `secr**` | Length 6. First 4 characters preserved (`secr`), remaining 2 masked (`**`). |
+| `my_very_long_password` | `my_v********` | Length 21. First 4 characters preserved (`my_v`), remaining 17 masked (capped at 8 asterisks). |
+
+#### Exit Codes
+
+* **`0`**: Normal execution (even if `.env` is missing).
+* **`1`**: A `.env` file exists but failed to parse (e.g. contains syntax errors). If a parsing error occurs, the command sets `process.exitCode = 1` and continues executing to display any available environment details. This behavior is useful in CI pipelines to automatically fail builds if a configuration file is malformed.
+
+#### Sample Output
+
+```text
+Avenx Environment
+Project: /path/to/avenx-js
+
+Source Files
+  ✔ /path/to/avenx-js/.env
+
+Public Variables (AVX_PUBLIC_* — inlined at build time)
+  Key                          Value                    Notes
+  AVX_PUBLIC_API_URL           https://api.example.com  inlined
+  AVX_PUBLIC_APP_NAME                                   empty
+  AVX_PUBLIC_EXTERNAL_VAR      external_val             inlined
+
+System Variables (from .env — values masked)
+  Key                          Value
+  API_KEY                      ****
+  DB_PASSWORD                  secr********
+```
