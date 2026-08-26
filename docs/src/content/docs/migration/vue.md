@@ -95,16 +95,21 @@ Note the three changes that matter:
 
 ### Loops: `v-for` → `<@for>`
 
-Vue's `v-for` is an element directive; Avenx's `<@for>` is a **compiler tag** that wraps the repeated block. Loop blocks are translated to `<template>` tags and managed by the `ListManager` for efficient DOM list updates.
+Vue's `v-for` is an element directive; Avenx's `<@for>` is a **compiler tag** that wraps the repeated block. Loop blocks are translated to `<template>` tags and managed by the `ListManager` for efficient DOM list updates. Avenx also supports Map, Set, and Object iteration via destructuring, and fallback blocks via `<@empty>` (which replaces Vue's `v-if="items.length"` empty-state pattern).
 
 #### Before — Vue `v-for`
 
 ```html
-<ul>
+<ul v-if="items.length">
   <li v-for="(item, idx) in items" :key="item.id">
     <span>{{ idx + 1 }}. {{ item.name }}</span>
   </li>
 </ul>
+<p v-else>No items found.</p>
+
+<div v-for="(value, key) in myObject">
+  {{ key }}: {{ value }}
+</div>
 ```
 
 #### After — Avenx `<@for>`
@@ -115,8 +120,15 @@ Vue's `v-for` is an element directive; Avenx's `<@for>` is a **compiler tag** th
     <li>
       <span>{{ index + 1 }}. {{ item.name }}</span>
     </li>
+    <@empty>
+      <p>No items found.</p>
+    </@empty>
   </@for>
 </ul>
+
+<@for [key, value] in state.myObject key="key">
+  <div>{{ key }}: {{ value }}</div>
+</@for>
 ```
 
 ### The Implicit `index` Variable
@@ -130,7 +142,7 @@ Every `<@for>` loop automatically injects a **zero-indexed `index` variable** in
 ```
 
 :::caution
-Do **not** write `(item, index) in list` inside `<@for>` like you would in Vue. `<@for>` takes exactly one item variable; the index is implicit and starts at `0`, so add `1` (as above) for a human-readable 1-based count.
+Do **not** write `(item, index) in list` inside `<@for>` like you would in Vue. `<@for>` takes exactly one item variable (or a `[key, value]` pair for objects/maps); the index is implicit and starts at `0`, so add `1` (as above) for a human-readable 1-based count.
 :::
 
 ### Slots: Default and Named
