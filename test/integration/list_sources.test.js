@@ -2,7 +2,6 @@ import assert from 'assert';
 import { Window } from 'happy-dom';
 import { ListManager } from '../../lib/core/renderer/listManager.js';
 import { logger } from '../../lib/core/runtime/AvenxLogger.js';
-import { DomPatcher } from '../../lib/core/renderer/domPatch.js';
 
 (async function runTests() {
   console.log('🏃 Running List Sources Tests (using happy-dom)...');
@@ -90,7 +89,7 @@ import { DomPatcher } from '../../lib/core/renderer/domPatch.js';
     template.innerHTML = '<li>{%item%}</li>';
     listContainer.appendChild(template);
 
-    let emptyTemplate = document.createElement('template');
+    const emptyTemplate = document.createElement('template');
     emptyTemplate.setAttribute('data-ax-empty', '');
     emptyTemplate.innerHTML = '<li class="empty">Empty</li>';
     listContainer.appendChild(emptyTemplate);
