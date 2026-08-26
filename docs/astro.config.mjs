@@ -54,7 +54,6 @@ export default defineConfig({
 					],
 				},
 
-
 				{
 					label: 'CLI Reference',
 					items: [
@@ -104,6 +103,12 @@ export default defineConfig({
 					label: 'Best Practices',
 					items: [
 						{ label: 'Best Practices', slug: 'best-practices/guide' },
+					],
+				},
+				{
+					label: 'Contributing',
+					items: [
+						{ label: 'Architecture Guide', slug: 'contributing/architecture' },
 					],
 				},
 			],
