@@ -14,7 +14,7 @@ Before creating a contribution, please:
 
 ## Architecture & Codebase Overview
 
-Before contributing to the compiler, runtime, or CLI, please read the [Contributor Architecture Guide](docs/src/content/docs/contributing/architecture.md) for an in-depth map of the compile pipeline, runtime data flow, and test tiers.
+Before contributing to the compiler, runtime, or CLI, please read the [Contributor Architecture Guide](https://docs.avenx-js.com/contributing/architecture/) for an in-depth map of the compile pipeline, runtime data flow, and test tiers.
 
 ## Ways to Contribute
 
