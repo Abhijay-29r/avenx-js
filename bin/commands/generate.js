@@ -3,6 +3,22 @@ import path from 'path';
 import { parseName, readTemplate, abortIfGeneratedPathExists, fail } from '../utils.js';
 
 /**
+ * Checks if test generation is enabled via CLI flag or avenx config.
+ * @param {object} cli
+ * @param {boolean} [withTestFlag]
+ * @param {boolean} [noTestFlag]
+ * @returns {boolean}
+ */
+function shouldGenerateTest(cli, withTestFlag, noTestFlag) {
+  if (noTestFlag) return false;
+  if (withTestFlag) return true;
+  if (cli?.config?.generate && typeof cli.config.generate.withTests === 'boolean') {
+    return cli.config.generate.withTests;
+  }
+  return false;
+}
+
+/**
  * Automatically adds import and registration for a component in src/main.app.js.
  * @param {object} cli
  * @param {string} className
@@ -187,18 +203,25 @@ export function generatePage(cli, name, dryRun = false) {
  * @param {object} cli
  * @param {string} name
  * @param {boolean} [dryRun]
+ * @param {boolean} [withTest]
+ * @param {boolean} [noTest]
  */
-export function generateComponent(cli, name, dryRun = false) {
+export function generateComponent(cli, name, dryRun = false, withTest = false, noTest = false) {
   if (!name) {
     fail('Please provide a component name (e.g., avenx g my-component)');
     return;
   }
 
   const { capitalizedName, folderFileName: lowerName } = parseName(name);
-
   const compDir = path.join(cli.baseDir, cli.config.srcDir, 'components', lowerName);
+  const willGenerateTest = shouldGenerateTest(cli, withTest, noTest);
 
-  if (abortIfGeneratedPathExists(cli.baseDir, 'Component', lowerName, [compDir])) {
+  const jsPath = path.join(compDir, `${lowerName}.component.js`);
+  const cssPath = path.join(compDir, `${lowerName}.component.css`);
+  const testPath = path.join(compDir, `${lowerName}.component.test.js`);
+
+  const pathsToCheck = [compDir];
+  if (abortIfGeneratedPathExists(cli.baseDir, 'Component', lowerName, pathsToCheck)) {
     return;
   }
 
@@ -206,6 +229,9 @@ export function generateComponent(cli, name, dryRun = false) {
     console.log(`🧪 [Dry Run] Component '${lowerName}' would be created at:`);
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`);
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`);
+    if (willGenerateTest) {
+      console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.test.js`);
+    }
     console.log(`🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated with:`);
     console.log(`  import ${capitalizedName} from './components/${lowerName}/${lowerName}.component.js';`);
     console.log(`  app.register('${capitalizedName}', ${capitalizedName});`);
@@ -219,10 +245,20 @@ export function generateComponent(cli, name, dryRun = false) {
   const cssTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'component', 'component.css.template');
 
   fs.writeFileSync(
-    path.join(compDir, `${lowerName}.component.js`),
+    jsPath,
     jsTemplate.replace(/{{ name }}/g, capitalizedName),
   );
-  fs.writeFileSync(path.join(compDir, `${lowerName}.component.css`), cssTemplate);
+  fs.writeFileSync(cssPath, cssTemplate);
+
+  if (willGenerateTest) {
+    const testTemplate = readTemplate(cli.baseDir, cli.config, cli.frameworkDir, 'component', 'component.test.js.template');
+    fs.writeFileSync(
+      testPath,
+      testTemplate
+        .replace(/{{PascalCaseName}}/g, capitalizedName)
+        .replace(/{{name}}/g, lowerName)
+    );
+  }
 
   console.log(`✅ Component '${lowerName}' generated at ${cli.config.srcDir}/components/${lowerName}/`);
   registerInMainApp(cli, capitalizedName, lowerName);

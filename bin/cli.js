@@ -39,7 +39,18 @@ export class AvenxCLI {
   async run(command, args = []) {
     const dryRun = args.includes('--dry-run') || args.includes('-d');
     const force = args.includes('--force') || args.includes('-f');
-    const filteredArgs = args.filter((arg) => arg !== '--dry-run' && arg !== '-d');
+    const withTest = args.includes('--with-test');
+    const noTest = args.includes('--no-test');
+
+    const filteredArgs = args.filter(
+      (arg) =>
+        arg !== '--dry-run' &&
+        arg !== '-d' &&
+        arg !== '--force' &&
+        arg !== '-f' &&
+        arg !== '--with-test' &&
+        arg !== '--no-test'
+    );
     const type = filteredArgs[0];
     const name = filteredArgs[1];
 
@@ -69,10 +80,10 @@ export class AvenxCLI {
         } else if (type === 'page' || type === 'p') {
           generatePage(this, name, dryRun);
         } else if (type === 'component' || type === 'c') {
-          generateComponent(this, name, dryRun);
+          generateComponent(this, name, dryRun, withTest, noTest);
         } else {
           // Default to component if type is not specified (e.g., `avenx g MyButton`)
-          generateComponent(this, type, dryRun);
+          generateComponent(this, type, dryRun, withTest, noTest);
         }
         break;
       case 'destroy':

@@ -76,11 +76,17 @@ export function destroyComponent(cli, name, dryRun = false) {
 
   const { capitalizedName, folderFileName: lowerName } = parseName(name);
   const compDir = path.join(cli.baseDir, cli.config.srcDir, 'components', lowerName);
+  const jsPath = path.join(compDir, `${lowerName}.component.js`);
+  const cssPath = path.join(compDir, `${lowerName}.component.css`);
+  const testPath = path.join(compDir, `${lowerName}.component.test.js`);
 
   if (dryRun) {
     console.log(`🧪 [Dry Run] Component '${lowerName}' files would be deleted:`);
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.js`);
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.css`);
+    if (fs.existsSync(testPath)) {
+      console.log(`  ${cli.config.srcDir}/components/${lowerName}/${lowerName}.component.test.js`);
+    }
     console.log(`  ${cli.config.srcDir}/components/${lowerName}/`);
     console.log(
       `🧪 [Dry Run] ${cli.config.srcDir}/main.app.js would be updated to remove registrations/imports for '${capitalizedName}'.`,
