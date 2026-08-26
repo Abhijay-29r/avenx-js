@@ -12,6 +12,10 @@ Before creating a contribution, please:
 - Open an issue for larger changes or new features before implementing them.
 - Ensure your proposal aligns with the goals of Avenx.js.
 
+## Architecture & Codebase Overview
+
+Before contributing to the compiler, runtime, or CLI, please read the [Contributor Architecture Guide](docs/src/content/docs/contributing/architecture.md) for an in-depth map of the compile pipeline, runtime data flow, and test tiers.
+
 ## Ways to Contribute
 
 You can contribute in several ways:
