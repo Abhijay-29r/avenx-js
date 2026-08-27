@@ -7,6 +7,7 @@ import { generateTest, suggestName } from '../../lib/core/trace/exportTest.js';
 import { findContractViolations, formatViolation } from '../../lib/core/trace/contracts.js';
 import { Determinism, TraceNodeType } from '../../lib/core/trace/schema.js';
 import { annotateTrace, sidecarFileName } from '../../lib/compiler/sourceMapTrace.js';
+import { bridgeDependencies } from '../../lib/core/tooling/loadComponent.js';
 
 /**
  * Loads the build's source-location sidecar, when one has been produced.
@@ -258,10 +259,28 @@ export function traceExport(cli, id, args = []) {
     ? `./${path.relative(outDir, componentSource).split(path.sep).join('/')}`
     : null;
 
+  // A component that imports a bridge needs the real bridge instance handed to
+  // it, so the generated test imports the bridge module directly. The sidecar
+  // knows where each bridge lives.
+  const bridges = [];
+  if (componentSource) {
+    for (const bridgeName of bridgeDependencies(componentSource)) {
+      const entry = sidecar && sidecar.bridges && sidecar.bridges[bridgeName];
+      const bridgeFile = entry ? path.join(cli.baseDir, entry.file) : null;
+      if (bridgeFile && fs.existsSync(bridgeFile)) {
+        bridges.push({
+          name: bridgeName,
+          path: `./${path.relative(outDir, bridgeFile).split(path.sep).join('/')}`,
+        });
+      }
+    }
+  }
+
   const source = generateTest(trace, {
     tracePath: `./${traceFileName}`,
     componentPath,
     componentName,
+    bridges,
     title: `${componentName ? `${componentName}: ` : ''}${suggestName(trace)}`,
   });
 

@@ -83,11 +83,13 @@ try {
 
   // --- The sidecar document -------------------------------------------------
 
+  // Keyed by absolute path, the way AvenxCompiler holds bridge descriptors, to
+  // confirm the sidecar keys by the bridge's own name instead.
   const sidecar = buildSidecar(
     parser.locations,
     new Map([
       [
-        'cart',
+        path.join(workDir, 'src/bridges/cart.bridge.js'),
         {
           name: 'cart',
           filePath: path.join(workDir, 'src/bridges/cart.bridge.js'),
@@ -102,7 +104,12 @@ try {
 
   assert.strictEqual(sidecar.traceVersion, TRACE_VERSION, 'the sidecar is versioned alongside the trace format');
   assert.ok(sidecar.components.CartItem, 'components are included');
-  assert.strictEqual(sidecar.bridges.cart.file, 'src/bridges/cart.bridge.js', 'bridges are included');
+  assert.strictEqual(
+    sidecar.bridges.cart.file,
+    'src/bridges/cart.bridge.js',
+    'bridges are keyed by name, not by the absolute path the compiler keys them by',
+  );
+  assert.deepStrictEqual(Object.keys(sidecar.bridges), ['cart'], 'no absolute paths leak into the sidecar');
   assert.deepStrictEqual(sidecar.bridges.cart.actions, ['addQty']);
   assert.strictEqual(sidecarFileName('bundle'), 'bundle.trace.json');
   assert.strictEqual(sidecarFileName('app'), 'app.trace.json');
