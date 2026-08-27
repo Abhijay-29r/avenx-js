@@ -36,8 +36,12 @@ assert.strictEqual(validateTrace({ traceVersion: 1 }).ok, false, 'nodes must be 
 // 3. Node types and classification
 assert.ok(ROOT_TYPES.has(TraceNodeType.EVENT), 'events start causal chains');
 assert.ok(!ROOT_TYPES.has(TraceNodeType.WRITE), 'writes never start a chain');
-assert.ok(INPUT_TYPES.has(TraceNodeType.GLOBAL), 'recorded globals are replay inputs');
+assert.ok(INPUT_TYPES.has(TraceNodeType.RESOURCE), 'recorded resource settlements are replay inputs');
 assert.ok(!INPUT_TYPES.has(TraceNodeType.DOM), 'DOM patches are observations, never driven');
+assert.ok(
+  !INPUT_TYPES.has(TraceNodeType.GLOBAL),
+  'recorded globals travel in the compact globals log, not as driven nodes',
+);
 
 // 4. Every non-determinism reason is explainable to a human
 for (const reason of Object.values(NonDeterminismReason)) {
