@@ -91,8 +91,14 @@ try {
                 const app = new AvenxApp({ target: '#app' });
             `,
       registrations: "app.registerPage('Home', Home);",
-      expectedContains: ["const app = new AvenxApp({ target: '#app' });", "app.registerPage('Home', Home);"],
-      expectedNotContains: ['import {', 'AvenxComponent', '} from'],
+      // A runtime import is rewritten, not deleted: the names it asked for are
+      // bound from the Avenx namespace so they do not depend on bare globals.
+      expectedContains: [
+        'const { AvenxApp, AvenxComponent } = Avenx;',
+        "const app = new AvenxApp({ target: '#app' });",
+        "app.registerPage('Home', Home);",
+      ],
+      expectedNotContains: ['import {', '} from'],
     },
     {
       name: 'CSS-only / side-effect import',
@@ -206,8 +212,11 @@ try {
   pagesCompiler.srcDir = tempPagesDir;
 
   const pagesResult = pagesCompiler.processPages();
+  // The template is emitted as a JSON string literal, so its inner quotes are
+  // backslash-escaped in the generated source. Match either encoding so this
+  // asserts the tag transformation rather than the literal's quoting style.
   assert.ok(
-    pagesResult.pagesJs.includes('<div data-avenx-comp="MyCard"></div>'),
+    /<div data-avenx-comp=\\?"MyCard\\?"><\/div>/.test(pagesResult.pagesJs),
     'Self-closing component tag should be converted to a standard component element'
   );
 

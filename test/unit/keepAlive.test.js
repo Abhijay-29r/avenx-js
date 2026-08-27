@@ -210,10 +210,146 @@ async function testSameClassReuse() {
   console.log('  ✅ Same-Class Page reuse tests passed!');
 }
 
+async function testClearKeepAliveCacheSpecific() {
+  console.log('🧪 Testing app.clearKeepAliveCache(componentName)...');
+
+  const container = global.document.createElement('div');
+  container.id = 'app';
+  global.document.body.appendChild(container);
+
+  activeHistory = [];
+
+  const app = new AvenxApp({ target: '#app', keepAliveLimit: 5 });
+  app.registerPage('PageA', PageA);
+  app.registerPage('PageB', PageB);
+  app.registerPage('PageC', PageC);
+
+  // Mount PageA with keepAlive
+  app.mountPage('PageA', {}, { keepAlive: true });
+  // Mount PageB with keepAlive (caches PageA)
+  app.mountPage('PageB', {}, { keepAlive: true });
+
+  activeHistory = [];
+
+  // Clear specific page 'PageA' from cache
+  app.clearKeepAliveCache('PageA');
+
+  // PageA's onUnmount should be triggered
+  const hasPageAUnmounted = activeHistory.some((h) => h.page === 'A' && h.action === 'unmount');
+  assert.strictEqual(hasPageAUnmounted, true, 'PageA should be unmounted when cleared from keep-alive cache');
+
+  // Mount PageA again - should create a fresh instance (not restored)
+  activeHistory = [];
+  app.mountPage('PageA', {}, { keepAlive: true });
+
+  const hasPageAMountedFresh = activeHistory.some((h) => h.page === 'A' && h.action === 'mount');
+  assert.strictEqual(hasPageAMountedFresh, true, 'PageA should be freshly mounted after invalidation');
+
+  global.document.body.removeChild(container);
+  console.log('  ✅ app.clearKeepAliveCache(componentName) test passed!');
+}
+
+async function testClearKeepAliveCacheAll() {
+  console.log('🧪 Testing app.clearKeepAliveCache() purging all entries...');
+
+  const container = global.document.createElement('div');
+  container.id = 'app';
+  global.document.body.appendChild(container);
+
+  activeHistory = [];
+
+  const app = new AvenxApp({ target: '#app', keepAliveLimit: 5 });
+  app.registerPage('PageA', PageA);
+  app.registerPage('PageB', PageB);
+  app.registerPage('PageC', PageC);
+
+  // Mount PageA, PageB (PageA cached)
+  app.mountPage('PageA', {}, { keepAlive: true });
+  app.mountPage('PageB', {}, { keepAlive: true });
+
+  activeHistory = [];
+
+  // Clear all keep-alive entries
+  app.clearKeepAliveCache();
+
+  const hasPageAUnmounted = activeHistory.some((h) => h.page === 'A' && h.action === 'unmount');
+  assert.strictEqual(hasPageAUnmounted, true, 'PageA should be unmounted when purging all cache');
+
+  global.document.body.removeChild(container);
+  console.log('  ✅ app.clearKeepAliveCache() all entries test passed!');
+}
+
+async function testComponentKeepAliveClear() {
+  console.log('🧪 Testing this.$keepAlive.clear() from component instance...');
+
+  const container = global.document.createElement('div');
+  container.id = 'app';
+  global.document.body.appendChild(container);
+
+  activeHistory = [];
+
+  const app = new AvenxApp({ target: '#app', keepAliveLimit: 5 });
+  app.registerPage('PageA', PageA);
+  app.registerPage('PageB', PageB);
+
+  app.mountPage('PageA', {}, { keepAlive: true });
+  app.mountPage('PageB', {}, { keepAlive: true });
+
+  const activeComp = container.__avenx_comp_instance;
+  assert.ok(activeComp);
+  assert.ok(activeComp.$keepAlive);
+  assert.strictEqual(typeof activeComp.$keepAlive.clear, 'function');
+
+  activeHistory = [];
+  const res = activeComp.$keepAlive.clear('PageA');
+  assert.strictEqual(res, true, 'this.$keepAlive.clear should return true when cache entry evicted');
+
+  const hasPageAUnmounted = activeHistory.some((h) => h.page === 'A' && h.action === 'unmount');
+  assert.strictEqual(hasPageAUnmounted, true, 'this.$keepAlive.clear should trigger unmount of cached component');
+
+  global.document.body.removeChild(container);
+  console.log('  ✅ this.$keepAlive.clear() test passed!');
+}
+
+async function testComponentDirectClearKeepAliveCache() {
+  console.log('🧪 Testing this.clearKeepAliveCache() helper method on component instance...');
+
+  const container = global.document.createElement('div');
+  container.id = 'app';
+  global.document.body.appendChild(container);
+
+  activeHistory = [];
+
+  const app = new AvenxApp({ target: '#app', keepAliveLimit: 5 });
+  app.registerPage('PageA', PageA);
+  app.registerPage('PageB', PageB);
+
+  app.mountPage('PageA', {}, { keepAlive: true });
+  app.mountPage('PageB', {}, { keepAlive: true });
+
+  const activeComp = container.__avenx_comp_instance;
+  assert.ok(activeComp);
+  assert.strictEqual(typeof activeComp.clearKeepAliveCache, 'function');
+
+  activeHistory = [];
+  const evicted = activeComp.clearKeepAliveCache('PageA');
+  assert.strictEqual(evicted, true, 'this.clearKeepAliveCache should return true when cache entry evicted');
+
+  const hasPageAUnmounted = activeHistory.some((h) => h.page === 'A' && h.action === 'unmount');
+  assert.strictEqual(hasPageAUnmounted, true, 'this.clearKeepAliveCache should trigger unmount of cached component');
+
+  global.document.body.removeChild(container);
+  console.log('  ✅ this.clearKeepAliveCache() test passed!');
+}
+
 try {
   await testKeepAliveBasic();
   await testKeepAliveEviction();
   await testSameClassReuse();
+  await testClearKeepAliveCacheSpecific();
+  await testClearKeepAliveCacheAll();
+  await testComponentKeepAliveClear();
+  await testComponentDirectClearKeepAliveCache();
   console.log('✅ All Keep-Alive integration tests successfully completed!');
 } catch (error) {
   console.error('❌ Keep-Alive integration tests failed!');

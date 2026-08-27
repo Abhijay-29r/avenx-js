@@ -12,6 +12,10 @@ Before creating a contribution, please:
 - Open an issue for larger changes or new features before implementing them.
 - Ensure your proposal aligns with the goals of Avenx.js.
 
+## Architecture & Codebase Overview
+
+Before contributing to the compiler, runtime, or CLI, please read the [Contributor Architecture Guide](https://docs.avenx-js.com/contributing/architecture/) for an in-depth map of the compile pipeline, runtime data flow, and test tiers.
+
 ## Ways to Contribute
 
 You can contribute in several ways:
@@ -52,6 +56,19 @@ npm test
 ```
 
 Make sure all tests pass successfully.
+
+## Contributing to the Documentation
+
+The documentation site lives in `docs/` and is a separate npm project with its own dependencies — it is **not** installed by running `npm install` at the repo root.
+
+```bash
+cd docs
+npm ci
+npm run dev      # local dev server at localhost:4321
+npm run build    # production build — run this before opening a docs PR
+```
+
+See [`docs/README.md`](docs/README.md) for the full guide: where page content lives, the required frontmatter, how to add and register a new page in the sidebar, and house style conventions.
 
 ## Pull Request Process
 

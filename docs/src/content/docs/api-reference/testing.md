@@ -30,7 +30,7 @@ Creates a deep proxy around a bridge class or object, tracking method calls and 
 **Example**
 
 ```javascript
-import { AvenxMock } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
 import AuthBridge from '../src/global/auth.bridge.js';
 
 const mockAuth = AvenxMock.createMockBridge(AuthBridge, { isLoggedIn: false });
@@ -54,7 +54,7 @@ Creates and returns a new `AvenxSandbox` instance for mounting components in iso
 - `AvenxSandbox`: A new sandbox instance.
 
 ```javascript
-import { AvenxMock } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
 
 const sandbox = AvenxMock.createSandbox();
 ```
@@ -76,10 +76,37 @@ Dispatches an event on a DOM element (or a mock element), for simulating user in
 - Otherwise, falls back to manually walking up `parentNode` and invoking matching `listeners[eventName]` handlers, respecting `stopPropagation()`.
 
 ```javascript
-import { AvenxMock } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
 
 AvenxMock.trigger(buttonElement, 'click');
 ```
+
+### `AvenxMock.triggerEvent(target, eventName, detailOrOptions)`
+
+Dispatches native or synthetic DOM events with full support for input values and keyboard/mouse options.
+
+```javascript
+import { AvenxMock } from 'avenx-core/testing';
+
+AvenxMock.triggerEvent(inputElement, 'input', { value: 'test@example.com' });
+```
+
+### `AvenxMock.createMockRouter(options)`
+
+Creates and attaches an isolated in-memory router to `window.__avenx_routers` for testing components that access route parameters or perform navigation.
+
+```javascript
+import { AvenxMock } from 'avenx-core/testing';
+
+const router = AvenxMock.createMockRouter({
+  hash: '#/users/42?tab=settings',
+  page: 'UserProfile',
+  params: { id: '42' },
+  queryParams: { tab: 'settings' }
+});
+```
+
+---
 
 ## `AvenxSandbox`
 
@@ -130,7 +157,7 @@ Mocks the current active router state, allowing components and pages that depend
 **Example: Testing a Route-Dependent Component**
 
 ```javascript
-import { AvenxMock } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
 import UserProfilePage from '../src/pages/user-profile.page.js';
 
 const sandbox = AvenxMock.createSandbox();
@@ -189,7 +216,7 @@ Mounts a component (or page) class in isolation using the sandbox's registered b
 **Example**
 
 ```javascript
-import { AvenxMock } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
 import Counter from '../src/components/counter/counter.component.js';
 
 const sandbox = AvenxMock.createSandbox();
@@ -209,7 +236,7 @@ console.log(wrapper.html);
 ### Full Example: Testing a Component with a Mocked Bridge
 
 ```javascript
-import { AvenxMock } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
 import ProfileCard from '../src/components/profile-card/profile-card.component.js';
 import UserBridge from '../src/global/user.bridge.js';
 
@@ -230,6 +257,110 @@ console.log(wrapper.html);
 // Re-renders reflecting the updated mock state
 console.log(mockUserBridge.$stateChanges);
 // [{ prop: 'name', value: 'Grace' }]
+```
+
+---
+
+## Component Unit Testing Helpers
+
+Avenx-JS exports its testing helpers (`AvenxMock`, `AvenxSandbox`, `mountTestComponent`, `fireEvent`, `flushPromises`) from `avenx-core/testing` to simplify isolated unit testing with test runners like Vitest, Jest, Node Test Runner, or Playwright.
+
+These live behind their own entry point so they can never reach a production bundle. Importing them from `avenx-core/runtime` does not work — the runtime entry contains only what a browser needs at runtime.
+
+### `mountTestComponent(ComponentClass, options)`
+
+Instantiates and mounts an Avenx component or page into a test container, pre-configuring props, reactive state overrides, transcluded slots, and mock bridges.
+
+```typescript
+function mountTestComponent<C extends AvenxComponent>(
+  ComponentClass: new (...args: any[]) => C,
+  options?: MountTestComponentOptions
+): Promise<MountTestComponentResult<C>>
+```
+
+#### Options (`MountTestComponentOptions`)
+
+| Option | Type | Description |
+| :--- | :--- | :--- |
+| `props` | `object` | Initial property values passed to the component constructor. |
+| `state` / `initialState` | `object` | Reactive state overrides assigned before mounting. |
+| `slots` | `string \| object \| Element` | Slot transclusion content (HTML string or slot map e.g. `{ default: '<p>...</p>', header: '...' }`). |
+| `container` / `target` | `Element` | Target DOM element to mount into. Defaults to an auto-created `<div>`. |
+| `bridges` | `object` | Map of mock or real bridges injected into the component. |
+| `components` | `object` | Map of child components registered with the instance. |
+| `route` | `object` | Mock route configuration passed to `AvenxMock.createMockRouter()`. |
+
+#### Return Value (`MountTestComponentResult`)
+
+| Property / Method | Type | Description |
+| :--- | :--- | :--- |
+| `instance` / `component` | `AvenxComponent` | The mounted component instance. |
+| `element` | `Element` | The root DOM element rendered by the component. |
+| `container` | `Element` | The parent container hosting the mounted component. |
+| `html` | `string` | Getter returning the current serialized inner HTML markup of the container. |
+| `update()` | `() => void` | Manually triggers a synchronous component update cycle. |
+| `unmount()` | `() => void` | Invokes component unmounting, cleanup watchers, and lifecycle hooks (`onBeforeUnmount`, `onUnmounted`). |
+
+---
+
+### `fireEvent(element, eventType, detail)`
+
+Dispatches synthetic DOM events (e.g. `click`, `input`, `change`, `submit`, `keydown`) on rendered DOM elements, applies form control values, and automatically awaits microtask scheduler completion via `nextTick()`.
+
+```typescript
+function fireEvent(
+  element: Element,
+  eventType: string,
+  detail?: { value?: any; checked?: boolean; [key: string]: any }
+): Promise<void>
+```
+
+**Parameters:**
+- `element` (`Element`): The target DOM node to receive the event.
+- `eventType` (`string`): The event type name (e.g. `'click'`, `'input'`, `'submit'`).
+- `detail` (`object`, optional): Payload or options. If `detail.value` is provided, `element.value` is updated before firing `'input'`/`'change'`. If `detail.checked` is provided, `element.checked` is set.
+
+**Returns:** `Promise<void>` — Resolves after the event has dispatched and all queued microtask DOM updates have flushed.
+
+---
+
+### Complete Component Unit Test Example
+
+```javascript
+import { describe, it, expect } from 'vitest';
+import { mountTestComponent, fireEvent } from 'avenx-core/testing';
+import SearchBoxComponent from '../src/components/SearchBox.component.js';
+
+describe('SearchBoxComponent Unit Test', () => {
+  it('updates query and triggers search on submit', async () => {
+    // 1. Mount component with props and initial state overrides
+    const wrapper = await mountTestComponent(SearchBoxComponent, {
+      props: { placeholderText: 'Search articles...' },
+      state: { query: 'Initial query' }
+    });
+
+    // 2. Assert initial rendered DOM
+    expect(wrapper.element.querySelector('input').value).toBe('Initial query');
+    expect(wrapper.element.querySelector('input').placeholder).toBe('Search articles...');
+
+    // 3. Simulate user typing into input field with fireEvent
+    const input = wrapper.element.querySelector('input');
+    await fireEvent(input, 'input', { value: 'Avenx Reactivity' });
+
+    // 4. Assert reactive state updated
+    expect(wrapper.instance.state.query).toBe('Avenx Reactivity');
+
+    // 5. Simulate form submission
+    const form = wrapper.element.querySelector('form');
+    await fireEvent(form, 'submit');
+
+    // 6. Assert rendered output via wrapper.html
+    expect(wrapper.html).toContain('Results for: Avenx Reactivity');
+
+    // 7. Clean up component instance
+    wrapper.unmount();
+  });
+});
 ```
 
 ---
@@ -290,5 +421,185 @@ describe('Router Headless Tests', () => {
   });
 });
 ```
+
+---
+
+## Advanced Component Testing Patterns
+
+The recipes below build on `AvenxMock.createSandbox()` for common real-world scenarios: slots, `$emit`, async updates, and lifecycle ordering.
+
+### Testing Slot Transclusion
+
+Mount a host that projects markup into a child `<slot>`, then assert the projected content appears in the rendered HTML.
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
+
+class Card extends AvenxComponent {
+  static template = `
+    <div class="card">
+      <header class="card-header"><slot name="header"></slot></header>
+      <div class="card-body"><slot></slot></div>
+    </div>
+  `;
+}
+
+class CardHost extends AvenxComponent {
+  static template = `
+    <ax-card>
+      <template name="header"><h2>Profile</h2></template>
+      <p class="bio">Ada Lovelace</p>
+    </ax-card>
+  `;
+}
+
+const sandbox = AvenxMock.createSandbox();
+sandbox.register('ax-card', Card);
+
+const wrapper = sandbox.mount(CardHost);
+
+expect(wrapper.html).toContain('Profile');
+expect(wrapper.html).toContain('Ada Lovelace');
+expect(wrapper.html).toContain('class="card-body"');
+```
+
+:::tip
+If your component uses default slot fallback markup, mount it **without** projected children and assert that the fallback text is present in `wrapper.html`.
+:::
+
+### Asserting `$emit` Custom Events
+
+`$emit(eventName, detail)` dispatches a `CustomEvent` on the component root. Listen on `wrapper.container` (or the instance root) before triggering the action that emits.
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
+
+class CounterButton extends AvenxComponent {
+  constructor() {
+    super();
+    this.state = { count: 0 };
+  }
+
+  static template = `
+    <button class="inc" @click="increment()">+</button>
+  `;
+
+  increment() {
+    this.state.count += 1;
+    this.$emit('change', { count: this.state.count });
+  }
+}
+
+const sandbox = AvenxMock.createSandbox();
+const wrapper = sandbox.mount(CounterButton);
+
+const emissions = [];
+wrapper.container.addEventListener('change', (event) => {
+  emissions.push(event.detail);
+});
+
+wrapper.trigger('.inc', 'click');
+await sandbox.waitForUpdate();
+
+expect(emissions).toEqual([{ count: 1 }]);
+expect(wrapper.instance.state.count).toBe(1);
+```
+
+### Asynchronous State Updates & Microtask Batching
+
+Reactive mutations are scheduled asynchronously. Always `await sandbox.waitForUpdate()` (or chain mutations then wait once) before asserting DOM output so the microtask flush completes.
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
+
+class StatusBadge extends AvenxComponent {
+  constructor() {
+    super();
+    this.state = { label: 'idle' };
+  }
+
+  static template = `<span class="badge">{{ state.label }}</span>`;
+}
+
+const sandbox = AvenxMock.createSandbox();
+const wrapper = sandbox.mount(StatusBadge);
+
+// Multiple mutations in the same turn batch into one render pass
+wrapper.instance.state.label = 'loading';
+wrapper.instance.state.label = 'ready';
+
+await sandbox.waitForUpdate();
+
+expect(wrapper.html).toContain('ready');
+expect(wrapper.html).not.toContain('loading');
+```
+
+When driving updates from a mocked bridge, mutate the bridge then wait once:
+
+```javascript
+mockAuth.isLoggedIn = true;
+mockAuth.user.name = 'Ada';
+await sandbox.waitForUpdate();
+```
+
+### Lifecycle Hook Execution Order
+
+Record hook invocations on the instance to verify mount → update → unmount ordering during a test.
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+import { AvenxMock } from 'avenx-core/testing';
+
+class LifecycleProbe extends AvenxComponent {
+  constructor() {
+    super();
+    this.state = { ticks: 0 };
+    this.hookLog = [];
+  }
+
+  onMount() {
+    this.hookLog.push('onMount');
+  }
+
+  onBeforeUpdate() {
+    this.hookLog.push('onBeforeUpdate');
+  }
+
+  onUpdate() {
+    this.hookLog.push('onUpdate');
+  }
+
+  onUnmount() {
+    this.hookLog.push('onUnmount');
+  }
+
+  static template = `<div>{{ state.ticks }}</div>`;
+}
+
+const sandbox = AvenxMock.createSandbox();
+const wrapper = sandbox.mount(LifecycleProbe);
+
+expect(wrapper.instance.hookLog).toEqual(['onMount']);
+
+wrapper.instance.state.ticks = 1;
+await sandbox.waitForUpdate();
+
+expect(wrapper.instance.hookLog).toEqual(['onMount', 'onBeforeUpdate', 'onUpdate']);
+
+wrapper.instance.unmount();
+expect(wrapper.instance.hookLog).toEqual([
+  'onMount',
+  'onBeforeUpdate',
+  'onUpdate',
+  'onUnmount',
+]);
+```
+
+:::note
+Exact hook names follow the component lifecycle documented in the [AvenxComponent API reference](/api-reference/component/). Prefer asserting relative order (mount before update, update before unmount) rather than absolute call counts when other framework hooks also run.
+:::
 
 

@@ -1,5 +1,6 @@
 import assert from 'assert';
 import { ListManager } from '../../lib/core/renderer/listManager.js';
+import { logger } from '../../lib/core/runtime/AvenxLogger.js';
 
 // Copy lightweight mock DOM setup from list_reused_nodes.test.js to keep the test self-contained and run in a pure Node environment.
 class MockNode {
@@ -357,6 +358,138 @@ global.DOMParser = class {
     const scope2 = { items: list2 };
     listManager.process(parentEl, scope2, {});
     assert.strictEqual(renderCount, 14, 'Should re-render when list reference changes, even if items are same');
+    // 6. List evaluation failure without componentName should use AnonymousComponent
+    let warningMessage = null;
+
+    const originalLoggerConfig = { ...logger.config };
+
+    logger.configure({
+      level: 'warn',
+      silent: false,
+      transports: [
+        {
+          log(level, formattedArgs) {
+            if (level === 'warn') {
+              warningMessage = formattedArgs[0];
+            }
+          },
+        },
+      ],
+    });
+
+    const failingEvaluator = {
+      evaluateExpression() {
+        throw new Error('list evaluation failed');
+      },
+    };
+
+    const failingListManager = new ListManager(
+      failingEvaluator,
+      mockRenderer
+    );
+
+    const failingTemplate = new MockElementNode('template', {
+      'data-ax-for': 'items',
+      'data-ax-as': 'item',
+    });
+
+    const failingParent = new MockElementNode('div');
+    failingParent.appendChild(failingTemplate);
+
+    failingListManager.process(failingParent, {}, {});
+
+    assert.ok(
+      warningMessage.includes('<AnonymousComponent>'),
+      'Should use AnonymousComponent when componentName is omitted'
+    );
+
+    logger.configure(originalLoggerConfig);
+
+    // 7. Key evaluation returning undefined or null should not crash
+    const keyValues = [undefined, null];
+
+    for (const keyValue of keyValues) {
+      const keyEvaluator = {
+        evaluateExpression(expr, scope) {
+          if (expr === 'items') {
+            return scope.items;
+          }
+          if (expr === 'item.id') {
+            return keyValue;
+          }
+          return '';
+        },
+      };
+
+      const keyListManager = new ListManager(
+        keyEvaluator,
+        mockRenderer,
+        undefined,
+        'KeyTestComponent'
+      );
+
+      const keyTemplate = new MockElementNode('template', {
+        'data-ax-for': 'items',
+        'data-ax-as': 'item',
+        'data-ax-key': 'item.id',
+      });
+
+      const keyParent = new MockElementNode('div');
+      keyParent.appendChild(keyTemplate);
+
+      assert.doesNotThrow(
+        () => keyListManager.process(keyParent, { items: [{ id: 1 }] }, {}),
+        `Key evaluation returning ${keyValue} should not throw`
+      );
+    }
+
+    // 8. String thrown as an error should be handled correctly
+    let stringWarningMessage = null;
+
+    const stringErrorLoggerConfig = { ...logger.config };
+
+    logger.configure({
+      level: 'warn',
+      silent: false,
+      transports: [
+        {
+          log(level, formattedArgs) {
+            if (level === 'warn') {
+              stringWarningMessage = formattedArgs[0];
+            }
+          },
+        },
+      ],
+    });
+
+    const stringErrorEvaluator = {
+      evaluateExpression() {
+        throw 'string evaluation failure';
+      },
+    };
+
+    const stringErrorListManager = new ListManager(
+      stringErrorEvaluator,
+      mockRenderer
+    );
+
+    const stringErrorTemplate = new MockElementNode('template', {
+      'data-ax-for': 'items',
+      'data-ax-as': 'item',
+    });
+
+    const stringErrorParent = new MockElementNode('div');
+    stringErrorParent.appendChild(stringErrorTemplate);
+
+    stringErrorListManager.process(stringErrorParent, {}, {});
+
+    assert.ok(
+      stringWarningMessage.includes('string evaluation failure'),
+      'Should include a string thrown as an evaluation error'
+    );
+
+    logger.configure(stringErrorLoggerConfig);
+
 
     console.log('  ✅ ListManager dirty checking tests passed!');
     process.exit(0);

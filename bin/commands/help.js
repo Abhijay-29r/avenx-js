@@ -1,30 +1,45 @@
+import { bold, cyan, green, gray } from '../colors.js';
+
 /**
  * Prints the help message with available commands to the console.
  */
 export function printHelp() {
   console.log(`
-\x1b[1;36mAvenx-JS CLI\x1b[0m
-\x1b[1mUsage:\x1b[0m \x1b[32mavenx\x1b[0m \x1b[90m<command> [type] [name]\x1b[0m
+${bold(cyan('Avenx-JS CLI'))}
+${bold('Usage:')} ${green('avenx')} ${gray('<command> [type] [name]')}
 
-\x1b[1;36mCommands:\x1b[0m
-  \x1b[32minit\x1b[0m                      \x1b[90mInitialize a new Avenx project structure\x1b[0m
-  \x1b[32mgenerate component <name>\x1b[0m \x1b[90mGenerate a new component (alias: g)\x1b[0m
-  \x1b[32mgenerate page <name>\x1b[0m      \x1b[90mGenerate a new page (alias: g p)\x1b[0m
-  \x1b[32mgenerate bridge <name>\x1b[0m    \x1b[90mGenerate a new shared reactive bridge\x1b[0m
-  \x1b[32mgenerate guard <name>\x1b[0m     \x1b[90mGenerate a new route guard\x1b[0m
-  \x1b[32mdestroy component <name>\x1b[0m  \x1b[90mDelete a component and its registrations (alias: d)\x1b[0m
-  \x1b[32mdestroy page <name>\x1b[0m       \x1b[90mDelete a page (alias: d p)\x1b[0m
-  \x1b[32mdestroy bridge <name>\x1b[0m     \x1b[90mDelete a shared reactive bridge\x1b[0m
-  \x1b[32mdestroy guard <name>\x1b[0m      \x1b[90mDelete a route guard\x1b[0m
-  \x1b[32mbuild (b)\x1b[0m                 \x1b[90mBuild the project using configured output directory\x1b[0m
-  \x1b[32mclean\x1b[0m                     \x1b[90mClear build output directory\x1b[0m
-  \x1b[32mcheck (lint)\x1b[0m              \x1b[90mValidate templates without building\x1b[0m
-  \x1b[32mserve [port]\x1b[0m              \x1b[90mStart dev server with hot-reload (default: 3000)\x1b[0m
-  \x1b[32mwatch (w)\x1b[0m                 \x1b[90mWatch for file changes and rebuild automatically\x1b[0m
-  \x1b[32mhelp\x1b[0m                      \x1b[90mShow this help message\x1b[0m
+${bold(cyan('Commands:'))}
+  ${green('init')}                      ${gray('Initialize a new Avenx project structure')}
+  ${green('generate component <name>')} ${gray('Generate a new component (alias: g)')}
+  ${green('generate page <name>')}      ${gray('Generate a new page (alias: g p)')}
+  ${green('generate bridge <name>')}    ${gray('Generate a new shared reactive bridge')}
+  ${green('generate guard <name>')}     ${gray('Generate a new route guard')}
+  ${green('destroy component <name>')}  ${gray('Delete a component and its registrations (alias: d)')}
+  ${green('destroy page <name>')}       ${gray('Delete a page (alias: d p)')}
+  ${green('destroy bridge <name>')}     ${gray('Delete a shared reactive bridge')}
+  ${green('destroy guard <name>')}      ${gray('Delete a route guard')}
+  ${green('build (b)')}                 ${gray('Build for production: minified runtime, optimized output')}
+  ${green('clean')}                     ${gray('Clear build output directory')}
+  ${green('check (lint)')}              ${gray('Validate templates without building')}
+  ${green('doctor')}                    ${gray('Diagnose environment, config, and project health')}
+  ${green('env')}                       ${gray('Print and validate active environment variables')}
+  ${green('explain <CODE>')}            ${gray('Explain a compiler/runtime error or warning code')}
+  ${green('inspect (i)')}               ${gray('Inspect project route and component hierarchy')}
+  ${green('stats (s)')}                 ${gray('Display component & bundle footprint metrics')}
+  ${green('serve [port]')}              ${gray('Start dev server with hot-reload (default: 3000)')}
+  ${green('watch (w)')}                 ${gray('Watch for file changes and rebuild automatically')}
+  ${green('help')}                      ${gray('Show this help message')}
 
-\x1b[1;36mOptions:\x1b[0m
-  \x1b[32m--dry-run, -d\x1b[0m             \x1b[90mPreview actions without writing or deleting any files\x1b[0m
-  \x1b[32m--version, -v\x1b[0m            \x1b[90mOutput the current version\x1b[0m
+${bold(cyan('Options:'))}
+  ${green('--dev')}                     ${gray('Build for development: readable runtime, inline CSS source maps')}
+  ${green('--prod')}                    ${gray('Build for production (the default for "build")')}
+  ${green('--dry-run, -d')}             ${gray('Preview actions without writing or deleting any files')}
+  ${green('--with-test')}               ${gray('Generate a colocated unit test file alongside the component')}
+  ${green('--no-test')}                 ${gray('Skip generating unit test files')}
+  ${green('--template, -t <name>')}     ${gray('Use a custom scaffold template for code generation')}
+  ${green('--json, -j')}                ${gray('Output check/lint validation diagnostics in JSON format')}
+  ${green('--watch, -w')}               ${gray('Watch project component files for continuous template linting')}
+  ${green('--no-color')}                ${gray('Disable colored output (the NO_COLOR variable is honored too)')}
+  ${green('--version, -v')}             ${gray('Output the current version')}
     `);
 }

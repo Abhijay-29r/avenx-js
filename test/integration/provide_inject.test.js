@@ -692,6 +692,26 @@ global.requestAnimationFrame = (cb) => {
 
     console.log('  ✅ Reactive Provide/Inject updates tests passed!');
 
+    console.log('  5. Testing inject default fallback values...');
+    class DefaultChild extends AvenxComponent {
+      constructor(bridges, props) {
+        super({}, {}, bridges, `<span>{{theme}}-{{config.size}}</span>`, {}, props);
+      }
+    }
+    DefaultChild.inject = {
+      theme: { from: 'appTheme', default: 'light' },
+      config: { default: () => ({ size: 'medium' }) },
+    };
+
+    const defaultChild = new DefaultChild({}, {});
+    const defaultHost = document.createElement('div');
+    defaultChild.mount(defaultHost);
+    assert.strictEqual(defaultChild.theme, 'light', 'Missing provider should use default theme');
+    assert.deepStrictEqual(defaultChild.config, { size: 'medium' }, 'Missing provider should use factory default');
+    defaultChild.unmount();
+
+    console.log('  ✅ Inject default fallback tests passed!');
+
     console.log('✅ Provide / Inject Integration Tests successfully completed!');
     process.exit(0);
   } catch (error) {

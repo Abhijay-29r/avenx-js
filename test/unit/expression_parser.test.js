@@ -156,8 +156,23 @@ try {
   const resources = ep.parseResources(contentResources);
   assert.strictEqual(resources.users, "fetch('/api/users').then(r => r.json())");
   assert.strictEqual(resources.posts, 'fetch("/api/posts")');
-  assert.strictEqual(resources.comments, "fetch('/api/comments')");
+  // 7. Test parseDynamicAttribute for :[dynamicAttr]="val" syntax
+  const dynAttr1 = ep.parseDynamicAttribute(':[dynamicAttr]', 'activeState');
+  assert.deepStrictEqual(dynAttr1, {
+    isDynamicName: true,
+    nameExpr: 'dynamicAttr',
+    valueExpr: 'activeState',
+  });
 
+  const dynAttr2 = ep.parseDynamicAttribute(':[state.prefix + "label"]', 'text');
+  assert.deepStrictEqual(dynAttr2, {
+    isDynamicName: true,
+    nameExpr: 'state.prefix + "label"',
+    valueExpr: 'text',
+  });
+
+  const nonDynAttr = ep.parseDynamicAttribute('disabled', 'true');
+  assert.strictEqual(nonDynAttr, null);
 
   console.log('  ✅ ExpressionParser upgrades tests passed!');
 } catch (error) {

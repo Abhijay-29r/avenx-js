@@ -135,6 +135,81 @@ The `&` nesting reference behaves the same way inside nested at-rules such as `@
 </@css>
 ```
 
+## 4b. Deep Scoped Selectors (`:deep()` & `::v-deep`)
+
+Scoped CSS keeps rules inside the component. Use **deep selectors** when a parent stylesheet must style child-component DOM or slotted content across that boundary—without switching the whole block to `<@global>`.
+
+`StyleProcessor` strips `:deep(...)` / `::v-deep(...)` (and bare `:deep` / `::v-deep`) at compile time, then applies the component scope hash only to the outer part of the selector. Descendants inside the deep wrapper stay unscoped.
+
+### Supported syntax
+
+| Form | Example | Idea |
+| :--- | :--- | :--- |
+| Parenthesized modern | `.card :deep(.badge)` | Prefer this form |
+| Parenthesized Vue-style | `.card ::v-deep(.badge)` | Same behavior |
+| Combinator form | `.card :deep .badge` | Space/`>`/`+`/`~` after `:deep` |
+
+Conceptually:
+
+```css
+/* Source (scoped component) */
+.card :deep(.badge) {
+  color: #6366f1;
+}
+```
+
+compiles like:
+
+```css
+.card[data-ax-scope-a1b2c3] .badge {
+  color: #6366f1;
+}
+```
+
+instead of attaching the scope attribute to `.badge` itself.
+
+### Example
+
+```css
+<@css>
+    card {
+        padding: 1rem;
+
+        & :deep(.child-title) {
+            font-weight: 600;
+        }
+    }
+</@css>
+```
+
+Use deep selectors sparingly: they intentionally pierce encapsulation. Prefer props, slots, or CSS variables when a child can own its own styles.
+
+## 4c. Inline Component CSS (`static styles`)
+
+Besides companion `.component.css` / `<@css>` blocks, a component **class** may declare a static `styles` string. At runtime, `StyleMountManager` injects that CSS into a shared `<style data-avenx-style="...">` element in `document.head` (one element per component class, reference-counted across instances).
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export class Badge extends AvenxComponent {
+  static styles = `
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+  `;
+}
+```
+
+Notes:
+
+- `styles` must be a non-empty **string** on the constructor (`componentClass.styles`). Empty or non-string values are ignored.
+- Mount increments a ref-count; unmount decrements and removes the `<style>` node when no instances remain.
+- Prefer `<@css>` / scoped stylesheets for compile-time scoping hashes; use `static styles` for simple runtime-injected class CSS shared by all instances of that class.
+
 ## 4. Global CSS & Custom Variables (`<@global>`)
 
 Declare global styles or design token variables using the `<@global>` block. Use the `@def` directive to define custom color codes or measurements. The compiler replaces these variables statically at build time.
@@ -219,7 +294,7 @@ This automatic renaming only applies to custom properties declared **inside** a 
 | | Declared in `<@global>` / `:root` | Declared inside `<@css>` |
 | --- | --- | --- |
 | Renamed at compile time | No | Yes, to `--ax-<hashId>-<name>` |
-| Visible outside the component | Yes | No — effectively private to that component |
+| Visible outside the component | Yes | No â€” effectively private to that component |
 | Typical use | Design tokens / theme variables shared across the app | Component-local values, including ones derived from props or state |
 
 ### Native Variables vs. `@def` Macros
@@ -227,7 +302,7 @@ This automatic renaming only applies to custom properties declared **inside** a 
 It's worth distinguishing the two variable systems available inside `<@css>` and `<@global>` blocks:
 
 - **`@def` macros** (e.g. `@def primary-color #6366f1;`, referenced as `@primary-color`) are resolved by simple text substitution at compile time. The `@primary-color` reference is replaced with its literal value before the CSS is emitted, so it produces no runtime CSS variable at all.
-- **Native custom properties** (e.g. `--color-primary: #6366f1;`, referenced as `var(--color-primary)`) remain real CSS custom properties in the compiled output. They are only renamed to avoid cross-component collisions — they still behave like normal CSS variables at runtime, including being overridable via inline styles or JavaScript.
+- **Native custom properties** (e.g. `--color-primary: #6366f1;`, referenced as `var(--color-primary)`) remain real CSS custom properties in the compiled output. They are only renamed to avoid cross-component collisions â€” they still behave like normal CSS variables at runtime, including being overridable via inline styles or JavaScript.
 
 Use `@def` macros for static design tokens that never need to change at runtime, and native custom properties when you need actual runtime-computed or overridable CSS variables scoped to a component.
 
@@ -366,11 +441,11 @@ For complete design control, combine component-scoped styles with global design 
 
 ## 7. CSS Preprocessors (Sass, SCSS, PostCSS, Less)
 
-Avenx-JS has built-in integration support for modern CSS preprocessors such as Sass, SCSS, PostCSS, and Less.
+Avenx-JS provides built-in integration support for modern CSS preprocessors, including Sass (`.sass`), SCSS (`.scss`), Less (`.less`), and PostCSS. You can write nested preprocessor rules, custom mixins, and variables directly inside your `.component.css` or Single-File Component style blocks.
 
-### Enabling a Preprocessor
+### 1. Configuration in `avenx.config.json`
 
-To configure a preprocessor, add the `style` settings configuration block in your `avenx.config.json` configuration file:
+To enable CSS preprocessing, set the `style.preprocessor` option in your project's `avenx.config.json`:
 
 ```json
 {
@@ -380,20 +455,83 @@ To configure a preprocessor, add the `style` settings configuration block in you
 }
 ```
 
-Available preprocessor options are:
-- `scss` (SCSS syntax via Dart Sass)
-- `sass` (Indented Sass syntax via Dart Sass)
-- `postcss` (PostCSS processing)
-- `less` (Less processing)
+Supported preprocessor values:
 
-### How It Works
+| Option | Preprocessor Engine | Supported Syntax |
+| --- | --- | --- |
+| `"scss"` | Dart Sass (`sass`) | Standard SCSS syntax with brackets and semicolons |
+| `"sass"` | Dart Sass (`sass`) | Indented Sass syntax |
+| `"less"` | Less (`less`) | Less syntax |
+| `"postcss"` | PostCSS (`postcss`) | PostCSS plugins and syntax transformations |
 
-When a preprocessor is enabled:
-1. **Compilation**: The compiler automatically passes all global style inputs inside `<@global>` and scoped styling inside `<@css>` blocks through the corresponding preprocessor module.
-2. **Global Variables & Scope**: Scoped styling blocks are wrapped in a temporary parent class wrapper during preprocessing so that local variables and nesting (e.g. `& span`) resolve correctly relative to any variables or mixins defined inside `<@global>`.
-3. **Fallback Behavior**
+### 2. Installing Peer Dependencies
 
-If the configured preprocessor package is not installed, Avenx-JS falls back to raw CSS processing and emits the `AVX_W24` (`COMPILER_PREPROCESSOR_MISSING`) warning.
+Avenx-JS does not bundle heavy preprocessor engines by default. To use a preprocessor, install the matching package as a development dependency in your project:
+
+#### Sass / SCSS
+
+```bash
+npm install -D sass
+```
+
+#### Less
+
+```bash
+npm install -D less
+```
+
+#### PostCSS
+
+```bash
+npm install -D postcss postcss-cli
+```
+
+### 3. Preprocessor Pipeline & Scoping Interaction
+
+Preprocessing happens at build time inside the `StyleProcessor` compiler module prior to Avenx-JS scope hashing:
+
+1. **Extraction**: `StyleProcessor` extracts global stylesheets (`<@global>`) and component-scoped blocks (`<@css>`).
+2. **Preprocessing**: The raw stylesheet code is passed to the configured preprocessor engine (e.g. `sass.compileString()`). Preprocessor variables (`$primary-color`), `@mixin` directives, `@include` statements, and parent selector references (`&`) are evaluated and compiled into standard CSS.
+3. **Scope Hashing**: `StyleProcessor` parses the preprocessed CSS output, generates unique component class scope hashes (e.g. `.avenx-a1b2c3d4`), and scopes native custom properties and `@def` tokens.
+
+### 4. SCSS Example inside Component Styles
+
+```scss
+<@global>
+    $brand-primary: #6366f1;
+
+    @mixin card-shadow {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+</@global>
+
+<@css>
+    card {
+        padding: 1.5rem;
+        background: #ffffff;
+        @include card-shadow;
+
+        & .card-title {
+            color: $brand-primary;
+            font-size: 1.25rem;
+        }
+
+        &:hover {
+            border-color: darken($brand-primary, 10%);
+        }
+    }
+</@css>
+```
+
+### 5. Graceful Fallback & Warning Codes
+
+Avenx-JS is designed to fail gracefully if preprocessor tools are misconfigured or missing:
+
+- **Missing Peer Package (`AVX_W24`)**: If `style.preprocessor` is set to `"scss"` but the `sass` npm package is not installed in `node_modules`, Avenx-JS logs warning **`AVX_W24` (`COMPILER_PREPROCESSOR_MISSING`)** and falls back to processing the raw stylesheet as vanilla CSS without crashing the build.
+- **Preprocessor Compilation Error (`AVX_W31`)**: If SCSS/Less compilation fails due to a syntax error or missing mixin, Avenx-JS catches the exception, logs warning **`AVX_W31` (`COMPILER_PREPROCESSOR_FAILED`)** with the error details, and uses raw CSS as fallback.
+
+> [!TIP]
+> If your project uses vanilla CSS, omit the `style.preprocessor` field or set it explicitly to `"none"` to prevent preprocessor checks.
 
 ---
 
@@ -413,3 +551,168 @@ To trace compiled CSS rules in browser developer tools directly back to your ori
    ```
 2. When inspecting elements in Chrome DevTools, Firefox Developer Tools, or Safari Web Inspector, CSS declarations point directly to the exact file and line number of the source `.component.css` file (e.g. `user-card.component.css:14`) rather than line numbers in `bundle.css`.
 3. In development mode or when `"sourceMap": "inline"` / `"inlineSourceMap": true` is set, source maps are embedded directly as base64 comments (`/*# sourceMappingURL=data:application/json... */`). In production builds (`avenx build`), separate external map files (e.g. `bundle.css.map`) are generated alongside `bundle.css`.
+
+## 8. Advanced Scoping Notes
+
+### `<@global>` escape hatch
+
+Rules inside `<@global>` are **not** rewritten with the component scope hash. They apply application-wide (design tokens, resets, utility classes). Prefer keeping component-private rules in `<@css>` so they do not leak.
+
+### Reactive inline styles (`data-ax-style`)
+
+For per-instance dynamic CSS values, use the [`data-ax-style`](/core-concepts/templates#5-reactive-style-bindings-data-ax-style) template directive with a JavaScript object. Prefer scoped classes for static layout; use `data-ax-style` for values that change with reactive state (colors, transforms, dimensions).
+
+### Preprocessor troubleshooting
+
+| Warning | Identifier | When it appears | What to do |
+| :--- | :--- | :--- | :--- |
+| `AVX_W24` | `COMPILER_PREPROCESSOR_MISSING` | Configured preprocessor package is not installed | Install the package (e.g. `sass`) or remove the `style.preprocessor` setting |
+| `AVX_W31` | `COMPILER_PREPROCESSOR_FAILED` | Preprocessor throws (syntax error, bad hook return) | Fix the stylesheet/source; compiler falls back to raw CSS |
+
+Full details: [Compiler Warnings](/troubleshooting/errors#avx_w24--compiler_preprocessor_missing).
+
+---
+
+## 9. StyleMountManager & Dynamic Runtime Style Lifecycle
+
+In addition to static compile-time stylesheet bundling, Avenx-JS provides dynamic runtime CSS injection through the `StyleMountManager` module (`lib/core/runtime/StyleMountManager.js`), exported via `avenx-core/runtime`.
+
+`StyleMountManager` ensures that when components declare runtime styles (such as `static styles = '...'` on class components or dynamically generated CSS), exactly **one** `<style>` element per component class exists in `document.head`, and that styles are automatically cleaned up when all instances of that component unmount.
+
+---
+
+### Reference Counting Architecture
+
+`StyleMountManager` uses reference counting to manage the lifecycle of injected stylesheets:
+
+```text
+Component A (Instance 1) mounts   ──► refCount = 1  ──► Append <style data-avenx-style="avenx-style-ComponentA">
+Component A (Instance 2) mounts   ──► refCount = 2  ──► Increment refCount (no duplicate DOM node)
+Component A (Instance 1) unmounts ──► refCount = 1  ──► Decrement refCount (style remains active)
+Component A (Instance 2) unmounts ──► refCount = 0  ──► Remove <style data-avenx-style="avenx-style-ComponentA">
+```
+
+#### Lifecycle Steps
+
+1. **Mount & Deduplication (`mount`)**:
+   - Reads `componentClass.styles`.
+   - Generates a unique style identifier attribute (e.g. `data-avenx-style="avenx-style-UserProfile"`).
+   - Checks if a matching `<style>` node already exists in `document.head` (e.g., from SSR hydration or pre-rendered markup). If found, it adopts the element and sets `refCount = 1`.
+   - If already registered in memory, increments `refCount++` without creating a duplicate DOM node.
+   - If not present, creates and appends `<style data-avenx-style="...">` to `document.head`.
+
+2. **Unmount & Cleanup (`unmount`)**:
+   - Decrements `refCount--` for that component class.
+   - Verifies whether any active component instances remain in the DOM tree.
+   - When `refCount <= 0` (and no active instances remain), removes the `<style>` tag from `document.head` and purges the entry from the internal registry.
+
+---
+
+### API Method Reference
+
+Import the singleton instance or class:
+
+```javascript
+import { styleMountManager, StyleMountManager } from 'avenx-core/runtime';
+```
+
+| Method | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `mount(componentClass)` | `componentClass: Function` | `void` | Mounts runtime styles defined on `componentClass.styles` into `document.head` and increments the reference count. |
+| `unmount(componentClass)` | `componentClass: Function` | `void` | Decrements the reference count for `componentClass` and removes the `<style>` element if no active instances remain. |
+| `getRefCount(componentClass)` | `componentClass: Function` | `number` | Returns the current active instance reference count for the specified component class (or `0` if unmounted). |
+
+---
+
+### Programmatic Usage Examples
+
+#### 1. Defining Runtime Component Styles (`static styles`)
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export class StatusPill extends AvenxComponent {
+  // Runtime injected CSS
+  static styles = `
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .status-pill.success {
+      background-color: #dcfce7;
+      color: #15803d;
+    }
+  `;
+}
+```
+
+When `<status-pill>` mounts, `StyleMountManager` automatically injects:
+
+```html
+<style data-avenx-style="avenx-style-StatusPill">
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .status-pill.success {
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+</style>
+```
+
+#### 2. Inspecting Reference Counts in Unit Tests
+
+```javascript
+import { styleMountManager } from 'avenx-core/runtime';
+import { StatusPill } from './StatusPill.component.js';
+
+describe('StatusPill Style Lifecycle', () => {
+  it('increments and decrements style refCount on mount/unmount', () => {
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(0);
+
+    const instance1 = new StatusPill();
+    styleMountManager.mount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(1);
+
+    const instance2 = new StatusPill();
+    styleMountManager.mount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(2);
+
+    styleMountManager.unmount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(1);
+
+    styleMountManager.unmount(StatusPill);
+    expect(styleMountManager.getRefCount(StatusPill)).toBe(0);
+    expect(document.head.querySelector('[data-avenx-style="avenx-style-StatusPill"]')).toBeNull();
+  });
+});
+```
+
+#### 3. Custom Dynamic Theme Plugins
+
+```javascript
+import { styleMountManager } from 'avenx-core/runtime';
+
+export function registerDynamicPluginTheme(pluginName, cssString) {
+  class PluginComponentPlaceholder {
+    static styles = cssString;
+  }
+  Object.defineProperty(PluginComponentPlaceholder, 'name', { value: pluginName });
+
+  styleMountManager.mount(PluginComponentPlaceholder);
+
+  return () => {
+    styleMountManager.unmount(PluginComponentPlaceholder);
+  };
+}
+```
+

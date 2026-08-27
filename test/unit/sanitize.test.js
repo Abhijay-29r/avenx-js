@@ -148,10 +148,122 @@ function testCustomVoidTags() {
   }
 }
 
+function testSanitizeUrl() {
+  console.log('🧪 Testing Sanitizer.sanitizeUrl pseudo-protocol protection...');
+
+  // 1. Disallowed pseudo-protocols are replaced with about:blank
+  assert.strictEqual(Sanitizer.sanitizeUrl('javascript:alert(1)'), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('JaVaScRiPt:alert(1)'), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('data:text/html,<script>alert(1)</script>'), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('vbscript:msgbox(1)'), 'about:blank');
+
+  // 2. Leading whitespace is stripped before the scheme check
+  assert.strictEqual(Sanitizer.sanitizeUrl('  javascript:alert(1)  '), 'about:blank');
+
+  // 3. Allowed protocols pass through unchanged (trimmed)
+  assert.strictEqual(Sanitizer.sanitizeUrl('https://example.com/path'), 'https://example.com/path');
+  assert.strictEqual(Sanitizer.sanitizeUrl('  http://example.com  '), 'http://example.com');
+  assert.strictEqual(Sanitizer.sanitizeUrl('mailto:user@example.com'), 'mailto:user@example.com');
+  assert.strictEqual(Sanitizer.sanitizeUrl('tel:+1234567890'), 'tel:+1234567890');
+
+  // 4. Relative URLs without a scheme are allowed
+  assert.strictEqual(Sanitizer.sanitizeUrl('/relative/path'), '/relative/path');
+  assert.strictEqual(Sanitizer.sanitizeUrl('#fragment'), '#fragment');
+  assert.strictEqual(Sanitizer.sanitizeUrl('example.com'), 'example.com');
+
+  // 5. Empty and nullish input returns about:blank
+  assert.strictEqual(Sanitizer.sanitizeUrl(''), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl('   '), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl(null), 'about:blank');
+  assert.strictEqual(Sanitizer.sanitizeUrl(undefined), 'about:blank');
+
+  // 6. Custom allowed-protocol list
+  assert.strictEqual(Sanitizer.sanitizeUrl('ftp://example.com', ['ftp:', 'https:']), 'ftp://example.com');
+  assert.strictEqual(Sanitizer.sanitizeUrl('https://example.com', ['ftp:']), 'about:blank');
+
+  console.log('  ✅ Sanitizer.sanitizeUrl tests passed!');
+}
+
+function testConfigurablePolicyOptions() {
+  console.log('🧪 Testing Sanitizer configurable policy options...');
+  setupDOMMock();
+
+  try {
+    // 1. disallowedTags filtering
+    const banBoldSanitizer = new Sanitizer({
+      disallowedTags: ['b', 'script'],
+    });
+    const html1 = '<p>Text</p><b>Bold</b><i>Italic</i>';
+    assert.strictEqual(banBoldSanitizer.sanitize(html1), '<p>Text</p>Bold<i>Italic</i>');
+
+    // 2. disallowedAttributes filtering
+    const banStyleSanitizer = new Sanitizer({
+      disallowedAttributes: { div: ['style', 'id'] },
+    });
+    const html2 = '<div id="main" class="box" style="color:red">Content</div>';
+    assert.strictEqual(banStyleSanitizer.sanitize(html2), '<div class="box">Content</div>');
+
+    // Global disallowedAttributes array syntax
+    const banGlobalAttrSanitizer = new Sanitizer({
+      disallowedAttributes: ['style', 'title'],
+    });
+    const html2b = '<p title="tooltip" class="text" style="margin:0">Paragraph</p>';
+    assert.strictEqual(banGlobalAttrSanitizer.sanitize(html2b), '<p class="text">Paragraph</p>');
+
+    // 3. stripComments option (true vs false)
+    const stripCommentsSanitizer = new Sanitizer({ stripComments: true });
+    const keepCommentsSanitizer = new Sanitizer({ stripComments: false });
+
+    const commentContainer = new MockDOMElement('div');
+    commentContainer.childNodes.push({ nodeType: 8, data: ' secret comment ' });
+
+    assert.strictEqual(stripCommentsSanitizer._sanitizeNode(commentContainer), '');
+    assert.strictEqual(keepCommentsSanitizer._sanitizeNode(commentContainer), '<!-- secret comment -->');
+
+    // 4. stripContentTags option
+    const customStripContentSanitizer = new Sanitizer({
+      allowedTags: ['p', 'b'],
+      stripContentTags: ['secret-tag'],
+    });
+    const html4 = '<p>Public</p><secret-tag>Hidden Secret Content</secret-tag><b>End</b>';
+    assert.strictEqual(customStripContentSanitizer.sanitize(html4), '<p>Public</p><b>End</b>');
+
+    // 5. allowDataUrls preference
+    const noDataUrlSanitizer = new Sanitizer({ allowDataUrls: false });
+    const imgContainer = new MockDOMElement('div');
+    const imgNode = new MockDOMElement('img');
+    imgNode.setAttribute('src', 'data:image/png;base64,abc');
+    imgNode.setAttribute('alt', 'pic');
+    imgContainer.appendChild(imgNode);
+    assert.strictEqual(noDataUrlSanitizer._sanitizeNode(imgContainer), '<img alt="pic" />');
+
+    console.log('  ✅ Configurable policy options tests passed!');
+  } finally {
+    teardownDOMMock();
+  }
+}
+
+function testStripTags() {
+  console.log('🧪 Testing Sanitizer.stripTags static method...');
+
+  assert.strictEqual(Sanitizer.stripTags('<p>Hello <b>World</b></p>'), 'Hello World');
+  assert.strictEqual(Sanitizer.stripTags('<div>Hello <script>alert(1)</script> <b>World</b></div>'), 'Hello  World');
+  assert.strictEqual(Sanitizer.stripTags('<!-- comment -->Plain text'), 'Plain text');
+  assert.strictEqual(Sanitizer.stripTags('<style>body { color: red; }</style>Content'), 'Content');
+  assert.strictEqual(Sanitizer.stripTags(null), '');
+  assert.strictEqual(Sanitizer.stripTags(undefined), '');
+  assert.strictEqual(Sanitizer.stripTags(123), '123');
+
+  console.log('  ✅ Sanitizer.stripTags tests passed!');
+}
+
 try {
   testSanitizerWithDOM();
   testSanitizerFallback();
   testCustomVoidTags();
+  testConfigurablePolicyOptions();
+  testSanitizeUrl();
+  testStripTags();
   console.log('✅ All Sanitizer tests successfully completed!');
   process.exit(0);
 } catch (error) {

@@ -10,6 +10,7 @@ import { AvenxComponent } from '../../lib/core/runtime/AvenxComponent.js';
 import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
 import { AvenxApp } from '../../lib/core/runtime/AvenxApp.js';
 import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
+import { extractCompiledTemplate } from '../helpers/compiled-template.js';
 import ComponentParser from '../../lib/compiler/ComponentParser.js';
 
 // ==========================================
@@ -543,14 +544,16 @@ global.Node = {
     }
 
     assert.ok(generated.includes('class TempComponent extends AvenxComponent'), 'Should generate TempComponent class');
+
+    const compiledTemplate = extractCompiledTemplate(generated);
     assert.ok(
-      generated.includes('data-avenx-comp="UserCard"'),
+      compiledTemplate.includes('data-avenx-comp="UserCard"'),
       'Should translate custom tag to div with data-avenx-comp',
     );
-    assert.ok(generated.includes('data-props-user="currentUser"'), 'Should translate dynamic expression props');
-    assert.ok(generated.includes('data-props-title="\'User Profile\'"'), 'Should translate static string props');
-    assert.ok(generated.includes('data-props-age="25"'), 'Should translate numeric props');
-    assert.ok(generated.includes('data-props-active="true"'), 'Should translate boolean props');
+    assert.ok(compiledTemplate.includes('data-props-user="currentUser"'), 'Should translate dynamic expression props');
+    assert.ok(compiledTemplate.includes('data-props-title="\'User Profile\'"'), 'Should translate static string props');
+    assert.ok(compiledTemplate.includes('data-props-age="25"'), 'Should translate numeric props');
+    assert.ok(compiledTemplate.includes('data-props-active="true"'), 'Should translate boolean props');
 
     // 2. Runtime Tests (Props passing and reactivity)
     console.log('  Testing child component props injection and reactivity...');

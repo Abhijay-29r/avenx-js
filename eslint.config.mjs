@@ -1,9 +1,12 @@
 import js from "@eslint/js";
 import jsdoc from "eslint-plugin-jsdoc";
+import avenxTemplateParser from "./lib/core/tooling/avenxTemplateParser.js";
+import { componentTagNamingRule } from "./lib/core/tooling/eslintComponentTagNaming.js";
 
 export default [
   js.configs.recommended,
   jsdoc.configs['flat/recommended'],
+
   {
     ignores: [
       "**/node_modules/",
@@ -12,11 +15,31 @@ export default [
       "dev-docs/",
       "coverage/",
       "bench-results/",
-      "**/*.component.js",
-      "**/*.page.js",
-      "vite-plugin-avenx/example/"
+      "plugins/avenx-vite/example/"
     ]
   },
+
+  {
+    files: ["**/*.component.js", "**/*.page.js"],
+
+    languageOptions: {
+      parser: avenxTemplateParser,
+      sourceType: "module"
+    },
+
+    plugins: {
+      avenx: {
+        rules: {
+          "component-tag-naming": componentTagNamingRule
+        }
+      }
+    },
+
+    rules: {
+      "avenx/component-tag-naming": "error"
+    }
+  },
+
   {
     languageOptions: {
       ecmaVersion: "latest",
@@ -31,6 +54,9 @@ export default [
         Node: "readonly",
         Event: "readonly",
         CustomEvent: "readonly",
+        MouseEvent: "readonly",
+        InputEvent: "readonly",
+        KeyboardEvent: "readonly",
         URL: "readonly",
         URLSearchParams: "readonly",
         ResizeObserver: "readonly",
@@ -58,28 +84,46 @@ export default [
         clearTimeout: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        setImmediate: "readonly",
+        clearImmediate: "readonly",
         global: "writable",
         globalThis: "writable",
         Buffer: "readonly"
       }
     },
+
     plugins: {
       jsdoc: jsdoc
     },
+
     rules: {
       "indent": ["error", 2, { "SwitchCase": 1 }],
-      "quotes": ["error", "single", { "avoidEscape": true, "allowTemplateLiterals": true }],
+      "quotes": ["error", "single", {
+        "avoidEscape": true,
+        "allowTemplateLiterals": true
+      }],
       "semi": ["error", "always"],
       "no-var": "error",
       "prefer-const": "error",
       "prefer-arrow-callback": "error",
-      "camelcase": ["error", { "properties": "always", "allow": ["__avenx_comp_instance", "__avenx_routers", "__avenx_enable_profiling", "__avenx_directives"] }],
+
+      "camelcase": ["error", {
+        "properties": "always",
+        "allow": [
+          "__avenx_comp_instance",
+          "__avenx_routers",
+          "__avenx_enable_profiling",
+          "__avenx_directives"
+        ]
+      }],
+
       "jsdoc/require-jsdoc": ["error", {
         "require": {
           "MethodDefinition": true,
           "ClassDeclaration": true
         }
       }],
+
       "jsdoc/require-param": "error",
       "jsdoc/require-returns": "off",
       "jsdoc/require-param-description": "off",
@@ -91,8 +135,10 @@ export default [
       "jsdoc/escape-inline-tags": "off"
     }
   },
+
   {
     files: ["test/**/*.js", "bin/**/*.js", "scripts/**/*.js"],
+
     rules: {
       "jsdoc/require-jsdoc": "off",
       "jsdoc/require-param": "off",

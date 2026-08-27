@@ -63,6 +63,31 @@ const app = new AvenxApp({
 
 With this configuration, navigating among four or more keep-alive pages retains only the three most recently used inactive page instances in memory. Older cached pages are automatically removed as needed.
 
+### Programmatic Page Cache Invalidation
+
+In addition to automatic LRU eviction via `keepAliveLimit`, developers can manually purge cached page instances from memory using `clearKeepAliveCache(pageName?: string)`.
+
+This is useful when page instances hold stale data or user-specific state that must be cleared (e.g. after a user logs out or updates profile data).
+
+Calling `this.clearKeepAliveCache('UserProfilePage')` (or `app.clearKeepAliveCache('UserProfilePage')`) evicts the specified cached page instance from memory and triggers its `onUnmount()` hook. Calling `this.clearKeepAliveCache()` without arguments purges all cached page instances.
+
+```javascript
+// Inside a Component Action (e.g. Logout / Refresh Button)
+export default {
+  actions: {
+    handleLogout() {
+      // Evict specific cached page instance
+      this.clearKeepAliveCache('UserProfilePage');
+
+      // Or purge all cached keep-alive pages
+      this.clearKeepAliveCache();
+
+      // Navigate to login
+      this.$router.navigate('/login');
+    }
+  }
+};
+```
 
 
 ## 3. Dynamic Route Parameters
@@ -177,6 +202,82 @@ Then:
 ```javascript
 this.$route.params.id; // "42"
 ```
+## Programmatic History Navigation
+
+In addition to `router.navigate(hash)`, `AvenxRouter` exposes methods for traversing the browser / session history stack programmatically: `back()`, `forward()`, and `go(delta)`. These are available on the router instance and, inside components, via `this.$router`.
+
+| Method | Description | Equivalent to |
+| ------ | ------------ | ------------- |
+| `router.back()` | Navigates backward one step in the history stack. | `router.go(-1)` / `window.history.back()` |
+| `router.forward()` | Navigates forward one step in the history stack. | `router.go(1)` / `window.history.forward()` |
+| `router.go(delta)` | Moves to a relative history position given by the integer `delta` (negative to go back, positive to go forward). | `window.history.go(delta)` |
+
+### Back Buttons
+
+```html
+<!-- src/components/nav-bar.component.js -->
+<button @click="goBack">← Back</button>
+
+<action name="goBack">
+  this.$router.back();
+</action>
+```
+
+### Multi-Step Wizards
+
+`go(delta)` is useful for jumping more than one step at a time — for example, skipping back over several wizard steps that each pushed their own history entry:
+
+```html
+<!-- src/components/checkout-wizard.component.js -->
+<button @click="backToPayment">← Back to Payment</button>
+
+<action name="backToPayment">
+  // From a step two screens ahead of Payment, jump back two steps at once
+  this.$router.go(-2);
+</action>
+```
+
+### Cancel Handlers
+
+A "Cancel" action in a form or modal commonly needs to return the user to wherever they came from, without hard-coding the previous hash:
+
+```html
+<!-- src/pages/edit-profile.page.js -->
+<button @click="cancelEdit">Cancel</button>
+
+<action name="cancelEdit">
+  this.$router.back();
+</action>
+```
+
+:::note
+`back()`, `forward()`, and `go(delta)` move the history cursor but that doesn't guarantee a route change — if there's nowhere to go, the call is a no-op. Route guards (`canActivate`) still run against the resulting route once the history position (and therefore the hash) actually changes.
+:::
+
+### Delegate Behavior & Testability
+
+History traversal is delegated to whichever `NavigationDelegate` the router is configured with (see [Pluggable Navigation Delegates](/api-reference/router-guard/#pluggable-navigation-delegates-navigationdelegate) in the API reference):
+
+- **`BrowserNavigationDelegate`** forwards `back()`, `forward()`, and `go(delta)` directly to `window.history`, so the browser's own back/forward buttons and programmatic calls behave identically.
+- **`MemoryNavigationDelegate`** maintains its own in-memory history array and cursor index instead of relying on `window.history`. Calling `go(delta)` moves that cursor and re-emits the resulting hash to subscribers, which makes backward/forward transitions deterministic and easy to assert in unit and integration tests, without a DOM or `jsdom` history mock.
+
+```javascript
+import { MemoryNavigationDelegate } from 'avenx-core/runtime/navigation';
+
+const delegate = new MemoryNavigationDelegate('#/step-1');
+delegate.setHash('#/step-2');
+delegate.setHash('#/step-3');
+
+delegate.back();
+delegate.getHash(); // '#/step-2'
+
+delegate.go(-1);
+delegate.getHash(); // '#/step-1'
+
+delegate.forward();
+delegate.getHash(); // '#/step-2'
+```
+
 ## 4. In-Place Parameter Updates
 
 :::caution

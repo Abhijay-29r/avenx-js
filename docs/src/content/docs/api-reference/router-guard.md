@@ -21,6 +21,7 @@ The second argument to `initRouter` is an optional `options` object that control
 | `titlePrefix`          | `string` | `''`        | A string prepended to every resolved route title. Use this to add application-wide branding, such as `MyCompany | `.                                                                                                |
 | `titleSuffix`          | `string` | `''`        | A string appended to every resolved route title. Use this to add consistent branding, such as ` | MyCompany`.                                                                                                      |
 | `transition`           | `string` | `'none'`    | Enables a named transition effect (e.g. `'fade'`, `'slide'`) applied to the page container when navigating between routes.                                                                                        |
+| `scrollRestoration` | `'top' \| 'auto' \| 'manual'` | `'top'` | Controls window scroll behavior on route transitions. `'top'` scrolls to the top on every navigation, `'auto'` remembers and restores scroll positions, and `'manual'` leaves the current scroll position unchanged. |
 
 ```javascript
 const router = AvenxApp.initRouter(routes, {
@@ -29,6 +30,7 @@ const router = AvenxApp.initRouter(routes, {
   guardTimeoutRedirect: '#/login',
   titlePrefix: 'MyCompany | ',
   titleSuffix: ' | Avenx',
+  scrollRestoration: 'auto',
   transition: 'fade',
 });
 
@@ -55,6 +57,21 @@ const brandingRouter = AvenxApp.initRouter(
 
 - ### `navigate(hash)`
   Programs a programmatic navigation to the specified route hash. It updates the browser history and triggers the matching route lifecycle.
+
+- ### `back()`
+  Navigates backward one step in the browser / session history stack. Equivalent to `router.go(-1)` (and, under `BrowserNavigationDelegate`, `window.history.back()`).
+  - **Returns:** `void`
+
+- ### `forward()`
+  Navigates forward one step in the history stack. Equivalent to `router.go(1)` (and, under `BrowserNavigationDelegate`, `window.history.forward()`).
+  - **Returns:** `void`
+
+- ### `go(delta)`
+  Moves to a relative position in the history stack, `delta` steps away from the current entry.
+  - **Arguments:** `delta: number` — negative values move backward, positive values move forward, `0` is a no-op.
+  - **Returns:** `void`
+
+  All three methods delegate to the router's underlying `NavigationDelegate` — see [Pluggable Navigation Delegates](#pluggable-navigation-delegates-navigationdelegate) below for how `back`/`forward`/`go` differ between `BrowserNavigationDelegate` and `MemoryNavigationDelegate`.
 
 - ### `beforeEach(callback)`
   Registers a global guard callback or `AvenxGuard` instance/class that runs before every route transition.
@@ -406,6 +423,9 @@ The base `NavigationDelegate` class defines the contract for all navigation adap
 | :--- | :--- | :--- |
 | `getHash()` | `string` | Returns the current location hash string (e.g. `'#/home'`). |
 | `setHash(hash: string)` | `void` | Navigates/sets the current location hash string and notifies registered listeners. |
+| `back()` | `void` | Navigates backward one step in history. |
+| `forward()` | `void` | Navigates forward one step in history. |
+| `go(delta: number)` | `void` | Moves to a history position `delta` steps relative to the current one. |
 | `onHashChange(callback: (hash: string) => void)` | `Function` | Subscribes to location hash change events. Returns an unregister function. |
 | `onLinkClick(callback: (route: string) => void)` | `Function` | Subscribes to link click events (e.g. `[data-ax-link]`). Returns an unregister function. |
 | `setTitle(title: string)` | `void` | Updates document or in-memory page title. |
@@ -418,8 +438,8 @@ The base `NavigationDelegate` class defines the contract for all navigation adap
 
 Avenx-JS provides two built-in navigation delegates:
 
-1. **`BrowserNavigationDelegate`**: The default delegate in browser environments. Binds directly to `window.location.hash`, `hashchange` events, document link clicks (`[data-ax-link]`), and `document.title`.
-2. **`MemoryNavigationDelegate`**: An in-memory delegate for Node.js, SSR, and headless test environments. Manages route location state, active subscriptions, and page titles purely in memory without DOM or window dependencies.
+1. **`BrowserNavigationDelegate`**: The default delegate in browser environments. Binds directly to `window.location.hash`, `hashchange` events, document link clicks (`[data-ax-link]`), and `document.title`. Its `back()`, `forward()`, and `go(delta)` methods forward directly to `window.history.back()`, `window.history.forward()`, and `window.history.go(delta)`, so history traversal is driven by the real browser history stack.
+2. **`MemoryNavigationDelegate`**: An in-memory delegate for Node.js, SSR, and headless test environments. Manages route location state, active subscriptions, and page titles purely in memory without DOM or window dependencies. It tracks its own `history` array and a `cursorIndex` pointer rather than delegating to `window.history`; `back()` and `forward()` are implemented as `go(-1)` / `go(1)`, and `go(delta)` moves `cursorIndex` by `delta` (clamped to the array bounds, a no-op past either end) and re-emits the resulting hash to subscribers. This gives predictable, synchronous back/forward simulation for unit and integration tests.
 
 ### Configuring Navigation Delegates
 
@@ -450,6 +470,12 @@ class MemoryNavigationDelegate extends NavigationDelegate {
   /** Current hash string held in memory */
   currentHash: string;
 
+  /** Ordered stack of hashes visited via setHash() */
+  history: string[];
+
+  /** Index of currentHash within history */
+  cursorIndex: number;
+
   /** Active in-memory title */
   title: string;
 
@@ -458,6 +484,15 @@ class MemoryNavigationDelegate extends NavigationDelegate {
 
   /** Updates currentHash and invokes registered hash listeners */
   setHash(hash: string): void;
+
+  /** Moves cursorIndex back one entry; equivalent to go(-1) */
+  back(): void;
+
+  /** Moves cursorIndex forward one entry; equivalent to go(1) */
+  forward(): void;
+
+  /** Moves cursorIndex by delta steps (no-op if out of bounds) */
+  go(delta: number): void;
 
   /** Registers a hash listener; returns unsubscribe function */
   onHashChange(callback: (hash: string) => void): Function;
@@ -471,6 +506,121 @@ class MemoryNavigationDelegate extends NavigationDelegate {
   /** Clears all listeners and active router references */
   destroy(): void;
 }
+```
+
+---
+
+## RouteMatcher Class
+
+The `RouteMatcher` class is an environment-agnostic static utility class exported from `avenx-core/runtime`. It is used internally by `AvenxRouter` and `MemoryNavigationDelegate` to compile route patterns into regular expressions, normalize URL hashes with optional namespace prefixes, resolve wildcards, parse and type-coerce query parameters, and match URLs against route definitions.
+
+You can also use `RouteMatcher` directly in your application to programmatically compile and test route patterns or parse parameters without instantiating a full router.
+
+### Importing
+
+```javascript
+import { RouteMatcher } from 'avenx-core/runtime';
+```
+
+---
+
+### Static Methods Reference
+
+#### `compileRoute(routePattern)`
+
+Compiles a route pattern string containing parameter tokens (`:paramName`) or wildcards (`*`) into a regular expression and tracks parameter names.
+
+- **Signature:** `RouteMatcher.compileRoute(routePattern: string): { regex: RegExp, paramNames: string[] }`
+- **Parameters:** `routePattern: string` — The route pattern string (e.g. `'/profile/:id'` or `'/files/*'`).
+- **Returns:** `{ regex: RegExp, paramNames: string[] }`
+  - `regex`: The compiled `RegExp` instance matching the route pattern.
+  - `paramNames`: Array of parameter names extracted from `:param` or `*` tokens (wildcards are named `'wildcard'`).
+
+```javascript
+const { regex, paramNames } = RouteMatcher.compileRoute('/profile/:id');
+console.log(paramNames); // ['id']
+console.log(regex.test('/profile/42')); // true
+```
+
+#### `normalizeHash(hash, prefix)`
+
+Normalizes a raw URL hash string and strips optional namespace prefixes.
+
+- **Signature:** `RouteMatcher.normalizeHash(hash: string, prefix?: string): string | null`
+- **Parameters:**
+  - `hash: string` — Raw hash string (e.g. `'#/app/profile?tab=info'`).
+  - `prefix?: string` — Optional namespace prefix string (e.g. `'/app'`).
+- **Returns:** `string | null` — Normalized hash starting with `#/` (e.g. `'#/profile?tab=info'`), or `null` if the prefix does not match.
+
+```javascript
+// Strips namespace prefix '/app'
+const normalized = RouteMatcher.normalizeHash('#/app/dashboard', '/app');
+console.log(normalized); // '#/dashboard'
+
+// Returns null if namespace prefix does not match
+const mismatch = RouteMatcher.normalizeHash('#/other/dashboard', '/app');
+console.log(mismatch); // null
+```
+
+#### `matches(routes, hash, options)`
+
+Tests whether a URL hash matches any explicit, non-wildcard route in a collection of route definitions.
+
+- **Signature:** `RouteMatcher.matches(routes: object, hash: string, options?: object): boolean`
+- **Parameters:**
+  - `routes: object` — Dictionary of route patterns mapped to route definitions.
+  - `hash: string` — URL hash string to test.
+  - `options?: object` — Optional configuration object (e.g. `{ prefix: '/app' }`).
+- **Returns:** `boolean` — `true` if an explicit route pattern matches; `false` if no match exists or if only a fallback wildcard (`'*'`) matches.
+
+```javascript
+const routes = {
+  '/home': { page: 'Home' },
+  '/user/:id': { page: 'User' },
+  '*': { page: 'NotFound' },
+};
+
+RouteMatcher.matches(routes, '#/user/42'); // true
+RouteMatcher.matches(routes, '#/unknown'); // false (wildcard only does not count)
+```
+
+#### `matchRoute(routes, hash, options, activeRouters, currentRouter)`
+
+Matches a URL hash against route definitions, extracting path parameters and type-coerced query parameters.
+
+- **Signature:** `RouteMatcher.matchRoute(routes: object, hash: string, options?: object, activeRouters?: Iterable, currentRouter?: object): object`
+- **Parameters:**
+  - `routes: object` — Dictionary of route patterns mapped to definitions.
+  - `hash: string` — URL hash string to match.
+  - `options?: object` — Router options object (e.g. `{ prefix: '/app' }`).
+  - `activeRouters?: Iterable` — Optional collection of active router instances to verify fallback wildcard conflicts.
+  - `currentRouter?: object` — Current router instance reference.
+- **Returns:** `Object` containing:
+  - `matchedRoute`: `{ pattern: string, definition: object }` or `null`.
+  - `params`: Extracted path parameters and parsed `query` object dictionary.
+  - `otherRouterMatches`: `boolean` flag indicating if another active router matched the route.
+  - `normalizedHash`: The normalized hash string.
+
+---
+
+### Query Parameter Type Coercion
+
+When `RouteMatcher.matchRoute()` encounters URL search params in the hash (e.g. `#/search?page=2&active=true&query=avenx`), it automatically type-coerces query parameter string values into JavaScript primitives:
+
+- `"true"` → `true` (boolean)
+- `"false"` → `false` (boolean)
+- Numeric strings (e.g. `"42"`) → `42` (number)
+- String values remain strings.
+
+```javascript
+const routes = {
+  '/search': { page: 'SearchPage' }
+};
+
+const result = RouteMatcher.matchRoute(routes, '#/search?page=2&active=true&q=js');
+console.log(result.params.query);
+// { page: 2, active: true, q: 'js' }
+```
 ```
 
 

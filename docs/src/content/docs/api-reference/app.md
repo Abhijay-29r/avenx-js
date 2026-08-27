@@ -14,8 +14,75 @@ const app = new AvenxApp({ target: '#app' });
 | Param           | Type     | Description                                                                                                    |
 | --------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `config.target` | `string` | A valid DOM selector (e.g., `'#app'`) pointing to the root element. Throws exception `[AVX_R01]` if not found. |
-| `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. When the limit is exceeded, the least recently used cached page is removed. Default: `5`. |
-| `config.logging` | `object` | Configuration applied to the shared runtime `logger` on startup. Accepts the same options as `AvenxLogger` (`level`, `silent`, `formatter`, `transports`). See [AvenxLogger](/api-reference/utils/#avenxlogger). |
+| `config.enableProfiling` | `boolean` | Enables browser Performance Timeline marks and measures for component lifecycle work. Default: `false`. |
+| `config.keepAliveLimit` | `number` | Maximum number of inactive keep-alive page instances stored in the internal LRU cache. Default: `5`. |
+| `config.logging` | `object` | Configuration applied to the shared runtime `logger` on startup. Accepts `level`, `silent`, `formatter`, `transports`, and `warnHandler`. |
+| `config.errorHandler` | `function` | Global error handler callback: `(error: Error, instance: AvenxComponent, info: string) => void`. |
+| `config.warnHandler` | `function` | Global warning handler callback: `(message: string, instance: AvenxComponent) => void`. |
+
+### `errorHandler`
+
+Pass a global `errorHandler` function in the `AvenxApp` configuration to capture uncaught runtime exceptions, lifecycle failures, and unhandled template errors across all components:
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  errorHandler(error, instance, info) {
+    console.error(`[Global Error] in ${instance?.constructor?.name || 'App'} during ${info}:`, error);
+
+    // Send telemetry to external monitoring services (e.g. Sentry, LogRocket, Datadog)
+    if (window.Sentry) {
+      Sentry.captureException(error, {
+        extra: { component: instance?.constructor?.name, lifecyclePhase: info },
+      });
+    }
+  },
+});
+```
+
+- **Callback Signature**: `(error: Error, instance: AvenxComponent, info: string) => void`
+- **`error`**: The thrown `Error` or `AvenxError` instance.
+- **`instance`**: The component instance where the exception originated (or `null` if thrown at application root).
+- **`info`**: A string describing the execution context (e.g. `'onMount'`, `'onUpdate'`, `'eventHandler'`, `'render'`).
+
+### `warnHandler`
+
+Pass a global `warnHandler` function in the `AvenxApp` configuration (or `logging.warnHandler`) to intercept framework warning codes (e.g. `AVX_W01` to `AVX_W32`):
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  warnHandler(message, instance) {
+    console.warn(`[Avenx Warning] from ${instance?.constructor?.name || 'Core'}: ${message}`);
+  },
+});
+```
+
+- **Callback Signature**: `(message: string, instance: AvenxComponent) => void`
+- **`message`**: The formatted warning message string containing the `[AVX_W*]` warning code.
+- **`instance`**: The component instance associated with the warning.
+
+### `enableProfiling`
+
+Set `enableProfiling` to `true` in the `AvenxApp` constructor to record
+`performance.mark`/`performance.measure` entries for component `mount`,
+`patch`, `render`, and `onMount` work. The resulting measurements use the
+`[Avenx] <Component> - <Phase>` name, so they can be inspected in the browser's
+Performance panel.
+
+```javascript
+const app = new AvenxApp({
+  target: '#app',
+  enableProfiling: true,
+});
+```
+
+When profiling is enabled on an app, Avenx also sets
+`window.__avenx_enable_profiling = true`. You can set that global flag yourself
+before component work begins to enable the same profiling fallback for
+components that do not have an app-level profiling option. The flag is only
+read in browser environments and has no effect when the Performance Timeline
+methods are unavailable.
 
 ### `logging`
 
@@ -55,16 +122,14 @@ For example, if four routes are configured with `keepAlive: true` and `keepAlive
 Applications with limited memory budgets may prefer a smaller value, while applications that benefit from preserving more inactive pages can increase the limit.
 
 ## Public Properties
-
 ### `activePage`
-
 Returns the currently active mounted page component instance.
 
 **Returns**
 
 `AvenxComponent | null`
 
-Returns the currently active mounted page component instance, or `null` if no page is currently mounted.
+Returns the currently active mounted page component instance, or `null` if no page is currently mounted. Note that when using keep-alive caching, the `activePage` property will return the cached page instance when it is activated.
 
 This read-only property is useful for debugging, diagnostics, and telemetry.
 
@@ -105,6 +170,22 @@ Registers a page view class for routing.
 app.registerPage('Dashboard', DashboardPage);
 ```
 
+### `getRegisteredPages()`
+
+Returns an array of string identifiers for all page components registered via `app.registerPage(name, pageClass)` from the internal `pages` Map.
+
+**Returns**
+
+`string[]`
+
+Returns an array containing the names of all registered pages.
+
+```javascript
+const registeredPages = app.getRegisteredPages();
+console.log('Registered pages:', registeredPages);
+// Example output: ['Home', 'Dashboard', 'UserProfile']
+```
+
 ### `initRouter(routes)`
 
 Instantiates and starts the hash-based router. Accepts a route mapping configuration object.
@@ -118,49 +199,127 @@ app.initRouter({
 
 ### `directive(name, definition)`
 
-Registers a custom directive with the application instance.
+Registers a custom directive with the application instance. Returns the `AvenxApp` instance for chaining.
+
+```typescript
+directive(name: string, definition: DirectiveDefinition | DirectiveFunction): AvenxApp
+```
 
 | Param | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus`. |
-| `definition` | `object` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`). |
+| `name` | `string` | The directive identifier name (e.g. `'focus'`). Applied in HTML templates as `data-ax-focus` (or with dot modifiers like `data-ax-focus.lazy`). |
+| `definition` | `object \| function` | An object containing lifecycle hooks (`mounted`, `updated`, `unmounted`), or a shorthand function `(el, binding) => void` executed on both mount and update. |
+
+#### Lifecycle Hooks Schema (`DirectiveDefinition`)
+
+| Hook | Parameters | Description |
+| --- | --- | --- |
+| `mounted(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the bound element is inserted into the DOM. |
+| `updated(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the directive expression value updates (`binding.value !== binding.oldValue`). |
+| `unmounted(el, binding)` | `(el: Element, binding: DirectiveBinding) => void` | Invoked when the bound element is removed/unmounted from the DOM. |
+
+#### Binding Object Schema (`DirectiveBinding`)
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `binding.value` | `any` | Evaluated result of the directive expression. |
+| `binding.oldValue` | `any` | Previous evaluated result before the update. |
+| `binding.expression` | `string` | Raw string expression passed in the template. |
+| `binding.modifiers` | `object` | Key/value map of modifier flags (e.g. `data-ax-tooltip.top.lazy` -> `{ top: true, lazy: true }`). |
 
 ```javascript
+// Object definition
 app.directive('focus', {
   mounted(el) {
     el.focus();
   },
 });
+
+// Shorthand function definition (runs on mounted and updated)
+app.directive('color', (el, binding) => {
+  el.style.color = binding.value;
+});
 ```
 
-See [Custom Directives](/core-concepts/directives/) for full details and examples.
+See [Custom Directives](/core-concepts/directives/) for complete guides, modifier handling, and real-world examples.
 
 ### `registerBridge(name, bridgeData)`
 
 
-Registers a global reactive state bridge. The bridge will be initialized and exposed to all components.
+Indexes a bridge on the application under `name`, so devtools and `app.bridges` can enumerate it. `bridgeData` is either a [`bridge()`](/core-concepts/bridges) instance or a plain reactive object.
+
+The compiler emits this call for every bridge an application imports, so a normal project never writes it by hand. Call it directly only to register a plain object as ad-hoc shared state:
 
 ```javascript
-app.registerBridge('AuthBridge', { isLoggedIn: false });
+app.registerBridge('flags', { betaEnabled: false });
 ```
 
-### `onError(handler)`
+A `bridge()` instance is indexed exactly as it is — it is already reactive and already read-only for consumers, so it is never re-wrapped. Registering the same name twice throws `AVX_R10`.
 
-Registers a global error handler for capturing unhandled errors that occur during component lifecycle events, template evaluations, and event handler executions. Once registered, this handler receives all unhandled errors from the application's error boundary, replacing the default behavior of logging to console.
+### `onError(callback)`
 
-The handler is invoked synchronously with the error object. AvenxApp allows registering at most one global error handler — calling `onError` a second time replaces the previous handler.
+Registers an application-wide error handler callback. Handlers are stored in an execution list—calling `onError` multiple times **adds** each callback to the pipeline (it does not replace previous ones). Returns the `AvenxApp` instance for chaining.
 
-| Param     | Type       | Description                                                             |
-| --------- | ---------- | ----------------------------------------------------------------------- |
-| `handler` | `Function` | A callback receiving the error object as its first and only argument.    |
+When an uncaught component lifecycle or event execution error bubbles past local `onErrorCaptured` hooks, `AvenxApp` dispatches it through internal `_handleError(error, component, origin)`, which safely invokes every registered callback inside an isolated `try/catch` block.
+
+```typescript
+onError(callback: (error: Error, component?: AvenxComponent, origin?: string) => void): AvenxApp
+```
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `error` | `Error \| AvenxError` | The caught error instance (includes `code`, `details`, and `stack`). |
+| `component` | `AvenxComponent \| null` | The component instance where the exception originated, or `null`. |
+| `origin` | `string` | Execution phase context (e.g. `'onMount'`, `'onUpdate'`, `'eventHandler:submitForm'`, `'render'`). |
 
 ```javascript
-app.onError((error) => {
-  reportErrorToServer(error);
-  showErrorToast('Something went wrong. Please try again.');
-  console.warn('Avenx error caught:', error);
+app.onError((error, component, origin) => {
+  console.error(`[Global App Error] ${origin}:`, error);
+
+  // Send diagnostic telemetry to Datadog / Sentry / LogRocket
+  if (window.Sentry) {
+    Sentry.captureException(error, {
+      extra: {
+        componentName: component?.constructor?.name,
+        origin,
+        errorCode: error.code,
+      },
+    });
+  }
 });
 ```
+
+---
+
+### `onWarn(callback)`
+
+Registers an application-wide warning handler callback for intercepting framework warning messages and codes (`AVX_W01` to `AVX_W32`). Handlers are additive and return the `AvenxApp` instance for chaining.
+
+```typescript
+onWarn(callback: (warningMessage: string, component?: AvenxComponent, code?: string) => void): AvenxApp
+```
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `warningMessage` | `string` | The formatted warning string (e.g. `"[AVX_W15] Inject key \"theme\" was not found..."`). |
+| `component` | `AvenxComponent \| null` | The originating component instance associated with the warning context. |
+| `code` | `string \| undefined` | The parsed warning code identifier (e.g. `'AVX_W15'`). |
+
+```javascript
+app.onWarn((msg, component, code) => {
+  // 1. In production, forward warnings to central observability service
+  if (process.env.NODE_ENV === 'production') {
+    analytics.track('Framework Warning', { message: msg, code, component: component?.constructor?.name });
+  }
+
+  // 2. In automated tests, assert that specific deprecation or mismatch warnings do not occur
+  if (code === 'AVX_W26') {
+    throw new Error(`Reserved method collision warning detected: ${msg}`);
+  }
+});
+```
+
+---
 
 ### `mount(name, targetSelector)`
 
@@ -173,4 +332,26 @@ Mounts a registered component onto the specified DOM element, triggering the com
 
 ```javascript
 app.mount('MyRootComponent', '#app');
+```
+
+### `clearKeepAliveCache(pageName)`
+
+Programmatically clears cached KeepAlive component instances from memory. Unmounts evicted page instances and destroys their cached DOM trees.
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `pageName` | `string` (optional) | Name of the page component to evict from cache. If omitted, clears all cached page instances. |
+
+**Returns**
+
+`boolean`
+
+Returns `true` if cache entries were evicted, `false` otherwise.
+
+```javascript
+// Evict a specific cached page instance
+const evicted = app.clearKeepAliveCache('UserProfilePage');
+
+// Purge all cached keep-alive pages
+app.clearKeepAliveCache();
 ```

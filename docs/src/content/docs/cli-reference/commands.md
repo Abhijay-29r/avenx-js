@@ -3,7 +3,7 @@ title: 'CLI Commands'
 description: 'Explore the command-line interface of Avenx-JS to create, compile, run, and watch projects.'
 ---
 
-The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, and template validation.
+The `avenx` command line interface streamlines your development workflow. It handles application scaffolding, code generation, destruction, building, watching, serving, project architecture inspection, template validation, environment health diagnostics, and environment inspection/configuration.
 
 ## Command Syntax
 
@@ -21,7 +21,127 @@ The following flags can be passed globally to `avenx` commands:
 | :--- | :--- | :--- | :--- |
 | `--dry-run` | `-d` | Previews file creation, modification, or deletion actions without modifying disk. | `generate`, `destroy` |
 | `--force` | `-f` | Forces command execution by bypassing uncommitted Git working tree status checks. | `init`, `generate`, `destroy`, `build` |
+| `--dev` | | Builds in development mode: readable runtime, inline CSS source maps. | `build`, `serve`, `watch` |
+| `--prod` | | Builds in production mode: minified runtime. The default for `build`. | `build`, `serve`, `watch` |
+| `--no-color` | | Disables colored terminal output. | Global |
 | `--version` | `-v` | Displays the installed version of the Avenx-JS CLI package. | Global |
+
+## Terminal Formatting & CI Environment
+
+The Avenx-JS CLI features a zero-dependency ANSI styling system (implemented in `bin/colors.js`) that provides color-coded terminal diagnostics, clear section headings, and status badges across all commands (`build`, `serve`, `doctor`, `inspect`, `check`, etc.).
+
+### Automatic TTY & Color Support Detection
+
+By default, the CLI automatically detects whether the active output stream can render ANSI escape sequences using standard terminal detection heuristics:
+
+- **Interactive TTY**: If `process.stdout.isTTY` is `true` and the terminal reports color capability (`stdout.hasColors()`), ANSI colors are enabled automatically.
+- **Pipes & Non-TTY Streams**: When output is redirected to a file (e.g. `avenx build > build.log`) or piped to another process (e.g. `avenx build | grep error`), ANSI color codes are automatically stripped to keep the output clean and parseable.
+- **Dumb Terminals**: When `TERM=dumb` is detected, ANSI styling is disabled.
+- **Machine-Readable Modes**: Commands producing structured output (e.g. `avenx check --json` or `avenx inspect --json`) always emit uncolored, valid JSON regardless of environment settings.
+
+---
+
+### Environment Variables & CI/CD Integration
+
+You can customize or override automatic terminal color detection in automated CI/CD pipelines (such as GitHub Actions, GitLab CI, CircleCI, Jenkins), scripts, and log collectors:
+
+| Variable / Flag | Behavior & Purpose | Examples |
+| :--- | :--- | :--- |
+| `NO_COLOR` | Disables all ANSI styling according to the [no-color.org](https://no-color.org) standard when set to any non-empty string. | `NO_COLOR=1 avenx build` |
+| `FORCE_COLOR` | Forces ANSI color codes on non-TTY streams and CI runners (unless explicitly set to `'0'` or `'false'`). Useful for preserving color output in GitHub Actions log viewers. | `FORCE_COLOR=1 avenx build`<br />`FORCE_COLOR=0 avenx build` (disables) |
+| `TERM=dumb` | Disables ANSI escape codes for basic or restricted terminal emulators. | `TERM=dumb avenx serve` |
+| `--no-color`<br />`--no-colors` | CLI argument to disable colored output for a single invocation. | `npx avenx build --no-color` |
+
+#### GitHub Actions Workflow Example
+
+Preserve colored build diagnostics in GitHub Actions summary logs:
+
+```yaml
+name: Build and Check
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      # Force colored CLI output in CI console logs
+      - name: Build Project
+        run: npx avenx build
+        env:
+          FORCE_COLOR: '1'
+      # Machine-readable checks without color
+      - name: Validate Templates
+        run: npx avenx check --json > report.json
+```
+
+---
+
+### Programmatic Color API (`bin/colors.js`)
+
+Developers creating custom CLI extensions, pre-build scripts, or build plugins on top of Avenx-JS can import and use the programmatic styling utilities:
+
+```javascript
+import {
+  detectColorSupport,
+  isColorEnabled,
+  setColorEnabled,
+  bold,
+  dim,
+  red,
+  green,
+  yellow,
+  blue,
+  cyan,
+  gray,
+  createSeverityFormatter
+} from './bin/colors.js';
+```
+
+#### API Methods
+
+| Method | Return Type | Description |
+| :--- | :--- | :--- |
+| `detectColorSupport()` | `boolean` | Re-evaluates CLI flags (`--no-color`), environment variables (`NO_COLOR`, `FORCE_COLOR`, `TERM`), and `stdout.isTTY` to determine color capability. |
+| `isColorEnabled()` | `boolean` | Returns whether ANSI color styling is currently active in the process. |
+| `setColorEnabled(value?)` | `boolean` | Manually enables (`true`) or disables (`false`) ANSI escape code generation. Calling without arguments re-runs automatic detection. |
+| `createSeverityFormatter()` | `function` | Creates a logging formatter for `AvenxLogger` that tints warnings in yellow and errors in red while preserving plain text and objects. |
+
+#### ANSI Styling Helpers
+
+When color styling is active, styling helpers wrap strings with their corresponding ANSI open/close escape codes. When disabled, they return the input string unchanged:
+
+```javascript
+import { bold, green, red, yellow, cyan } from './bin/colors.js';
+
+console.log(bold(cyan('=== Avenx Custom Build Step ===')));
+console.log(green('✔ Assets compiled successfully.'));
+console.log(yellow('⚠ Bundle budget threshold reached.'));
+console.log(red('✖ Critical compilation failure.'));
+```
+
+#### Custom Script Example
+
+```javascript
+import { setColorEnabled, isColorEnabled, green, red } from './bin/colors.js';
+
+// Explicitly configure color emission for custom tool
+if (process.argv.includes('--plain')) {
+  setColorEnabled(false);
+}
+
+function logStatus(taskName, success) {
+  const statusBadge = success ? green('PASS') : red('FAIL');
+  console.log(`[${statusBadge}] ${taskName}`);
+}
+
+logStatus('Linting templates', true);
+logStatus('Checking bundle size', false);
+```
 
 ---
 
@@ -86,7 +206,7 @@ Generates boilerplate code for components, pages, global state bridges, and navi
 
 - **Component (`component`, `c`)**: Creates `src/components/<name>/<name>.component.js` and `.css`, and registers it in `main.app.js`.
 - **Page (`page`, `p`)**: Creates `src/pages/<name>.page.js` and `.css` for client-side routing.
-- **Bridge (`bridge`)**: Creates a shared reactive domain state class at `src/global/<name>.bridge.js` extending `AvenxBridge`.
+- **Bridge (`bridge`)**: Creates a shared reactive state module at `src/global/<name>.bridge.js` built with the `bridge()` factory.
 - **Guard (`guard`)**: Creates a navigation guard class at `src/guards/<name>.guard.js` extending `AvenxGuard`.
 
 #### Options
@@ -147,12 +267,27 @@ npx avenx d p dashboard --dry-run
 
 Compiles all component templates, scoped stylesheets, page components, and global bridges into single distribution bundle files in `distDir`.
 
+**`avenx build` is a production build.** It bundles the minified runtime and links the CSS source map as a separate file. Pass `--dev` for a development build, which bundles the readable runtime and inlines the CSS source map:
+
+```bash
+npx avenx build
+```
+
+```bash
+npx avenx build --dev
+```
+
+The active mode appears in the build header, and can also be set with `mode` in `avenx.config.json` or via `NODE_ENV=development`. See the [deployment guide](/guides/deployment#build-modes) for what the two modes differ in.
+
+**Exit codes.** `avenx build` exits `0` only on a successful build. Any fatal compiler error, a warning escalated to `"error"`, or a failing lifecycle hook exits non-zero, so `avenx build && deploy` never deploys a failed build. See [Build Failures and Exit Codes](/guides/deployment#build-failures-and-exit-codes).
+
 #### Features & Distribution Files
 
 - Compiles `.component.js` files and extracts `<state>`, `<action>`, and `<computed>` tags.
 - Bundles and scopes component CSS rules.
 - Performs automatic component tree-shaking when `treeShakeComponents: true`.
 - Evaluates build-time template validation rules.
+- Minifies the bundled runtime in production mode.
 - Generates JavaScript (`<outputName>.js`) and CSS (`<outputName>.css`) distribution bundles.
 
 #### Custom Output Bundle Names (`outputName`)
@@ -180,6 +315,10 @@ Be sure to reference the customized bundle filenames in your `index.html` entry 
 <link rel="stylesheet" href="dist/app.bundle.css" />
 <script src="dist/app.bundle.js"></script>
 ```
+
+#### Output Directory Resolution & Troubleshooting
+
+The build pipeline automatically creates the distribution output directory (`dist/` by default or as configured in `avenx.config.json`) if it does not already exist. If directory creation fails due to insufficient filesystem permissions or an existing blocking file, the compiler logs `[AVX_C01] Could not create dist directory`. See [AVX_C01 Troubleshooting](/troubleshooting/errors/#avx_c01--compiler_dist_creation_failed) for troubleshooting guidelines.
 
 #### Usage Examples
 
@@ -243,9 +382,99 @@ Parses and validates all project templates without writing build outputs to disk
 npx avenx check
 ```
 
+For editor-integrated real-time linting and ESLint rule enforcement (PascalCase tag naming), see the [ESLint Template Validation Guide](/guides/eslint).
+
+
 ---
 
-### 8. `avenx clean`
+### 8. `avenx inspect` (alias: `i`)
+
+Scans the project `src/` directory and outputs a formatted terminal tree view displaying pages (with mapped route paths), components (annotated with unused warnings), and global state bridges offline without launching a development server.
+
+#### Command Purpose
+
+The `avenx inspect` command analyzes application architecture, route mappings, and component utilization offline. It allows developers to quickly audit project structure, inspect route registrations, and detect orphaned components without launching a development server or browser environment.
+
+#### Terminal Output Hierarchy
+
+`avenx inspect` categorizes the project structure into three tree branches:
+
+- **📄 Pages**: Lists page components (`src/pages/*.page.js`) alongside their mapped route paths (e.g. `/home`, `/user/:id`).
+- **🧩 Components**: Lists UI components (`src/components/*`) annotated with `(⚠️ Unused)` warnings when unreferenced.
+- **🌉 Bridges**: Lists global reactive state bridges (`src/bridges/*` or `src/global/*.bridge.js`).
+
+#### Unused Component Detection
+
+`avenx inspect` scans application templates, scripts, and `app.mount()` calls. If a component defined in `src/components/` is not referenced in any template tags or mount declarations, `avenx inspect` automatically flags it with `(⚠️ Unused)` in the hierarchy view.
+
+#### Usage Example & Output Sample
+
+```bash
+# Print project route and component hierarchy
+npx avenx inspect
+
+# Or using the shorthand alias
+npx avenx i
+```
+
+**Sample Output:**
+
+```text
+📦 Avenx Project Hierarchy (src/)
+├── 📄 Pages (2)
+│   ├── HomePage (/home) -> src/pages/home.page.js
+│   └── UserPage (/user/:id) -> src/pages/user.page.js
+├── 🧩 Components (2)
+│   ├── Header -> src/components/header/header.component.js
+│   └── UnusedBtn -> src/components/unused-btn/unused-btn.component.js (⚠️ Unused)
+└── 🌉 Bridges (1)
+    └── AuthBridge -> src/bridges/auth.bridge.js
+```
+
+---
+
+### 9. `avenx doctor`
+
+Runs environment, project configuration, directory structure, and Git working tree diagnostics to ensure your workspace meets Avenx-JS project health requirements.
+
+#### Command Purpose & When to Run
+
+The `avenx doctor` command performs comprehensive diagnostic health checks on your local development environment and project setup. Run this command when:
+- Setting up or troubleshooting a newly scaffolded project workspace.
+- Verifying environment compatibility and configuration in Continuous Integration (CI/CD) pipelines.
+- Debugging unexpected build, styling, or routing issues.
+
+#### Diagnostics Performed
+
+`avenx doctor` checks the following areas:
+
+1. **Node.js Environment**:
+   - Verifies that Node.js version is `>= 18.0.0`.
+2. **Project Configuration**:
+   - Checks presence and JSON validity of `package.json`.
+   - Validates `avenx.config.json` schema and emits warnings for unknown or unsupported configuration keys across top-level fields, `server`, `style`, `debug`, and `logging` blocks.
+3. **Project Structure**:
+   - Validates existence of the source directory (`src/` or custom `srcDir`) and build output directory (`dist/` or custom `distDir`).
+   - Checks for recommended subdirectories: `src/components/`, `src/pages/`, and `src/global/`.
+   - Verifies presence of `.vscode/jsconfig.json` (editor path aliases) and root `index.html`.
+4. **Git Repository Status**:
+   - Checks Git status and warns if the working tree has uncommitted local changes.
+
+#### Exit Codes
+
+- `0`: Diagnostic checks passed successfully (or only non-critical warnings were reported).
+- `1`: Diagnostic checks failed due to critical errors (e.g., Node.js version lower than required, missing or invalid `package.json`, or malformed configuration).
+
+#### Usage Examples
+
+```bash
+# Run environment and project health diagnostics
+npx avenx doctor
+```
+
+---
+
+### 10. `avenx clean`
 
 Deletes the target build distribution directory (typically `dist/` or configured `distDir`) to ensure a fresh build state.
 
@@ -255,11 +484,171 @@ npx avenx clean
 
 ---
 
-### 9. `avenx help`
+### 11. `avenx help`
 
 Prints the CLI usage manual and command reference to the console.
 
 ```bash
 npx avenx help
 ```
+---
 
+
+### 12. `avenx stats` (alias: `s`)
+
+Analyzes the project's source files and reports component, page, bridge, and guard footprint metrics, including source file sizes, template sizes, scoped CSS payloads, and reactive state properties.
+
+#### Command Syntax
+
+```bash
+npx avenx stats [options]
+npx avenx s [options]
+```
+
+#### Options
+
+| Flag / Option | Alias | Description |
+| --- | --- | --- |
+| `--json` | `-j` | Outputs structured JSON containing `summary` and `items` data for CI/CD, automated reporting, and analysis. |
+
+#### What It Analyzes
+
+The command scans JavaScript and TypeScript files under the configured `srcDir` and classifies them as:
+
+- **Component**: Component source files.
+- **Page**: Page source files.
+- **Bridge**: Shared state bridge files.
+- **Guard**: Navigation guard files.
+- **other**: Source files that do not match the recognized component, page, bridge, or guard patterns.
+
+For components and pages, `avenx stats` also analyzes template and scoped CSS payloads.
+
+#### Terminal Output
+
+Without `--json`, the command displays a table containing the following columns:
+
+| Column | Description |
+| --- | --- |
+| **Name** | PascalCase component or class name. |
+| **Type** | Source type: `Component`, `Page`, `Bridge`, `Guard`, or `other`. |
+| **File Size** | Size of the source file on disk. |
+| **Raw Tpl** | Size of the uncompiled template markup. |
+| **Comp Tpl** | Size of the compiled/minified template. |
+| **CSS Size** | Size of the scoped component CSS. |
+| **State** | Number of reactive state properties declared in `<state />`. |
+
+Template and scoped CSS metrics apply to components and pages where those resources are available.
+
+#### Summary Totals
+
+The terminal output includes summary metrics after the file table:
+
+- **Total Files**: Total number of source files analyzed.
+- **Components**: Number of component source files.
+- **Pages**: Number of page source files.
+- **Bridges**: Number of bridge source files.
+- **Total Source Size**: Combined size of all analyzed source files.
+- **Raw Template Payload**: Combined size of all raw template markup.
+- **Compiled Template**: Combined size of compiled templates and the calculated template size reduction.
+- **Scoped CSS Payload**: Combined size of scoped component CSS.
+- **State Properties**: Total number of reactive state properties detected.
+
+The template reduction percentage is calculated as:
+
+```text
+((Raw Template Payload - Compiled Template Payload) / Raw Template Payload) × 100
+```
+
+---
+
+### 13. `avenx env`
+
+Inspects the project's environment variables and reports active configuration, separating public variables (which are inlined into the build) from system variables (which are kept private and masked).
+
+#### Command Syntax
+
+```bash
+npx avenx env
+```
+
+#### Options
+
+The command accepts **no flags or aliases** and does not support structured/machine-readable (`--json`) output.
+
+#### How It Resolves Configuration
+
+The command scans the project root directory and reads configuration files through the following mechanism:
+1. It loads local environment variables from the `.env` file using the `loadEnv()` helper against the resolved project root (does not overwrite existing environment variables in `process.env`).
+2. It separately parses the project's `.env` file using `parseEnv()` to identify local keys.
+3. It compares keys in `.env` with keys in `process.env` to classify each variable as public or private/system.
+
+#### Output Groups
+
+The command organizes variables and file statuses into three distinct groups:
+
+##### 1. Source Files
+Reports the path and parsing status of the project's `.env` file:
+* **Successful read**: Displays the absolute path of the `.env` file prefixed with a green checkmark (`✔`).
+* **Missing file**: Prints a warning prefixed with a yellow warning symbol (`⚠ No .env file found (only process env AVX_PUBLIC_* shown)`).
+* **Unparseable/Invalid file**: Displays an error prefixed with a yellow cross (`✖ Failed to read <absolute-path-to-.env>: <error-message>`) and sets a non-zero exit code (`1`).
+
+##### 2. Public Variables
+Lists variables prefixed with `AVX_PUBLIC_`.
+* **Source**: Collected from all keys in `process.env` (system environment) and keys in the project's `.env` file. Sorted alphabetically.
+* **Display**: Values are displayed in full and unmasked.
+* **Notes**:
+  * `inlined` (gray): Indicates the variable contains a non-empty string and will be stringified and inlined into build outputs.
+  * `empty` (yellow): Indicates the variable is empty (`""`).
+
+##### 3. System Variables
+Lists private or non-public variables.
+* **Source**: Collected **only** from the project's local `.env` file (keys not starting with `AVX_PUBLIC_`). Shell environment variables present in `process.env` but absent from `.env` are excluded from this list. Sorted alphabetically.
+* **Display**: Values are masked for security.
+
+#### Security Boundary & Best Practices
+
+Avenx enforces a strict build-time security boundary for environment variables:
+* Only variables prefixed with `AVX_PUBLIC_` are exposed to client-side compiled outputs. The compiler replaces occurrences of `process.env.AVX_PUBLIC_<KEY>` in code with their stringified value.
+* Any other variables (e.g. database credentials, server API keys) placed in the `.env` file are kept private. They are **not** replaced in code or bundled into compiled assets.
+* Developers should run `avenx env` to verify that no sensitive credentials have been accidentally prefixed with `AVX_PUBLIC_`.
+
+#### Secret Masking Rules
+
+For private system variables, Avenx masks the values using a deterministic `maskSecret()` rule:
+* **Short Values (4 characters or fewer, including empty values)**: The value is completely replaced with asterisks (`*`), with a minimum of 4 asterisks (e.g., an empty value or `key` is displayed as `****`).
+* **Long Values (more than 4 characters)**: The first 4 characters are preserved in plaintext, and the remaining characters are replaced by asterisks up to a maximum of 8. The total output length will be `4 + Math.min(8, value.length - 4)`, resulting in a maximum total output length of 12 characters.
+
+| Original Value | Masked Output | Description |
+| :--- | :--- | :--- |
+| `""` (empty) | `****` | Length 0, replaced by 4 asterisks. |
+| `key` | `****` | Length 3, replaced by 4 asterisks. |
+| `pass` | `****` | Length 4, replaced by 4 asterisks. |
+| `hello` | `hell*` | Length 5. First 4 characters preserved (`hell`), remaining 1 masked (`*`). |
+| `secret` | `secr**` | Length 6. First 4 characters preserved (`secr`), remaining 2 masked (`**`). |
+| `my_very_long_password` | `my_v********` | Length 21. First 4 characters preserved (`my_v`), remaining 17 masked (capped at 8 asterisks). |
+
+#### Exit Codes
+
+* **`0`**: Normal execution (even if `.env` is missing).
+* **`1`**: A `.env` file exists but failed to parse (e.g. contains syntax errors). If a parsing error occurs, the command sets `process.exitCode = 1` and continues executing to display any available environment details. This behavior is useful in CI pipelines to automatically fail builds if a configuration file is malformed.
+
+#### Sample Output
+
+```text
+Avenx Environment
+Project: /path/to/avenx-js
+
+Source Files
+  ✔ /path/to/avenx-js/.env
+
+Public Variables (AVX_PUBLIC_* — inlined at build time)
+  Key                          Value                    Notes
+  AVX_PUBLIC_API_URL           https://api.example.com  inlined
+  AVX_PUBLIC_APP_NAME                                   empty
+  AVX_PUBLIC_EXTERNAL_VAR      external_val             inlined
+
+System Variables (from .env — values masked)
+  Key                          Value
+  API_KEY                      ****
+  DB_PASSWORD                  secr********
+```

@@ -1,8 +1,5 @@
-# Specialized AI Agents System
-
-Welcome to the **Avenx-JS Specialized AI Agents System**! 
-
-This directory contains a structured, modular set of specialized agent instructions designed for contributors, maintainers, and AI coding assistants (like Antigravity) working on the Avenx-JS codebase. By dividing responsibilities, we ensure consistent standards, prevent regression bugs, and speed up software development.
+# Good First Issue: Document avenx doctor Command in CLI Reference
+The Avenx CLI includes an `avenx doctor` command that performs automated diagnostic checks on the project configuration, Node environment, dependency versions, and output directory permissions. However, this command is missing from the CLI Reference documentation table in `README.md` and the online docs. By dividing responsibilities, we ensure consistent standards, prevent regression bugs, and speed up software development.
 
 ## Directory Overview
 

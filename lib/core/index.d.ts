@@ -5,17 +5,35 @@
 /**
  * Base class for all route guards in Avenx.
  */
+
+export interface GuardControlObject {
+    cancel?: boolean;
+    silent?: boolean;
+    redirect?: string;
+    state?: Record<string, any>;
+}
+
+export type GuardResult =
+    | boolean
+    | string
+    | GuardControlObject
+    | Promise<boolean | string | GuardControlObject>;
 export class AvenxGuard {
     /**
      * Determines whether the route can be activated.
-     * Can return a boolean, a redirect string, or a Promise resolving to either.
+     * Can return a boolean, a redirect string, control object,
+     * or a Promise resolving to either.
      * @param to Target route information.
      * @param from Current route information.
      */
     canActivate(
         to: { hash: string; page: string; params: Record<string, any> },
         from: { hash: string; page: string; params: Record<string, any> } | null
-    ): boolean | string | Promise<boolean | string>;
+    ): GuardResult;
+    canDeactivate?(
+        current: { hash: string; page: string; params: Record<string, any> },
+        next: { hash: string; page: string; params: Record<string, any> }
+    ): boolean | Promise<boolean>;
 }
 
 /**
@@ -40,9 +58,146 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     readonly $parent: AvenxComponent<any> | null;
 
     /**
+     * Template refs collected from `data-ax-ref` markers.
+     * Resolves to a component instance when the host element has `__avenx_comp_instance`, otherwise the DOM element.
+     */
+    readonly $refs: Record<string, Element | AvenxComponent<any> | undefined>;
+
+    /**
+     * True while the component is mounted in the DOM.
+     */
+    readonly $isMounted: boolean;
+
+    /**
+     * True after the component has been unmounted.
+     */
+    readonly $isUnmounted: boolean;
+
+    /**
+     * Helpers for inspecting whether the parent provided slot content.
+     */
+    readonly $slots: {
+        /**
+         * Returns true when content was provided for the named slot (or the default slot).
+         * @param slotName Named slot, or `default` / omitted for the default slot.
+         */
+        has(slotName?: string): boolean;
+    };
+
+    /**
+     * Programmatically clear cached KeepAlive component instances.
+     */
+    readonly $keepAlive: {
+        clear(componentName?: string): boolean;
+    };
+
+    /**
+     * Helper method to clear cached KeepAlive component instances.
+     * @param pageName Optional component or page name to clear from cache.
+     */
+    clearKeepAliveCache(pageName?: string): boolean;
+
+    /**
+     * The component's root DOM element, or null before mount / after unmount.
+     */
+    readonly $element: Element | null;
+
+    /**
+     * The application instance this component belongs to.
+     */
+    readonly $app?: AvenxApp;
+
+    /**
+     * Diagnostic context used when the component reports a warning or error.
+     */
+    readonly $logContext: {
+        componentName: string;
+        fileName: string | null;
+        component: AvenxComponent<any>;
+    };
+
+    /**
+     * Returns a diagnostic snapshot of the component for runtime debugging.
+     * Props and state are sanitized clones; `element` is the live root element.
+     * Computed properties are listed by key only, so inspecting never evaluates them.
+     */
+    $inspect(): {
+        componentName: string;
+        props: Record<string, any>;
+        state: Record<string, any>;
+        computed: string[];
+        slots: string[];
+        element: Element | null;
+    };
+
+    /**
+     * Emits a custom DOM event from the component's root element.
+     * @param eventName Name of the event to emit.
+     * @param detail Event detail payload.
+     * @param options Custom event options.
+     */
+    emit(eventName: string, detail?: any, options?: CustomEventInit): void;
+
+    /**
+     * Emits a composed custom event to parent components.
+     * @param eventName Name of the event to emit.
+     * @param detail Event detail payload.
+     */
+    $emit(eventName: string, detail?: any): void;
+
+    /**
+     * Schedules an asynchronous update in the next microtask flush.
+     */
+    scheduleUpdate(): void;
+
+    /**
+     * Performs the synchronous render and DOM patch for this component.
+     */
+    runUpdate(): void;
+
+    /**
+     * Unmounts the component and tears down watchers and resources.
+     * Alias for {@link AvenxComponent#unmount}.
+     */
+    $destroy(): void | Promise<void>;
+
+    /**
+     * Trips a named `<@deadlock>` boundary in this component's DOM tree,
+     * rendering its fallback template.
+     * @param boundaryName Boundary name, or null for the first boundary.
+     * @param error Error context passed to the fallback template.
+     */
+    $tripDeadlockBoundary(boundaryName?: string | null, error?: Error | object): void;
+
+    /**
+     * Resets a named `<@deadlock>` boundary in this component's DOM tree.
+     * @param boundaryName Boundary name, or null for the first boundary.
+     */
+    $resetDeadlockBoundary(boundaryName?: string | null): void;
+
+    /**
      * The active route details.
      */
-    readonly $route: { hash: string; page: string; params: Record<string, any> };
+    readonly $route: {
+        hash: string;
+        path: string;
+        page: string;
+        params: Record<string, any>;
+        query: Record<string, string | boolean | number>;
+    };
+
+    /**
+     * Runs after the current reactive DOM update flush completes.
+     * With a callback, invokes it after the flush. Without a callback, returns a Promise.
+     */
+    $nextTick(callback: () => void): void;
+    $nextTick(): Promise<void>;
+
+    /**
+     * Alias for {@link AvenxComponent#$nextTick}.
+     */
+    nextTick(callback: () => void): void;
+    nextTick(): Promise<void>;
 
     /**
      * Keys or mappings to share reactively with descendant components.
@@ -51,8 +206,12 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
 
     /**
      * Keys or mappings injected from ancestor components.
+     * Object values may be provide-key strings or `{ from?, default }` configs.
      */
-    inject?: Record<string, string> | (() => Record<string, string>) | string[];
+    inject?:
+        | Record<string, string | { from?: string; default?: any }>
+        | (() => Record<string, string | { from?: string; default?: any }>)
+        | string[];
 
     /**
      * @param initialState Initial component state variables.
@@ -152,8 +311,32 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     watch(
         getter: () => any,
         callback: (newValue: any, oldValue: any) => void,
-        options?: { immediate?: boolean; lazy?: boolean }
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number }
     ): AvenxWatcher;
+
+    /**
+     * Reactively listens to changes in specific state values or getters.
+     * @param source State property key string, getter function, or array of sources.
+     * @param callback Triggered when value changes.
+     * @param options Config options.
+     */
+    $watch(
+        source: string | (() => any) | Array<string | (() => any)>,
+        callback: (newValue: any, oldValue: any) => void,
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number }
+    ): AvenxWatcher;
+
+    /**
+     * Reactively runs an immediate effect hook that automatically tracks dependencies and re-runs on state mutation.
+     * Automatically registers watcher in _watchers and tears it down on unmount.
+     * @param effect Effect function to run immediately and track.
+     * @param options Config options.
+     * @returns Stop handle function.
+     */
+    $watchEffect(
+        effect: () => void,
+        options?: { lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string }
+    ): () => void;
 
     /**
      * Evaluates validation rules for an element and updates state.$validation.
@@ -191,6 +374,75 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
      * @protected
      */
     _getTranscludedGroups(): Record<string, any>;
+
+    /**
+     * Helper method to programmatically create component subclasses without ES class boilerplate.
+     * @param options Component definition options.
+     * @returns A new component subclass.
+     */
+    static extend<
+        S extends Record<string, any> = Record<string, any>,
+        M extends Record<string, Function> = Record<string, Function>,
+        C extends Record<string, any> = Record<string, any>,
+        P extends Record<string, any> = Record<string, any>
+    >(
+        options?: ComponentExtendOptions<S, M, C, P>
+    ): typeof AvenxComponent & (new (bridges?: Record<string, any>, props?: P) => AvenxComponent<S> & M & C);
+
+    /**
+     * Registers a global mixin.
+     * @param mixin The mixin definition.
+     */
+    static mixin(mixin: Record<string, any>): void;
+
+    /**
+     * Resets/clears the global mixins list.
+     */
+    static clearMixins(): void;
+}
+
+/**
+ * Options accepted by {@link AvenxComponent.extend}.
+ */
+export interface ComponentExtendOptions<
+    S extends Record<string, any> = Record<string, any>,
+    M extends Record<string, Function> = Record<string, Function>,
+    C extends Record<string, any> = Record<string, any>,
+    P extends Record<string, any> = Record<string, any>
+> {
+    name?: string;
+    state?: S | (() => S);
+    data?: S | (() => S);
+    computed?: C;
+    methods?: M;
+    template?: string;
+    props?: P;
+    styles?: Record<string, string>;
+    resources?: Record<string, any>;
+    watch?: Record<
+        string,
+        | ((newVal: any, oldVal: any) => void)
+        | { handler: (newVal: any, oldVal: any) => void; immediate?: boolean; deep?: boolean }
+    >;
+    provide?: Record<string, any> | (() => Record<string, any>) | string[];
+    inject?:
+        | Record<string, string | { from?: string; default?: any }>
+        | (() => Record<string, string | { from?: string; default?: any }>)
+        | string[];
+    contracts?: string[] | Set<string>;
+    options?: Record<string, any>;
+    onBeforeMount?(): void;
+    onMount?(): void;
+    onBeforeUpdate?(): void;
+    onUpdate?(): void;
+    onUnmount?(): void;
+    onActivate?(params?: Record<string, any>): void;
+    onDeactivate?(): void;
+    onErrorCaptured?(error: Error): boolean | void;
+    onEnter?(): void;
+    onLeave?(): void;
+    onBeforeLeave?(): void | Promise<void>;
+    [key: string]: any;
 }
 
 /**
@@ -225,6 +477,10 @@ export class VirtualList extends AvenxComponent<any> {
         bridges?: Record<string, any>,
         props?: Record<string, any>
     );
+    currentPage: number;
+    goToPage(targetPage: number): void;
+    nextPage(): void;
+    prevPage(): void;
 }
 
 /**
@@ -235,6 +491,21 @@ export interface AvenxRouterOptions {
      * Optional path prefix for all routes (e.g. 'app').
      */
     prefix?: string;
+
+    /**
+     * Optional custom navigation delegate.
+     */
+    delegate?: NavigationDelegate;
+
+    /**
+     * Navigation mode ('hash' | 'memory').
+     */
+    mode?: 'hash' | 'memory' | string;
+
+    /**
+     * Initial hash string for memory navigation delegate.
+     */
+    initialHash?: string;
 
     /**
      * The time in milliseconds to wait before a route guard execution times out (default is 5000ms).
@@ -255,6 +526,14 @@ export interface AvenxRouterOptions {
      * A string appended to every resolved route title (e.g. ' — MyApp').
      */
     titleSuffix?: string;
+
+    /**
+     * Controls scroll position after successful navigation.
+     * - `'top'` (default): scroll to (0, 0)
+     * - `'auto'`: restore the last saved position for the target hash, otherwise scroll to top
+     * - `'manual'`: do not change scroll position
+     */
+    scrollRestoration?: 'top' | 'auto' | 'manual';
 }
 
 /**
@@ -284,6 +563,53 @@ export interface AvenxRouteDefinition {
 }
 
 /**
+ * Base abstract class defining the navigation delegate interface.
+ */
+export class NavigationDelegate {
+    getHash(): string;
+    setHash(hash: string, options?: { replace?: boolean }): void;
+    back(): void;
+    forward(): void;
+    go(delta: number): void;
+    onHashChange(callback: (hash: string) => void): () => void;
+    onLinkClick(callback: (route: string) => void): () => void;
+    setTitle(title: string): void;
+    registerRouter(router: any): void;
+    unregisterRouter(router: any): void;
+    getActiveRouters(): Set<any>;
+    destroy(): void;
+}
+
+/**
+ * Browser navigation delegate interacting with window, location, and history.
+ */
+export class BrowserNavigationDelegate extends NavigationDelegate {
+    hashListeners: Set<(hash: string) => void>;
+    linkClickListeners: Set<(route: string) => void>;
+    onWindowHashChange: () => void;
+    onWindowClick: (e: any) => void;
+}
+
+/**
+ * In-memory navigation delegate for Node.js / SSR / headless environments.
+ */
+export class MemoryNavigationDelegate extends NavigationDelegate {
+    history: string[];
+    cursorIndex: number;
+    currentHash: string;
+    title: string;
+    hashListeners: Set<(hash: string) => void>;
+    linkClickListeners: Set<(route: string) => void>;
+    activeRouters: Set<any>;
+    constructor(initialHash?: string);
+}
+
+/**
+ * Factory function creating a navigation delegate based on options.
+ */
+export function createNavigationDelegate(options?: AvenxRouterOptions): NavigationDelegate;
+
+/**
  * AvenxRouter handles hash-based routing for the application.
  * It maps URL hashes to specific Page components.
  */
@@ -299,9 +625,19 @@ export class AvenxRouter {
     routes: Record<string, string | AvenxRouteDefinition>;
 
     /**
+     * Returns the registered routes as pattern/definition pairs.
+     */
+    getRoutes(): Array<{ pattern: string; definition: string | AvenxRouteDefinition }>;
+
+    /**
      * Info about the currently loaded route.
      */
     currentRoute: { hash: string; page: string; params: Record<string, any> } | null;
+
+    /**
+     * Active navigation delegate.
+     */
+    delegate: NavigationDelegate;
 
     /**
      * @param app AvenxApp instance.
@@ -346,8 +682,25 @@ export class AvenxRouter {
     /**
      * Triggers a manual router navigation.
      * @param hash Target path hash (e.g. `#/profile/123`).
+     * @param options Navigation options.
      */
-    navigate(hash: string): void;
+    navigate(hash: string, options?: { replace?: boolean }): void;
+
+    /**
+     * Steps backward in navigation history.
+     */
+    back(): void;
+
+    /**
+     * Steps forward in navigation history.
+     */
+    forward(): void;
+
+    /**
+     * Moves to a specific history position relative to current position.
+     * @param delta Relative step count in history (e.g. -1 for back, 1 for forward).
+     */
+    go(delta: number): void;
 
     /**
      * Destroys the router and cleans up event listeners.
@@ -386,6 +739,21 @@ export class AvenxApp {
     router: AvenxRouter | null;
 
     /**
+     * The currently active page component instance, or null when none is mounted.
+     */
+    readonly activePage: AvenxComponent<any> | null;
+
+    /**
+     * Returns the names of all registered components.
+     */
+    getRegisteredComponents(): string[];
+
+    /**
+     * Returns the names of all registered pages.
+     */
+    getRegisteredPages(): string[];
+
+    /**
      * @param config Main app configurations.
      */
     constructor(config: { target: string; logging?: any; enableProfiling?: boolean });
@@ -409,7 +777,7 @@ export class AvenxApp {
      * @param name Bridge global identifier (e.g. `AuthBridge`).
      * @param bridgeData Raw object schema or instance.
      */
-    registerBridge(name: string, bridgeData: Record<string, any> | Function): void;
+    registerBridge(name: string, bridgeData: Record<string, any>): void;
 
     /**
      * Forces updates on all active component nodes.
@@ -431,6 +799,13 @@ export class AvenxApp {
     mount(name: string, targetSelector?: string | null): void;
 
     /**
+     * Programmatically clears cached KeepAlive component instances.
+     * @param componentName Optional component or page name to purge.
+     * @returns boolean True if cache entries were evicted.
+     */
+    clearKeepAliveCache(componentName?: string): boolean;
+
+    /**
      * Scaffolds hash-change router listeners.
      * @param routes Map of URL hashes.
      * @param options Router options.
@@ -447,6 +822,27 @@ export class AvenxApp {
     onError(callback: (error: Error, component: AvenxComponent, origin: string) => void): this;
 
     /**
+     * Registers an application-wide warning handler callback.
+     * @param callback Callback triggered when a framework warning is reported.
+     */
+    onWarn(callback: (warningMessage: string, component?: AvenxComponent, code?: string) => void): this;
+
+    /**
+     * Registers a plugin with the application. Supports synchronous plugins, async installer functions, dynamic import loaders, or Promises.
+     * @param plugin The plugin object, installer function, async loader function, or Promise.
+     * @param options Optional configurations for the plugin.
+     * @returns The app instance or a Promise resolving to the app instance.
+     */
+    use(
+        plugin:
+            | ((app: AvenxApp, options?: Record<string, any>) => any)
+            | { install(app: AvenxApp, options?: Record<string, any>): any }
+            | (() => Promise<any>)
+            | Promise<any>,
+        options?: Record<string, any>
+    ): this | Promise<this>;
+
+    /**
      * Registers a custom directive.
      * @param name Directive name.
      * @param definition Directive lifecycle definition.
@@ -458,12 +854,100 @@ export class AvenxApp {
     }): this;
 }
 
+/** Releases a bridge subscription. Safe to call more than once. */
+export type BridgeUnsubscribe = () => void;
+
+/** Keys of a bridge definition that name an action. */
+type BridgeActionKeys<D> = {
+    [K in keyof D]: K extends 'state' | 'setup' ? never : D[K] extends (...args: any[]) => any ? K : never;
+}[keyof D];
+
+/** Keys of a bridge definition that name a derived (getter) value. */
+type BridgeDerivedKeys<D> = {
+    [K in keyof D]: K extends 'state' | 'setup' ? never : D[K] extends (...args: any[]) => any ? never : K;
+}[keyof D];
+
+/** The shared state object declared by a bridge definition. */
+type BridgeStateOf<D> = D extends { state: infer S } ? S : Record<never, never>;
+
+/** The actions declared by a bridge definition. */
+type BridgeActionsOf<D> = Pick<D, BridgeActionKeys<D>>;
+
+/** The derived values declared by a bridge definition. */
+type BridgeDerivedOf<D> = Pick<D, BridgeDerivedKeys<D>>;
+
 /**
- * Base class for global reactive bridges.
+ * The value bound to `this` inside actions, getters and `setup()`.
+ * State is writable here and `emit` is available; both are withheld from
+ * consumers so that every mutation and every event has one origin.
  */
-export class AvenxBridge {
-    constructor();
+export type BridgeSelf<D> = BridgeStateOf<D> &
+    Readonly<BridgeDerivedOf<D>> &
+    BridgeActionsOf<D> & {
+        /** Broadcasts an event to every subscriber. */
+        emit(event: string, payload?: unknown): void;
+    };
+
+/**
+ * The bridge instance a module exports and components import.
+ * State and derived values are read-only; mutation goes through actions.
+ */
+export type Bridge<D> = Readonly<BridgeStateOf<D>> &
+    Readonly<BridgeDerivedOf<D>> &
+    BridgeActionsOf<D> & {
+        /**
+         * Subscribes to an event emitted by this bridge.
+         * Called from a component lifecycle hook or event handler, the
+         * subscription is released automatically when that component unmounts.
+         * @returns A function that unsubscribes early.
+         */
+        on<P = any>(event: string, handler: (payload: P) => void): BridgeUnsubscribe;
+        /** Runs the cleanup from `setup()`, drops listeners and restores initial state. */
+        $dispose(): void;
+        /** Diagnostic name, derived from the file name by the compiler. */
+        readonly $name: string;
+    };
+
+/**
+ * Creates a Bridge: a reactive unit of shared state and behaviour that
+ * components consume by importing it.
+ * @example
+ * export default bridge({
+ *   state: { user: null as User | null },
+ *   get isLoggedIn() { return this.user !== null; },
+ *   login(user: User) { this.user = user; this.emit('login', user); },
+ * });
+ */
+export function bridge<D extends object>(definition: D & ThisType<BridgeSelf<D>>): Bridge<D>;
+
+/** Reports whether a value is a bridge instance created by `bridge()`. */
+export function isBridge(value: unknown): boolean;
+
+/** Assigns a bridge its diagnostic name. Emitted by the compiler. */
+export function defineBridgeName<T>(name: string, instance: T): T;
+
+/**
+ * Collects teardown callbacks and releases them together. Components own one
+ * and dispose it on unmount, which is how bridge subscriptions are released.
+ */
+export class DisposalScope {
+    constructor(name?: string);
+    readonly name: string;
+    readonly disposed: boolean;
+    /** Registers a teardown callback; returns a run-once release function. */
+    add(disposer: () => void): () => void;
+    /** Runs every registered teardown callback. */
+    dispose(): void;
 }
+
+/** Returns the scope that currently owns new teardown callbacks. */
+export function getScope(): DisposalScope | null;
+
+/** Runs a function with the given scope active. Pass null to detach ownership. */
+export function runInScope<T>(scope: DisposalScope | null, fn: () => T): T;
+
+/** Registers a teardown callback with the active scope, if there is one. */
+export function onScopeDispose(disposer: () => void): () => void;
 
 /**
  * Factory for creating reactive state proxies.
@@ -472,6 +956,15 @@ export class StateFactory {
     constructor(handlerFactoryClass?: typeof ProxyHandlerFactory);
     create<T extends Record<string, any> = Record<string, any>>(initialState?: T, options?: Record<string, any>): T;
 }
+
+/** Returns the underlying raw object for a reactive proxy. */
+export function toRaw<T>(target: T): T;
+
+/** Returns true when value is an Avenx reactive proxy. */
+export function isReactive(value: unknown): boolean;
+
+/** Marks an object so it will not be wrapped by reactive proxies. */
+export function markRaw<T extends object>(target: T): T;
 
 /**
  * Factory for creating state proxy traps.
@@ -498,6 +991,17 @@ export class DomPatcher {
 export class ListManager {
     constructor(evaluator: DynamicEvaluator, renderer: TemplateRenderer);
     process(root: Element, scope: Record<string, any>, state: Record<string, any>): void;
+}
+
+/**
+ * Manages deferred loading (<@defer>) of DOM subtrees.
+ */
+export class DeferManager {
+    constructor(evaluator: DynamicEvaluator, renderer: TemplateRenderer, eventBinder?: EventBinder, componentName?: string);
+    process(root: Element, scope: Record<string, any>, state: Record<string, any>, app?: any): void;
+    isLoaded(el: Element): boolean;
+    loadDeferredContent(container: Element, scope: Record<string, any>, state: Record<string, any>, app?: any): void;
+    destroy(): void;
 }
 
 /**
@@ -539,6 +1043,10 @@ export class DynamicEvaluator {
  * Evaluates template bracket expressions.
  */
 export class TemplateRenderer {
+    constructor(capacityOrConfig?: number | { capacity?: number; templateCacheCapacity?: number });
+    capacity: number;
+    cache: LruCache;
+    clearCache(): void;
     render(template: string, resolver: (expr: string) => any): string;
 }
 
@@ -557,6 +1065,7 @@ export class ComputedRegistry {
 
 export class HtmlEscaper {
     escape(str: string): string;
+    unescape(str: string): string;
 }
 
 export class SafeHtml {
@@ -566,9 +1075,12 @@ export class SafeHtml {
 }
 
 export function html(strings: string | TemplateStringsArray, ...values: any[]): SafeHtml;
+export function unescapeHtml(str: string): string;
 
 export class Sanitizer {
     sanitize(html: string): string;
+    static sanitizeUrl(url: string, allowedProtocols?: string[]): string;
+    static stripTags(html: string): string;
 }
 
 export interface AvenxLoggerOptions {
@@ -578,6 +1090,11 @@ export interface AvenxLoggerOptions {
     transports?: Array<any | ((level: string, formattedArgs: any[], rawArgs: any[]) => void)>;
 }
 
+export interface AvenxLoggerBindings {
+    prefix?: string;
+    componentName?: string;
+}
+
 export class AvenxLogger {
     config: {
         level: string;
@@ -585,10 +1102,13 @@ export class AvenxLogger {
         formatter: (level: string, args: any[]) => any[];
         transports: any[];
     };
+    bindings: Record<string, any>;
     constructor(config?: AvenxLoggerOptions);
     configure(config: AvenxLoggerOptions): void;
+    setLevel(level: string): void;
     shouldLog(level: string): boolean;
     write(level: string, ...args: any[]): void;
+    child(bindings?: string | AvenxLoggerBindings): AvenxLogger;
     trace(...args: any[]): void;
     debug(...args: any[]): void;
     info(...args: any[]): void;
@@ -602,78 +1122,61 @@ export const logger: AvenxLogger;
 
 export const LogLevels: Record<string, number>;
 
+export function formatContextTag(context: any): string;
+
 export function defaultFormatter(level: string, args: any[]): any[];
 
 export const consoleTransport: {
     log(level: string, formattedArgs: any[]): void;
 };
 
+export interface ResourceOptions {
+    pollInterval?: number;
+}
+
+export type ResourceStatus = 'idle' | 'pending' | 'resolved' | 'rejected';
+
+export class Resource<T = any> {
+    constructor(
+        name: string,
+        handlerFn: () => any,
+        componentContext?: object | ResourceOptions,
+        options?: ResourceOptions
+    );
+
+    name: string;
+    status: ResourceStatus;
+    value: T | undefined;
+    error: any;
+    promise: Promise<T> | null;
+    pollInterval: number;
+
+    read(): T;
+    fetch(result?: any): void;
+    teardown(): void;
+}
+
 export class AvenxWatcher {
     getter: () => any;
-    callback: (newValue: any, oldValue: any) => void;
-    options: { immediate?: boolean; lazy?: boolean };
+    callback: ((newValue: any, oldValue: any) => void) | null;
+    options: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string; isEffect?: boolean; effect?: boolean };
     value: any;
     dirty: boolean;
+    isEffect: boolean;
     constructor(
         getter: () => any,
-        callback?: ((newValue: any, oldValue: any) => void) | null,
-        options?: { immediate?: boolean; lazy?: boolean }
+        callback?: ((newValue: any, oldValue: any) => void) | object | null,
+        options?: { immediate?: boolean; lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string; isEffect?: boolean; effect?: boolean }
     );
     get(): any;
     evaluate(): any;
     teardown(): void;
 }
 
-export interface MockBridgeStateChange {
-    prop: string;
-    value: any;
-}
-
-export interface MockBridgeCall {
-    method: string;
-    args: any[];
-}
-
-export type MockBridge<T> = T & {
-    $calls: MockBridgeCall[];
-    $stateChanges: MockBridgeStateChange[];
-    $onStateChange(cb: (prop: string, value: any) => void): () => void;
-    $onCall(cb: (method: string, args: any[]) => void): () => void;
-    $reset(): void;
-    readonly $isMock: true;
-};
-
-export class AvenxMock {
-    static createMockBridge<T extends object>(
-        bridgeClassOrObject: T | (new (...args: any[]) => T),
-        initialData?: Partial<T> | Record<string, any>
-    ): MockBridge<T>;
-
-    static createSandbox(): AvenxSandbox;
-
-    static trigger(element: any, eventName: string, eventData?: Record<string, any>): void;
-}
-
-export class AvenxSandbox {
-    components: Map<string, typeof AvenxComponent>;
-    bridges: Record<string, any>;
-    constructor();
-    register(name: string, compClass: typeof AvenxComponent): this;
-    registerBridge(name: string, bridgeInstance: any): this;
-    setRoute(route: { hash?: string; page?: string; params?: Record<string, any> }): this;
-    waitForUpdate(): Promise<void>;
-    mount(
-        compClass: typeof AvenxComponent,
-        props?: Record<string, any>,
-        container?: any
-    ): {
-        instance: AvenxComponent<any>;
-        container: any;
-        readonly html: string;
-        update(): void;
-        trigger(selectorOrElement: any, eventName: string, eventData?: Record<string, any>): void;
-    };
-}
+export function watchEffect(
+    effect: () => void,
+    options?: { lazy?: boolean; deep?: boolean; debounce?: number; throttle?: number; name?: string }
+): () => void;
 
 export function initInspector(app: AvenxApp): void;
 
@@ -690,3 +1193,113 @@ export class LruCache<T = any> {
     readonly size: number;
 }
 
+export function profile<T = any>(enableProfiling: boolean, componentName: string, phase: string, fn: () => T): T;
+export function getComponentProfilingInfo(element: any): { enableProfiling: boolean; componentName: string };
+
+export class DeadlockManager {
+    constructor(evaluator: any, renderer: any, eventBinder?: any, componentName?: string);
+    isTripped(container: any): boolean;
+    findBoundaries(root: any): any[];
+    trip(container: any, error?: Error | object, scope?: object): void;
+    reset(container: any): void;
+}
+
+export function setSchedulerMaxFlushCount(count: number): void;
+export function getSchedulerMaxFlushCount(): number;
+export interface SchedulerDeadlockEvent {
+    cyclePath: string;
+    triggeringJobId?: any;
+    executionHistory?: Array<{ id: any; name: string; job: Function }>;
+}
+export function onSchedulerDeadlock(handler: (event: SchedulerDeadlockEvent) => void): () => void;
+export function resetScheduler(): void;
+
+export function getActiveCausationTrace(): string[];
+export function clearCausationTrace(): void;
+
+
+
+/**
+ * Queues a job to run in the next scheduler flush. Duplicate jobs are ignored.
+ */
+export function queueJob(job: Function): void;
+
+/**
+ * Queues a callback to run after the current flush completes.
+ */
+export function queueFlushCallback(callback: Function): void;
+
+/**
+ * Enables or disables reactivity debug logging.
+ */
+export function setDebugReactivity(enabled: boolean): void;
+
+/**
+ * Returns whether reactivity debug logging is currently enabled.
+ */
+export function isDebugReactivityEnabled(): boolean;
+
+export interface ValidationRule {
+    name: string;
+    param?: string;
+}
+
+/**
+ * Parses a `data-ax-validate` rule string into structured rules.
+ */
+export function parseValidationRules(ruleString: string): ValidationRule[];
+
+/**
+ * Validates a value against parsed rules, returning the resulting error messages.
+ */
+export function validateValue(
+    value: any,
+    rules: ValidationRule[],
+    options?: { state?: Record<string, any>; customMessages?: Record<string, string> }
+): string[];
+
+/**
+ * Resolves the field name used for validation state on an input element.
+ */
+export function getFieldName(element: Element): string;
+
+/**
+ * Writes validation errors for a field into the component's `$validation` state.
+ */
+export function updateValidationState(state: Record<string, any>, fieldName: string, errors: string[]): void;
+
+/**
+ * Matches hash routes against route definitions.
+ */
+export class RouteMatcher {
+    static normalizeHash(hash: string, prefix?: string): string | null;
+    static matches(routes: Record<string, any>, hash: string, options?: object): boolean;
+    static matchRoute(
+        routes: Record<string, any>,
+        hash: string,
+        options?: object,
+        activeRouters?: Iterable<object>,
+        currentRouter?: object | null
+    ): {
+        matchedRoute: { definition: any; parent?: any } | null;
+        params: Record<string, any>;
+        query?: Record<string, any>;
+        path?: string;
+        otherRouterMatches?: boolean;
+        normalizedHash: string | null;
+    };
+}
+
+/**
+ * Mounts and de-duplicates component `<style>` blocks in the document head.
+ */
+export class StyleMountManager {
+    mount(id: string, css: string): void;
+    unmount(id: string): void;
+    clear(): void;
+}
+
+/**
+ * Shared StyleMountManager instance used by the runtime.
+ */
+export const styleMountManager: StyleMountManager;
