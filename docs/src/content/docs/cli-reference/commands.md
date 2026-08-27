@@ -351,6 +351,7 @@ Launches a local live-reloading development server with automatic file watching 
 - `--port <number>`, `-p <number>` (or positional argument `avenx serve 8080`): Sets the development server TCP port (default: `3000`).
 - `--host <string>`, `-h <string>`: Sets the host bind address (default: `localhost`).
 - `--no-live-reload` / `--live-reload=false`: Disables file watching, live reload SSE client script injection, and automatic browser refreshes.
+- `--trace`: Records a causal trace of the running application. Off by default. See [`avenx trace`](#13-avenx-trace) and the [Avenx Trace guide](/core-concepts/trace/).
 
 #### Visual Inspection Dashboard (`/__avenx-inspect`)
 
@@ -652,3 +653,94 @@ System Variables (from .env — values masked)
   API_KEY                      ****
   DB_PASSWORD                  secr********
 ```
+
+---
+
+### 13. `avenx trace`
+
+Records why your application did what it did, and turns a recording into a regression test.
+
+Traces are recorded by `avenx serve --trace` and stored in `.avenx/traces/`, one JSON file per recording. See the [Avenx Trace guide](/core-concepts/trace/) for the full picture; this is the command surface.
+
+#### `avenx trace list`
+
+Lists stored traces, newest first.
+
+```bash
+npx avenx trace list
+```
+
+```text
+TRACE ID        AGE     EVENTS   COMPONENTS   STATUS
+trace-4f2a      2m      14       3            deterministic
+trace-a91c      8m      42       7            best-effort
+```
+
+`--json` prints the listing as machine-readable JSON.
+
+**Status** is either `deterministic` (the recording can become a regression test you rely on) or `best-effort` (something escaped the recording boundary; run `avenx trace view` for the reasons).
+
+#### `avenx trace view <id|latest>`
+
+Prints a trace as a causal tree. Every line sits under the thing that caused it.
+
+```bash
+npx avenx trace view trace-4f2a
+npx avenx trace view latest
+```
+
+```text
+▸ click <button.qty-inc> CartItem
+  └─ action CartItem.incQty()  src/components/cart-item/cart-item.component.js:3
+     └─ bridge cart · addQty("a", 1)
+        ├─ write cart.items.0.qty 2 → 3
+        │  ├─ woke CartItem#render
+        │  │  └─ patched <span.qty> text "2" → "3"
+        │  └─ woke CartSummary#render
+        │     ├─ getter cart.total 36 → 48
+        │     └─ patched <strong.total> text "$36.00" → "$48.00"
+        └─ emit cart:changed → 0 listeners
+
+Determinism: deterministic — this trace can be exported as a regression test.
+```
+
+Options:
+
+- `--json`: Print the raw trace instead of the tree.
+- `--roots=<n>`: Show only the first `n` causal roots, for a long session.
+
+Source locations come from `dist/bundle.trace.json`, which the compiler writes beside the bundle. Build the project to get them.
+
+#### `avenx trace export <id|latest>`
+
+Writes an executable regression test for a trace, plus a copy of the trace beside it so a committed test does not depend on `.avenx/traces/`.
+
+```bash
+npx avenx trace export latest --out test/cart-qty.test.js
+```
+
+Options:
+
+- `--out <file>`, `-o <file>`: Where to write the test. Defaults to `test/<component>-<event>.test.js`.
+- `--force`, `-f`: Overwrite an existing file. Without it, an existing file is an error.
+- `--dry-run`, `-d`: Print the generated test instead of writing it.
+
+The command warns when a trace is best-effort, when values were redacted, and when a contract violation was observed during the recording.
+
+#### `avenx trace prune`
+
+Removes stored traces.
+
+```bash
+npx avenx trace prune              # keep the 20 newest
+npx avenx trace prune --keep=5     # keep the 5 newest
+npx avenx trace prune trace-4f2a   # remove one
+npx avenx trace prune --all        # remove everything
+```
+
+`--dry-run` / `-d` reports what would be removed without removing it.
+
+#### Exit Codes
+
+* **`0`**: The command completed.
+* **`1`**: The named trace does not exist, a trace file could not be read, an output file already exists without `--force`, or an option value was invalid.

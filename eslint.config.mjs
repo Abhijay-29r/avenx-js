@@ -72,6 +72,7 @@ export default [
         cancelAnimationFrame: "readonly",
         DOMParser: "readonly",
         performance: "readonly",
+        Blob: "readonly",
 
         // Node / Common JS / ES Module / Test globals
         process: "readonly",
