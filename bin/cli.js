@@ -193,6 +193,10 @@ export class AvenxCLI {
         runStats(this, args);
         break;
       case 'serve': {
+        // Recording is opt-in and development-only. It is read here rather
+        // than from config alone so that turning it on is always a visible,
+        // deliberate act at the command line.
+        this.traceEnabled = args.includes('--trace');
         const portIdx = args.findIndex((a) => a === '--port' || a === '-p' || a.startsWith('--port=') || a.startsWith('-p='));
         const hostIdx = args.findIndex((a) => a === '--host' || a === '-h' || a.startsWith('--host=') || a.startsWith('-h='));
         const open = args.includes('--open') || args.includes('-o');

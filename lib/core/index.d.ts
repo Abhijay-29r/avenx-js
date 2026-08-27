@@ -1303,3 +1303,136 @@ export class StyleMountManager {
  * Shared StyleMountManager instance used by the runtime.
  */
 export const styleMountManager: StyleMountManager;
+
+// ---------------------------------------------------------------------------
+// Trace recording
+//
+// Only the recording half of `avenx trace` ships in the runtime, because that
+// is the half that has to run in a real browser next to a real bug. Replay,
+// the causal viewer and test generation live behind `avenx-core/testing` and
+// the CLI, where an application bundle cannot reach them.
+// ---------------------------------------------------------------------------
+
+/** How a trace node relates to Avenx's execution model. */
+export type TraceNodeKind =
+    | 'event'
+    | 'action'
+    | 'bridge-action'
+    | 'bridge-emit'
+    | 'write'
+    | 'watcher'
+    | 'computed'
+    | 'dom'
+    | 'resource'
+    | 'navigation'
+    | 'global'
+    | 'error'
+    | 'contract';
+
+/** Whether a recorded session can be faithfully replayed. */
+export type TraceDeterminism = 'deterministic' | 'best-effort';
+
+/** A reference to a DOM node that both reads well and resolves again on replay. */
+export interface TraceNodeRef {
+    selector: string;
+    nth: number;
+}
+
+/** One recorded step. Causality is expressed by `parent`, not by nesting. */
+export interface TraceNode {
+    id: number;
+    parent: number | null;
+    seq: number;
+    /** Milliseconds since the recording started. */
+    t: number;
+    type: TraceNodeKind;
+    [field: string]: any;
+}
+
+/** A complete recording. */
+export interface Trace {
+    traceVersion: number;
+    id: string;
+    createdAt: string;
+    determinism: {
+        status: TraceDeterminism;
+        reasons: Array<{ reason: string; detail?: string }>;
+    };
+    meta: Record<string, any>;
+    /** Non-deterministic values the sandbox handed out, in observation order. */
+    globals: { now?: number[]; random?: number[] };
+    /** Property-path patterns whose values were withheld. */
+    redactions: string[];
+    redacted?: boolean;
+    /** How many nodes the ring buffer dropped, if any. */
+    dropped: number;
+    nodes: TraceNode[];
+}
+
+/** Records one session's causal trace. */
+export class TraceRecorder {
+    constructor(options?: {
+        id?: string;
+        maxNodes?: number;
+        redact?: string[];
+        meta?: Record<string, any>;
+    });
+    readonly id: string;
+    readonly nodes: TraceNode[];
+    /** Only ever downgrades: a recording never talks itself back up to deterministic. */
+    readonly isDeterministic: boolean;
+    readonly componentCount: number;
+    /** Switches from application startup to recording user interaction. */
+    arm(): TraceRecorder;
+    stop(): TraceRecorder;
+    toJSON(): Trace;
+    serialize(indent?: number): string;
+}
+
+/** Starts recording, replacing any recording already in progress. */
+export function startRecording(options?: {
+    id?: string;
+    maxNodes?: number;
+    redact?: string[];
+    meta?: Record<string, any>;
+}): TraceRecorder;
+
+/** Stops the active recording and returns the finished trace. */
+export function stopRecording(): Trace | null;
+
+/** The recorder currently attached, if any. */
+export function activeRecorder(): TraceRecorder | null;
+
+/** The control surface `avenx serve --trace` publishes on `window.avenxTrace`. */
+export interface TraceController {
+    readonly id: string;
+    readonly size: number;
+    readonly deterministic: boolean;
+    /** Posts the current trace to the dev server. */
+    save(): Promise<{ ok: boolean; id?: string; error?: string }>;
+    /** The trace as it stands, without saving it. */
+    snapshot(): Trace;
+    stop(): Trace | null;
+}
+
+/**
+ * Starts browser recording and publishes `window.avenxTrace`.
+ *
+ * Called by the dev server only for `avenx serve --trace`. Nothing in the
+ * trace runtime runs until this is called.
+ */
+export function installTraceRecorder(options?: {
+    endpoint?: string;
+    redact?: string[];
+    maxNodes?: number;
+    autoSave?: boolean;
+}): TraceController;
+
+/** Stops a recording started by installTraceRecorder. */
+export function uninstallTraceRecorder(): Trace | null;
+
+/** Whether a browser recording is currently running. */
+export function isRecording(): boolean;
+
+/** Where installTraceRecorder posts a saved trace. */
+export const TRACE_ENDPOINT: string;
