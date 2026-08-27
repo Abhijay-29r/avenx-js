@@ -205,9 +205,23 @@ export class AvenxCLI {
           this.config.server.liveReload = false;
         }
 
+        // The positional port is the first bare argument that is not itself the
+        // value of a flag. Only args[0] used to be considered, so any leading
+        // flag — `serve --trace 8080`, `serve --open 8080` — silently fell back
+        // to the default port.
+        const flagValueIndexes = new Set();
+        for (const idx of [portIdx, hostIdx]) {
+          if (idx !== -1 && !args[idx].includes('=')) {
+            flagValueIndexes.add(idx + 1);
+          }
+        }
+        const positionalPort = args.find(
+          (arg, idx) => !arg.startsWith('-') && !flagValueIndexes.has(idx) && /^\d+$/.test(arg.trim()),
+        );
+
         const rawPortVal = portIdx !== -1
           ? (args[portIdx].includes('=') ? args[portIdx].split('=').slice(1).join('=') : args[portIdx + 1])
-          : (!args[0]?.startsWith('-') ? args[0] : null);
+          : (positionalPort ?? null);
         const rawPort = rawPortVal?.replace(/[^0-9]/g, '');
         const port = rawPort
           ? parseInt(rawPort, 10)
