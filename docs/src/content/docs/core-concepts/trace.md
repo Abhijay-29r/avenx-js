@@ -297,12 +297,26 @@ from source, so a trace adds nothing and does not re-check them.
 Tracing is off by default and costs nothing when off. Each instrumented site is
 a single boolean check; no object is allocated and no listener is registered.
 
-When it is on, expect roughly 10-20% overhead on interaction-heavy work. The
-recorder is bounded by a ring buffer (5000 nodes by default) that evicts the
-oldest in blocks, so a dev server left open all day cannot grow without limit.
-Captured values are bounded in depth, breadth and string length; collection
-mutations record an operation name and a size rather than cloning the
-collection, so tracing a growing list stays linear.
+When it is on, the cost depends entirely on what the application is doing.
+Measured with `npm run bench` (`trace-overhead.bench.js`):
+
+| Workload | Overhead |
+| :--- | :--- |
+| Real component interaction — clicks, re-renders, DOM patches | **within measurement noise** (±5%) |
+| A synthetic tight loop of 100,000 state writes with no rendering | **roughly 2×** the cost of a write |
+
+The second row is the honest worst case and the first is what you will actually
+feel: in a real application, rendering and DOM work dominate, and the recorder's
+share of that disappears into it. Tracing a loop that does nothing but write
+state is where the instrumentation is the whole cost.
+
+Memory is the stronger guarantee. The recorder is bounded by a ring buffer
+(5000 nodes by default, `trace.maxNodes` to change it) that evicts the oldest in
+blocks, and the annotation index is pruned with it, so a dev server left open
+all day cannot grow without limit. Captured values are bounded in depth, breadth
+and string length; collection mutations record an operation name and a resulting
+size rather than cloning the collection, so tracing a growing list stays linear
+rather than quadratic.
 
 The recorder adds about **7.7 KB minified / 2.7 KB gzipped** to the runtime.
 Replay, the causal viewer, test generation and trace storage are *not* in that

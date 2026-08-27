@@ -131,9 +131,10 @@ same choke point is what lets a recorded session be replayed deterministically.
 A framework that compiles expressions into closures has thrown that away before
 the code runs.
 
-Recording is off by default and never reaches a production build. Determinism
-is **verified by replay**, not claimed by the recorder: a trace that says it is
-reproducible and is not fails loudly rather than passing for the wrong reason.
+Recording is off by default and never reaches a production build — with tracing
+off, each instrumented site is a single boolean check. Determinism is **verified
+by replay**, not claimed by the recorder: a trace that says it is reproducible
+and is not fails loudly rather than passing for the wrong reason.
 
 Configure redaction so a trace never captures what it should not:
 
