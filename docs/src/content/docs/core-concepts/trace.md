@@ -318,10 +318,15 @@ and string length; collection mutations record an operation name and a resulting
 size rather than cloning the collection, so tracing a growing list stays linear
 rather than quadratic.
 
-The recorder adds about **7.7 KB minified / 2.7 KB gzipped** to the runtime.
-Replay, the causal viewer, test generation and trace storage are *not* in that
-number — they live behind `avenx-core/testing`, `avenx-core/tooling` and the
-CLI, and cannot reach an application bundle.
+The recorder adds about **16 KB minified / 5.8 KB gzipped** to the runtime
+(measured against a scaffolded project with `node scripts/size-check.js`). That
+is the price of being able to record in a real browser next to a real bug, and
+it is paid by every build whether or not tracing is ever switched on.
+
+Replay, the causal viewer, test generation, the trace store and the component
+loader are *not* in that number. They live behind `avenx-core/testing`,
+`avenx-core/tooling` and the CLI, and a system test asserts against the built
+bundle that none of them can reach it.
 
 ---
 

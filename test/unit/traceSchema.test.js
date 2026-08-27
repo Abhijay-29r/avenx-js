@@ -4,7 +4,6 @@ import {
   TraceNodeType,
   Determinism,
   NonDeterminismReason,
-  REASON_DESCRIPTIONS,
   ROOT_TYPES,
   INPUT_TYPES,
   createTrace,
@@ -13,6 +12,7 @@ import {
   groupChildren,
   rootNodes,
 } from '../../lib/core/trace/schema.js';
+import { REASON_DESCRIPTIONS } from '../../lib/core/trace/format.js';
 
 console.log('🧪 Testing trace schema / data model...');
 
@@ -43,7 +43,9 @@ assert.ok(
   'recorded globals travel in the compact globals log, not as driven nodes',
 );
 
-// 4. Every non-determinism reason is explainable to a human
+// 4. Every non-determinism reason is explainable to a human.
+// The prose lives in format.js, not here: schema.js is in the runtime's import
+// graph, and a block of text no application renders would ship in every bundle.
 for (const reason of Object.values(NonDeterminismReason)) {
   assert.ok(
     typeof REASON_DESCRIPTIONS[reason] === 'string' && REASON_DESCRIPTIONS[reason].length > 20,
