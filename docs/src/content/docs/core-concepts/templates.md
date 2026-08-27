@@ -110,20 +110,55 @@ Only use `SafeHtml` or the `html` helper with trusted content. Rendering untrust
 
 ## 2. Two-Way Bindings (`data-ax-bind`)
 
-Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to a value attribute and an event listener:
+Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to an attribute binding and an event listener:
 
 ```html
 <input type="text" data-ax-bind="state.username" />
 ```
 
-> **Warning:** `data-ax-bind` does not currently handle the boolean `checked` state of checkbox and radio inputs. Since the directive binds to the input's `value` and listens for `input` events, using it with checkboxes or radio buttons will not correctly update their checked state.
-> For checkbox inputs, bind the `checked` attribute manually and listen for the `change` event:
+The compiler picks the DOM property from the control, so the same directive works across input types.
+
+### Text inputs, textareas and selects
+
+These bind through `value`. Text inputs and textareas listen for `input`; selects listen for `change`:
 
 ```html
-<input type="checkbox" checked="{{ state.checked }}" @change="state.checked = event.target.checked" />
+<input type="text" data-ax-bind="state.username" />
+<textarea data-ax-bind="state.bio"></textarea>
+<select data-ax-bind="state.city"></select>
 ```
 
-This ensures that the checkbox's checked state is rendered from `state.checked` and that the state is updated whenever the checkbox changes.
+### Checkboxes
+
+A checkbox binds through `checked`, not `value`.
+
+Bound to a boolean, it mirrors that boolean and writes back `event.target.checked`:
+
+```html
+<input type="checkbox" data-ax-bind="state.acceptedTerms" />
+```
+
+Bound to an array, several checkboxes form a group. Each input's `value` is added to or removed from the array as it is checked, and `checked` follows membership:
+
+```html
+<input type="checkbox" value="apple" data-ax-bind="state.fruits" />
+<input type="checkbox" value="banana" data-ax-bind="state.fruits" />
+```
+
+With `state.fruits` starting as `['apple']`, the first box renders checked; ticking the second gives `['apple', 'banana']`.
+
+### Radio buttons
+
+Radios in a group share one bound value. `checked` is the comparison between the model and the input's `value`, and selecting one stores that value:
+
+```html
+<input type="radio" name="color" value="red" data-ax-bind="state.selectedColor" />
+<input type="radio" name="color" value="blue" data-ax-bind="state.selectedColor" />
+```
+
+Selecting the second input sets `state.selectedColor` to `'blue'`, which unchecks the first.
+
+A `checked` attribute written by hand on a bound checkbox or radio is dropped: the binding owns that state. Set the initial value in `<state>` instead.
 
 ## 3. Boolean Attributes Coercion
 
