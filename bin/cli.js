@@ -15,6 +15,7 @@ import { runInspect } from './commands/inspect.js';
 import { runStats } from './commands/stats.js';
 import { runEnv } from './commands/env.js';
 import { explainDiagnostic } from './commands/explain.js';
+import { runTrace } from './commands/trace.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -225,6 +226,9 @@ export class AvenxCLI {
           console.log(`\n${gray('Stopping watch...')}`);
           process.exit(0);
         });
+        break;
+      case 'trace':
+        runTrace(this, args);
         break;
       case 'explain': {
         const asJson = args.includes('--json');
