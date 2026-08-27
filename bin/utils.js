@@ -191,7 +191,7 @@ export function abortIfGeneratedPathExists(baseDir, type, name, targetPaths) {
  * Node 18 on Linux does not support fs.watch(dir, { recursive: true }).
  * @param {string} dirPath - Directory to watch.
  * @param {Function} callback - Event callback (eventType, filename).
- * @returns {{ close: () => void }} FSWatcher or compatible watcher object.
+ * @returns {{close: Function}|object} FSWatcher or compatible watcher object with close() method.
  */
 export function watchDirectory(dirPath, callback) {
   try {
@@ -207,9 +207,9 @@ export function watchDirectory(dirPath, callback) {
 /**
  * Fallback recursive watcher for platforms/Node versions lacking native recursive watch.
  * Walks directory tree and registers individual fs.watch instances.
- * @param {string} rootPath
- * @param {Function} callback
- * @returns {{ close: () => void }}
+ * @param {string} rootPath - Root directory to watch.
+ * @param {Function} callback - Event callback.
+ * @returns {{close: Function}}
  */
 function createRecursiveWatcherFallback(rootPath, callback) {
   const watchers = new Map();
