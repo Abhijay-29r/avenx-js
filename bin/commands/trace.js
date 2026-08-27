@@ -6,6 +6,30 @@ import { formatTrace, summarizeTrace } from '../../lib/core/trace/format.js';
 import { generateTest, suggestName } from '../../lib/core/trace/exportTest.js';
 import { findContractViolations, formatViolation } from '../../lib/core/trace/contracts.js';
 import { Determinism, TraceNodeType } from '../../lib/core/trace/schema.js';
+import { annotateTrace, sidecarFileName } from '../../lib/compiler/sourceMapTrace.js';
+
+/**
+ * Loads the build's source-location sidecar, when one has been produced.
+ *
+ * Annotation happens on read rather than on record: a trace stays a record of
+ * what happened, and the mapping from an action name to a file and a line is a
+ * property of the build it came from, not of the session.
+ * @param {object} cli - The CLI instance.
+ * @returns {object|null} The sidecar, or null when the project has not been built.
+ */
+function loadSidecar(cli) {
+  const distDir = path.join(cli.baseDir, cli.config.distDir || 'dist');
+  const sidecarPath = path.join(distDir, sidecarFileName(cli.config.outputName || 'bundle'));
+  if (!fs.existsSync(sidecarPath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+  } catch {
+    // A stale or half-written sidecar costs a source location, not a command.
+    return null;
+  }
+}
 
 /**
  * Renders an age as a short relative string.
@@ -126,6 +150,8 @@ export function traceView(cli, id, args = []) {
   const maxRootsArg = args.find((arg) => arg.startsWith('--roots='));
   const maxRoots = maxRootsArg ? Number(maxRootsArg.split('=')[1]) : undefined;
 
+  annotateTrace(found.trace, loadSidecar(cli));
+
   console.log('');
   console.log(formatTrace(found.trace, maxRoots ? { maxRoots } : {}));
   console.log('');
@@ -188,7 +214,7 @@ export function traceExport(cli, id, args = []) {
     return;
   }
 
-  const trace = found.trace;
+  const trace = annotateTrace(found.trace, loadSidecar(cli));
   const deterministic = (trace.determinism && trace.determinism.status) === Determinism.DETERMINISTIC;
 
   const outIndex = args.findIndex((arg) => arg === '--out' || arg === '-o');
@@ -217,7 +243,17 @@ export function traceExport(cli, id, args = []) {
 
   const srcDir = path.join(cli.baseDir, cli.config.srcDir || 'src');
   const componentName = (trace.nodes || []).find((node) => node.component)?.component || null;
-  const componentSource = findComponentSource(srcDir, componentName);
+
+  // The sidecar knows exactly which file a component came from, so it beats
+  // guessing from the name. Scanning srcDir is the fallback for a project that
+  // has not been built since the trace was recorded.
+  const sidecar = loadSidecar(cli);
+  const fromSidecar =
+    sidecar && sidecar.components && componentName && sidecar.components[componentName]
+      ? path.join(cli.baseDir, sidecar.components[componentName].file)
+      : null;
+  const componentSource =
+    fromSidecar && fs.existsSync(fromSidecar) ? fromSidecar : findComponentSource(srcDir, componentName);
   const componentPath = componentSource
     ? `./${path.relative(outDir, componentSource).split(path.sep).join('/')}`
     : null;
