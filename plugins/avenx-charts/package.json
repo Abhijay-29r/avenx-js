@@ -1,0 +1,30 @@
+{
+  "name": "@avenx/charts",
+  "version": "0.1.0",
+  "description": "First-class official declarative, reactive charts plugin for Avenx.js",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./preprocessor": {
+      "default": "./src/preprocessor.js"
+    }
+  },
+  "keywords": [
+    "avenx",
+    "charts",
+    "reactive",
+    "svg",
+    "visualization",
+    "declarative",
+    "components"
+  ],
+  "author": "Avenx Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "avenx-core": ">=0.4.0"
+  }
+}

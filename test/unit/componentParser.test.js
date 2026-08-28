@@ -1,6 +1,6 @@
-import assert from 'assert';
-import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
+import assert from 'node:assert';
 import ComponentParser from '../../lib/compiler/ComponentParser.js';
+import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
 
 try {
   console.log('🧪 Testing ComponentParser...');
@@ -156,20 +156,56 @@ try {
   const contentWithComments = `
     <!-- This is a single line comment -->
     <div class="test">
-      <!-- 
+      <!--
         This is a multi-line
         comment
       -->
       <p>Hello <!-- inline comment --> World</p>
     </div>
   `;
-  const templateWithComments = cp.extractTemplate(contentWithComments, {}, 'TestComp');
+
+  const templateWithComments = cp.extractTemplate(
+    contentWithComments,
+    {},
+    'TestComp',
+  );
+
   assert.ok(!templateWithComments.includes('comment'));
   assert.ok(!templateWithComments.includes('<!--'));
   assert.ok(!templateWithComments.includes('-->'));
   assert.ok(templateWithComments.includes('<div class="test">'));
   assert.ok(templateWithComments.includes('<p>Hello  World</p>'));
+
   console.log('  ✅ HTML Comments Stripping tests passed!');
+
+  // Test 9: Backticks inside template interpolations
+  console.log('🧪 Testing backticks inside template interpolations...');
+
+  const contentWithBackticks = `
+    <div class="{{ state.active ? \`active\` : \`\` }}">
+      {{ state.active ? \`active\` : \`\` }}
+    </div>
+  `;
+
+  const templateWithBackticks = cp.extractTemplate(
+    contentWithBackticks,
+    {},
+    'TestComp',
+  );
+
+  // Templates are emitted as JSON string literals, so backticks no longer need
+  // escaping to survive code generation and must be preserved verbatim.
+  assert.ok(
+    templateWithBackticks.includes('`active`'),
+    'Backticks inside interpolations should be preserved verbatim',
+  );
+
+  assert.ok(
+    !templateWithBackticks.includes('\\`'),
+    'Backticks inside interpolations should not be escaped',
+  );
+
+  console.log('  ✅ Backticks inside template interpolations tests passed!');
   console.log('🧪 Testing custom void tags from config...');
   const cpWithVoidTags = new ComponentParser(sp, ['my-video', 'custom-icon']);
 
@@ -204,6 +240,21 @@ try {
   assert.strictEqual(nodesAdjacent[0].children.length, 3, 'div should have 3 children after merging adjacent static text segments');
   assert.strictEqual(nodesAdjacent[0].children[2].content, ' Static2 Static3');
   console.log('  ✅ Text node splitting and merging tests passed!');
+
+  console.log('🧪 Testing ComponentParser line and column tracking (#810)...');
+  const htmlTracking = `<div>\n  <span>Hello</span>\n</div>`;
+  const nodesTracking = ComponentParser.parseHTML(htmlTracking);
+
+  assert.strictEqual(nodesTracking[0].tagName, 'div', 'Root tag should be div');
+  assert.strictEqual(nodesTracking[0].line, 1, 'Root <div> should be on line 1');
+  assert.strictEqual(nodesTracking[0].column, 1, 'Root <div> should be at column 1');
+
+  const spanNode = nodesTracking[0].children.find((c) => c.tagName === 'span');
+  assert.ok(spanNode, 'span child node should exist');
+  assert.strictEqual(spanNode.line, 2, 'Nested <span> should be on line 2');
+  assert.strictEqual(spanNode.column, 3, 'Nested <span> should be at column 3');
+
+  console.log('  ✅ Line and column tracking unit tests passed!');
 } catch (error) {
   console.error('❌ ComponentParser tests failed!');
   console.error(error);

@@ -216,6 +216,144 @@ function testWatcherTeardown() {
   console.log('  ✅ Watcher cleaned up successfully on component unmount.');
 }
 
+/**
+ * Test 7: Watch an array of sources (multi-source watching).
+ */
+function testWatchArrayOfSources() {
+  console.log('🧪 Testing $watch with an array of sources...');
+  const comp = new WatchTestComponent();
+
+  let watchCount = 0;
+  let lastNew = null;
+  let lastOld = null;
+
+  // Watch an array combining a getter function and a key string path
+  comp.$watch(
+    [() => comp.state.count, 'user.name'],
+    (newVals, oldVals) => {
+      watchCount++;
+      lastNew = newVals;
+      lastOld = oldVals;
+    },
+  );
+
+  assert.strictEqual(watchCount, 0);
+
+  // Mutate first source in array (count)
+  comp.state.count = 5;
+  assert.strictEqual(watchCount, 1);
+  assert.deepStrictEqual(lastNew, [5, 'Alice']);
+  assert.deepStrictEqual(lastOld, [0, 'Alice']);
+
+  // Mutate second source in array (user.name)
+  comp.state.user.name = 'Bob';
+  assert.strictEqual(watchCount, 2);
+  assert.deepStrictEqual(lastNew, [5, 'Bob']);
+  assert.deepStrictEqual(lastOld, [5, 'Alice']);
+
+  // Unmount cleanup test for array watcher
+  comp.unmount();
+  comp.state.count = 10;
+  comp.state.user.name = 'Charlie';
+  assert.strictEqual(watchCount, 2, 'Watchers should be cleaned up on unmount');
+
+  console.log('  ✅ Array of sources watcher triggered and cleaned up successfully.');
+}
+
+/**
+ * Test 8: watch(...) method and destroy() / $destroy() alias cleanup.
+ */
+function testWatchMethodAndDestroy() {
+  console.log('🧪 Testing watch(...) method and destroy() / $destroy() cleanup...');
+  const comp = new WatchTestComponent();
+
+  let countWatch = 0;
+  comp.watch(
+    () => comp.state.count,
+    () => {
+      countWatch++;
+    },
+  );
+
+  comp.state.count = 10;
+  assert.strictEqual(countWatch, 1);
+
+  // Calling destroy() should trigger unmount and teardown
+  comp.destroy();
+
+  comp.state.count = 20;
+  assert.strictEqual(countWatch, 1, 'Watcher registered via watch() must not trigger after destroy()');
+
+  // Test $destroy() alias
+  const comp2 = new WatchTestComponent();
+  let countWatch2 = 0;
+  comp2.watch(
+    () => comp2.state.count,
+    () => {
+      countWatch2++;
+    },
+  );
+
+  comp2.state.count = 15;
+  assert.strictEqual(countWatch2, 1);
+
+  comp2.$destroy();
+  comp2.state.count = 25;
+  assert.strictEqual(countWatch2, 1, 'Watcher registered via watch() must not trigger after $destroy()');
+
+  console.log('  ✅ watch(...) method and destroy() / $destroy() cleanup passed.');
+}
+
+/**
+ * Test 9: Declarative watch option automatic cleanup on unmount.
+ */
+function testDeclarativeWatchOption() {
+  console.log('🧪 Testing declarative watch option automatic cleanup on unmount...');
+  let watchCount = 0;
+
+  class DeclarativeWatchComponent extends AvenxComponent {
+    constructor() {
+      super({
+        state: { num: 0 },
+        watch: {
+          num() {
+            watchCount++;
+          },
+        },
+      });
+    }
+  }
+
+  const comp = new DeclarativeWatchComponent();
+  comp.state.num = 1;
+  assert.strictEqual(watchCount, 1);
+
+  comp.unmount();
+  comp.state.num = 2;
+  assert.strictEqual(watchCount, 1, 'Declarative watcher must not trigger after unmount');
+
+  console.log('  ✅ Declarative watch option automatic cleanup on unmount passed.');
+}
+
+/**
+ * Test 10: Watcher registered on already unmounted component.
+ */
+function testUnmountedRegistration() {
+  console.log('🧪 Testing watcher registered on already unmounted component...');
+  const comp = new WatchTestComponent();
+  comp.unmount();
+
+  let watchCount = 0;
+  comp.$watch('count', () => {
+    watchCount++;
+  });
+
+  comp.state.count = 100;
+  assert.strictEqual(watchCount, 0, 'Watcher registered on unmounted component must be immediately torn down');
+
+  console.log('  ✅ Unmounted watcher registration safety check passed.');
+}
+
 function runTests() {
   try {
     testWatchKeyString();
@@ -224,6 +362,10 @@ function runTests() {
     testWatchImmediate();
     testWatchDeep();
     testWatcherTeardown();
+    testWatchArrayOfSources();
+    testWatchMethodAndDestroy();
+    testDeclarativeWatchOption();
+    testUnmountedRegistration();
     console.log('✅ All $watch API tests passed!');
   } catch (error) {
     console.error('❌ $watch API tests failed!');

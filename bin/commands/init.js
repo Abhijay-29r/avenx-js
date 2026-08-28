@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { readTemplate } from '../utils.js';
 import { runWizard } from '../wizard.js';
 import { getInitialHtml } from './serve.js';
+import { bold, cyan, green } from '../colors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +18,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../../packa
 export async function initProject(cli, args = []) {
   const { stylePreprocessor, layoutTemplate, isInteractive } = await runWizard(args);
 
-  console.log(`🚀 Initializing new Avenx-JS project (Style: ${stylePreprocessor}, Layout: ${layoutTemplate})...`);
+  console.log(bold(cyan(`🚀 Initializing new Avenx-JS project (Style: ${stylePreprocessor}, Layout: ${layoutTemplate})...`)));
 
   // Write avenx.config.json if preprocessor option is configured
   const configPath = path.join(cli.baseDir, 'avenx.config.json');
@@ -242,7 +243,7 @@ export async function initProject(cli, args = []) {
     fs.writeFileSync(gitignorePath, `node_modules/\n${cli.config.distDir}/\n.DS_Store\n`);
     console.log('  Created: .gitignore');
   }
-  console.log('✅ Project initialized successfully!');
+  console.log(green('✅ Project initialized successfully!'));
   if (isInteractive) {
     process.stdin.pause();
   }

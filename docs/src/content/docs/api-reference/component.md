@@ -9,9 +9,71 @@ The base class from which all standard UI components inherit. It manages reactiv
 
 - `this.state` (Proxy): The reactive state instance for local properties. Changing state triggers updates automatically.
 - `this.props` (Proxy): The reactive attributes passed by parent tags. Modifications from parents trigger updates.
+- `this.$element` (`Element | null`): Getter for the component's root DOM element (also aliased as `this.el`). Returns `null` pre-mount and post-unmount, and returns the mounted DOM element during `onMount`, `onBeforeUpdate`, `onUpdate`, and event handlers.
 - `this.$refs` (`Record<string, Element>`): Map of direct DOM element references marked with the [`data-ax-ref="refName"`](/core-concepts/directives#built-in-element-reference-directive-data-ax-ref) directive within the component template.
 - `this.provide` / `provide()`: Defines state, properties, or methods to provide to descendant components.
 - `static inject` / `this.inject`: Defines ancestor properties to inject and make available locally on `this`.
+
+### `this.$element` & `this.el` (Root DOM Accessor)
+
+The `this.$element` property (and its alias `this.el`) provides direct access to the component's root HTML element in the DOM:
+
+```typescript
+interface AvenxComponent {
+  /**
+   * Getter returning the root DOM Element of the component instance,
+   * or null if the component is unmounted / not yet attached.
+   */
+  readonly $element: Element | null;
+  readonly el: Element | null;
+}
+```
+
+#### Lifecycle Availability Matrix
+
+| Lifecycle Hook | `$element` / `el` Return Value | Context / Availability Notes |
+| :--- | :--- | :--- |
+| `constructor` | `null` | Component instance instantiated; template is not yet compiled or attached. |
+| `onBeforeMount()` | `null` | Reactive state and actions initialized, but root element is **not** yet attached to the DOM. |
+| `onMount()` | `Element` ✅ | Component element is fully mounted and attached to document DOM. Safe for DOM manipulation. |
+| `onBeforeUpdate()` | `Element` ✅ | Component is mounted; runs right before DOM patching applies state/props changes. |
+| `onUpdate()` | `Element` ✅ | Component is mounted; DOM patch update has completed. |
+| `onDeactivate()` | `Element` ✅ | Component remains in KeepAlive cache; element is still valid. |
+| `onActivate()` | `Element` ✅ | Cached page restored; root element attached in DOM. |
+| `onUnmount()` | `Element` (pre-removal) → `null` (post) | Accessible during hook execution for resource teardown; set to `null` after removal. |
+
+#### Integrating Third-Party DOM Libraries
+
+When integrating external JavaScript libraries that require direct DOM node references (such as Chart.js, D3, Leaflet, or Tippy.js), access `this.$element` or `this.el` inside `onMount()`:
+
+```javascript
+import { AvenxComponent } from 'avenx-core/runtime';
+
+export default class ChartWidget extends AvenxComponent {
+  onMount() {
+    // Guaranteed to return the mounted root DOM element
+    const container = this.$element;
+    if (!container) return;
+
+    const canvas = container.querySelector('canvas.chart-canvas');
+    this.chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar'],
+        datasets: [{ data: [12, 19, 3] }],
+      },
+    });
+  }
+
+  onUnmount() {
+    // Destroy chart instance to prevent memory leaks
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
+  }
+}
+```
 
 ### `this.$refs` Reference Map
 
@@ -33,7 +95,37 @@ interface AvenxComponent {
 - **Lifecycle Availability:** `$refs` entries are populated once the component is mounted into the DOM (`onMount`, `onUpdate`). Accessing `$refs` prior to DOM mounting (`onBeforeMount`) returns an empty object (`{}`).
 - **Automatic Teardown Cleanup:** When a component is unmounted (`unmount()`), `this.$refs` is automatically cleared and reset to `{}` to prevent memory leaks and dangling DOM references.
 
+## `this.$slots`
 
+The `this.$slots` object provides access to slots passed by the parent component. You can use `this.$slots.has()` to determine whether a specific slot was provided before rendering conditional content.
+
+### `this.$slots.has(slotName = 'default')`
+
+Checks whether a slot with the specified name exists.
+
+#### Returns
+
+- `true` if the slot is present.
+- `false` otherwise.
+
+#### Examples
+
+```javascript
+if (this.$slots.has()) {
+  console.log("Default slot provided");
+}
+
+if (this.$slots.has("default")) {
+  console.log("Default slot provided");
+}
+
+if (this.$slots.has("header")) {
+  console.log("Header slot provided");
+}
+
+if (this.$slots.has("footer")) {
+  console.log("Footer slot provided");
+}
 
 ### Provide / Inject API
 
@@ -163,16 +255,19 @@ export default class MyComponent extends AvenxComponent {
 
 ### Complete Lifecycle Hooks Reference
 
-| Hook Name | Parameters | Description |
-| :--- | :--- | :--- |
-| `onBeforeMount()` | None | Called after state and actions are set up, right before the component template is compiled and inserted into the DOM. |
-| `onMount()` | None | Called immediately after the component element is attached to the DOM. Ideal for initial API data fetches, setting up timers, or DOM queries. |
-| `onBeforeUpdate()` | None | Called right before the DOM is patched following a reactive state or props change. Useful for reading current DOM scroll positions or focus states. |
-| `onUpdate()` | None | Called immediately after the DOM patch update finishes. Ideal for DOM measurements or re-initializing third-party UI widgets. |
-| `onActivate(params)` | `params: Object` | Called whenever a cached page configured with `keepAlive: true` becomes active. Receives current route parameters. |
-| `onDeactivate()` | None | Called when navigating away from a page configured with `keepAlive: true`. The page remains cached in memory rather than unmounted. |
-| `onUnmount()` | None | Called right before the component element is unmounted and detached from the DOM. Use this to clean up timers, global event listeners, and subscriptions. |
-| `onErrorCaptured(err, instance, info)` | `err: Error, instance: Object, info: String` | Called when an unhandled exception is caught from a descendant child component. Return `false` to stop error propagation. |
+| Hook Name | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `onBeforeMount()` | None | `void` | Called after state and actions are set up, right before the component template is compiled and inserted into the DOM. |
+| `onMount()` | None | `void` | Called immediately after the component element is attached to the DOM. Ideal for initial API data fetches, setting up timers, or DOM queries. |
+| `onEnter()` | None | `void` | Called immediately after initial mount and first render update. Ideal for entrance animations, tracking impressions, or post-entry focus. |
+| `onBeforeUpdate()` | None | `void` | Called right before the DOM is patched following a reactive state or props change. Useful for reading current DOM scroll positions or focus states. |
+| `onUpdate()` | None | `void` | Called immediately after the DOM patch update finishes. Ideal for DOM measurements or re-initializing third-party UI widgets. |
+| `onBeforeLeave()` | None | `void \| Promise<void>` | Called before component unmounting begins. If a `Promise` is returned, unmounting and teardown are postponed until the Promise resolves. Ideal for exit animations or confirmation prompts. |
+| `onLeave()` | None | `void` | Called immediately before internal component teardown begins. Ideal for final transition cleanup and resetting global styles. |
+| `onActivate(params)` | `params: Object` | `void` | Called whenever a cached page configured with `keepAlive: true` becomes active. Receives current route parameters. |
+| `onDeactivate()` | None | `void` | Called when navigating away from a page configured with `keepAlive: true`. The page remains cached in memory rather than unmounted. |
+| `onUnmount()` | None | `void` | Called right before the component element is unmounted and detached from the DOM. Use this to clean up timers, global event listeners, and subscriptions. |
+| `onErrorCaptured(err, instance, info)` | `err: Error, instance: Object, info: String` | `boolean \| void` | Called when an unhandled exception is caught from a descendant child component. Return `false` to stop error propagation. |
 
 ---
 
@@ -418,10 +513,147 @@ comp.$watch('items.length', () => {
 }, { flush: 'post' });
 ```
 
+### `$inspect()`
+
+Returns a diagnostic snapshot of a component.Props and state are sanitized clones, while the root element remains live for inspection in browser DevTools. Computed properties are listed by key only and are not evaluated.
+
+#### Returns 
+
+
+| Return Property | Type | Description |
+| --------------- | ---- | ----------- |
+| `componentName` | `string` | The name of the component. |
+| `props` | `object` | A sanitized snapshot of the component's props. |
+| `state` | `object` | A sanitized snapshot of the component's state. |
+| `computed` | `string[]` | Names of computed properties. They are not evaluated during inspection. |
+| `slots` | `string[]` | Names of the slots currently transcluded into the component. |
+| `element` | `Element \| null` | The component's live root DOM element, which can be inspected in browser DevTools. |
+
+
+#### Key Behaviors & Safety
+
+- **Safe snapshots:** `props` and `state` are detached, sanitized clones that can be logged, serialized, or diffed without modifying the component's reactive state. Circular references and non-serializable functions are sanitized.
+- **Computed properties are not evaluated:** `computed` contains property names only, so inspecting a component does not trigger computed getters or their side effects.
+- **Live root element:** `element` references the component's live root DOM element, making it directly inspectable in browser DevTools.
+- **Slot introspection:** `slots` contains the names of the currently provided slots, such as `['default', 'header', 'footer']`.
+
+
+#### Usage Examples
+
+**Logging component state in a lifecycle hook**
+
+```Javascript
+onMount() {
+  const snapshot = this.$inspect();
+  console.log('[Diagnostics]', snapshot);
+}
+```
+
+**Snapshot assertions in unit tests**
+
+``` Javascript
+
+const wrapper = await mountTestComponent(UserProfile, {
+  props: { name: 'Alice' },
+});
+
+const snapshot = wrapper.instance.$inspect();
+
+assert.strictEqual(snapshot.componentName, 'UserProfile');
+assert.ok(Array.isArray(snapshot.computed));
+assert.ok(Array.isArray(snapshot.slots));
+```
+
+**Debugging in the browser console**
+
+``` Javascript
+
+const snapshot = component.$inspect();
+console.log(snapshot);
+
+
+---
+
+
+
+### `emit(eventName, detail, options)`
+
+Emits a custom DOM [`CustomEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent) on the component's root element (`this.$element`). Provides full access to native `CustomEventInit` options for fine-grained control over event propagation, bubbling, and cancelability.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `eventName` | `string` | Name of the custom event to dispatch. |
+| `detail` | `object` | Optional. Event detail payload accessible via `event.detail`. Defaults to `{}`. |
+| `options` | `object` | Optional. Native `CustomEventInit` dictionary to configure event propagation behavior. Defaults to `{}`. |
+
+#### Event Options (`options`)
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `bubbles` | `boolean` | `true` | Controls whether the event bubbles up through ancestor DOM elements. |
+| `cancelable` | `boolean` | `true` | Controls whether the event can be canceled via `event.preventDefault()`. |
+| `composed` | `boolean` | `false` | Controls whether the event propagates across Shadow DOM boundaries into the standard DOM. |
+
+#### Example: Non-bubbling and Non-cancelable Events
+
+```javascript
+// Emit a non-bubbling custom event
+this.emit('tab-change', { tabId: 'settings' }, { bubbles: false });
+
+// Emit a non-cancelable custom event
+this.emit('status-sync', { status: 'active' }, { cancelable: false });
+
+// Emit a strictly internal non-bubbling, non-cancelable event
+this.emit('internal-scroll', { offset: 120 }, { bubbles: false, cancelable: false });
+```
+
+---
+
+### `$emit(eventName, detail)`
+
+Convenience shortcut for emitting custom events up the component hierarchy. Delegates to `this.emit(eventName, detail, { composed: true })`.
+
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `eventName` | `string` | Name of the custom event to dispatch. |
+| `detail` | `object` | Optional. Event detail payload accessible via `event.detail`. Defaults to `{}`. |
+
+#### `this.$emit()` vs `this.emit()`
+
+| Feature | `this.$emit()` | `this.emit()` |
+| :--- | :--- | :--- |
+| **`bubbles` Default** | `true` | `true` (configurable) |
+| **`cancelable` Default** | `true` | `true` (configurable) |
+| **`composed` Default** | `true` | `false` (configurable) |
+| **Options Parameter** | Not available | Supported via 3rd argument (`options`) |
+| **Primary Use Case** | Standard parent-child component event emission | Advanced propagation control (e.g. non-bubbling or non-cancelable events) |
+
 
 ### `update()`
 
 Forces a DOM patch and re-evaluates slots. Typically called automatically by the scheduler.
+
+### `clearKeepAliveCache(pageName)`
+
+Helper method available on component instances (`this.clearKeepAliveCache`) to programmatically clear cached KeepAlive component instances. Delegates to `app.clearKeepAliveCache(pageName)`.
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `pageName` | `string` (optional) | Name of the page component to evict from cache. If omitted, clears all cached page instances. |
+
+**Returns**
+
+`boolean`
+
+Returns `true` if cache entries were evicted, `false` otherwise.
+
+```javascript
+// Inside a component action or method
+this.clearKeepAliveCache('UserProfilePage');
+
+// Or purge all cached keep-alive pages
+this.clearKeepAliveCache();
+```
 
 ---
 

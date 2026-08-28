@@ -21,6 +21,57 @@ Any valid JavaScript expression is supported inside the braces, including proper
 <p>Total: {{ state.price * 1.1 }}</p>
 ```
 
+---
+
+## Unescaped HTML Interpolation (`{{{ ... }}}`) & XSS Security Guidelines
+
+By default, standard interpolation (`{{ expression }}`) automatically escapes special HTML characters (`<`, `>`, `&`, `"`, `'`) to ensure that values are safely rendered as plain text.
+
+To render raw HTML content (such as rich text editor output or sanitized Markdown markup), use triple curly braces **`{{{ expression }}}`**:
+
+```html
+<state rawBio="<strong>Software Engineer</strong> &amp; Open Source Contributor" />
+
+<div class="user-bio">
+  {{{ state.rawBio }}}
+</div>
+```
+
+### Escaped (`{{ }}`) vs. Unescaped (`{{{ }}}`) Comparison
+
+| Syntax | Output Handling | Example Input | Rendered DOM Output |
+| :--- | :--- | :--- | :--- |
+| `{{ expr }}` | Automatically HTML-escaped | `<b>Hello</b>` | `&lt;b&gt;Hello&lt;/b&gt;` *(rendered as text)* |
+| `{{{ expr }}}` | Raw HTML interpolation | `<b>Hello</b>` | `<b>Hello</b>` *(rendered as HTML element)* |
+
+> [!CAUTION]
+> **Cross-Site Scripting (XSS) Security Warning:** Rendering untrusted user input using `{{{ ... }}}` introduces severe Cross-Site Scripting (XSS) vulnerabilities. Never pass raw user inputs, URL parameters, or unvalidated form fields directly to triple-curly expressions.
+
+### Safe Raw HTML Rendering with `Sanitizer`
+
+Before rendering user-generated HTML content with `{{{ ... }}}`, use the built-in `Sanitizer` class from `avenx-core/runtime` to strip dangerous elements (like `<script>`, `<iframe>`, or inline `onerror` attributes):
+
+```javascript
+import { AvenxComponent, Sanitizer } from 'avenx-core/runtime';
+
+export default class UserProfile extends AvenxComponent {
+  onMount() {
+    const sanitizer = new Sanitizer();
+    
+    // Sanitize untrusted input before assigning to state
+    const untrustedBio = '<p>Hello!</p><script>alert("XSS Attack!")</script>';
+    this.state.safeBio = sanitizer.sanitize(untrustedBio);
+  }
+}
+```
+
+```html
+<!-- Renders clean, sanitized HTML safely -->
+<div class="bio-content">
+  {{{ state.safeBio }}}
+</div>
+```
+
 ## Attribute Binding
 
 Bind standard HTML attributes to a reactive value by using interpolation `{{ }}` directly inside the attribute string. Avenx-JS also automatically handles boolean attributes (like `disabled`, `checked`):

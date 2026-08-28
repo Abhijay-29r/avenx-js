@@ -9,16 +9,53 @@ Avenx-JS provides a clean HTML-based template engine that supports text interpol
 
 ## 1. Interpolation & HTML Escaping
 
-- **Escaped Text (`{{ expression }}`)**: Values are automatically passed through an HTML escaper to prevent Cross-Site Scripting (XSS).
+Avenx-JS template expressions provide two interpolation modes:
+
+- **Escaped Text (`{{ expression }}`)**: Values are automatically passed through an HTML escaper (`HtmlEscaper`) to convert special characters (`<`, `>`, `&`, `"`, `'`) into entities, preventing Cross-Site Scripting (XSS).
 
 ```html
 <p>Hello {{ state.username }}</p>
 ```
 
-- **Raw HTML (`{{{ expression }}}`)**: Allows inserting unescaped HTML. Use this with caution.
+- **Unescaped Raw HTML (`{{{ expression }}}`)**: Allows inserting raw, unescaped HTML nodes directly into the DOM tree.
 
 ```html
 <div>{{{ state.rawHtml }}}</div>
+```
+
+### Escaped (`{{ }}`) vs. Unescaped (`{{{ }}}`) Comparison
+
+| Syntax | Output Handling | Example Input | Rendered DOM Output |
+| :--- | :--- | :--- | :--- |
+| `{{ expr }}` | Automatically HTML-escaped | `<script>alert(1)</script>` | `&lt;script&gt;alert(1)&lt;/script&gt;` |
+| `{{{ expr }}}` | Raw HTML interpolation | `<strong>Bold Text</strong>` | `<strong>Bold Text</strong>` |
+
+> [!CAUTION]
+> **Cross-Site Scripting (XSS) Security Warning:** Rendering untrusted user input using `{{{ ... }}}` introduces severe Cross-Site Scripting (XSS) vulnerabilities. Never pass raw user inputs, URL parameters, or unvalidated form fields directly to triple-curly expressions.
+
+### Safe Raw HTML Rendering with `Sanitizer`
+
+Before rendering user-generated HTML content with `{{{ ... }}}`, use the built-in `Sanitizer` class from `avenx-core/runtime` to strip dangerous elements (like `<script>`, `<iframe>`, or inline `onerror` handlers):
+
+```javascript
+import { AvenxComponent, Sanitizer } from 'avenx-core/runtime';
+
+export default class ForumPost extends AvenxComponent {
+  onMount() {
+    const sanitizer = new Sanitizer();
+    
+    // Sanitize untrusted post content before assigning to state
+    const untrustedContent = this.props.rawPostContent;
+    this.state.safeContent = sanitizer.sanitize(untrustedContent);
+  }
+}
+```
+
+```html
+<!-- Renders clean, sanitized HTML safely -->
+<article class="post-body">
+  {{{ state.safeContent }}}
+</article>
 ```
 
 ## Dynamic HTML Content (`data-ax-html`)
@@ -73,20 +110,55 @@ Only use `SafeHtml` or the `html` helper with trusted content. Rendering untrust
 
 ## 2. Two-Way Bindings (`data-ax-bind`)
 
-Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to a value attribute and an event listener:
+Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to an attribute binding and an event listener:
 
 ```html
 <input type="text" data-ax-bind="state.username" />
 ```
 
-> **Warning:** `data-ax-bind` does not currently handle the boolean `checked` state of checkbox and radio inputs. Since the directive binds to the input's `value` and listens for `input` events, using it with checkboxes or radio buttons will not correctly update their checked state.
-> For checkbox inputs, bind the `checked` attribute manually and listen for the `change` event:
+The compiler picks the DOM property from the control, so the same directive works across input types.
+
+### Text inputs, textareas and selects
+
+These bind through `value`. Text inputs and textareas listen for `input`; selects listen for `change`:
 
 ```html
-<input type="checkbox" checked="{{ state.checked }}" @change="state.checked = event.target.checked" />
+<input type="text" data-ax-bind="state.username" />
+<textarea data-ax-bind="state.bio"></textarea>
+<select data-ax-bind="state.city"></select>
 ```
 
-This ensures that the checkbox's checked state is rendered from `state.checked` and that the state is updated whenever the checkbox changes.
+### Checkboxes
+
+A checkbox binds through `checked`, not `value`.
+
+Bound to a boolean, it mirrors that boolean and writes back `event.target.checked`:
+
+```html
+<input type="checkbox" data-ax-bind="state.acceptedTerms" />
+```
+
+Bound to an array, several checkboxes form a group. Each input's `value` is added to or removed from the array as it is checked, and `checked` follows membership:
+
+```html
+<input type="checkbox" value="apple" data-ax-bind="state.fruits" />
+<input type="checkbox" value="banana" data-ax-bind="state.fruits" />
+```
+
+With `state.fruits` starting as `['apple']`, the first box renders checked; ticking the second gives `['apple', 'banana']`.
+
+### Radio buttons
+
+Radios in a group share one bound value. `checked` is the comparison between the model and the input's `value`, and selecting one stores that value:
+
+```html
+<input type="radio" name="color" value="red" data-ax-bind="state.selectedColor" />
+<input type="radio" name="color" value="blue" data-ax-bind="state.selectedColor" />
+```
+
+Selecting the second input sets `state.selectedColor` to `'blue'`, which unchecks the first.
+
+A `checked` attribute written by hand on a bound checkbox or radio is dropped: the binding owns that state. Set the initial value in `<state>` instead.
 
 ## 3. Boolean Attributes Coercion
 
@@ -286,28 +358,60 @@ Pass an object whose **truthy** keys become class names (quote keys that are not
 
 ## 7. Loops (`<@for>`)
 
-Render arrays using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM list updates:
+Render lists, objects, sets, maps, or numeric ranges using the custom `<@for>` loop tag. Loop blocks are translated to `<template>` tags and managed via the `ListManager` for efficient DOM updates:
 
 ```html
 <@for item in state.todos key="item.id">
-    <li class="todo-item">{{ item.text }}</li>
+  <li>{{ item.title }}</li>
 </@for>
 ```
 
-### The implicit `index` variable
+### Supported Data Sources
 
-In addition to your item variable, every `<@for>` loop automatically injects a zero-indexed `index` variable into the template scope. You don't need to declare it — `ListManager` adds it for you on each iteration — so it's available anywhere inside the loop body, for example to number items or apply alternating styles:
+The `<@for>` loop can iterate over various sources:
+
+1. **Arrays**: Iterates over array elements.
+2. **Objects**: Iterates over the object's enumerable properties (entries). Use destructuring syntax to get `[key, value]`:
+   ```html
+   <@for [key, value] in state.settings key="key">
+     <li>{{ key }}: {{ value }}</li>
+   </@for>
+   ```
+3. **Maps and Sets**: Iterates in insertion order. For maps, destructuring works just like objects: `[key, value]`.
+4. **Numeric Ranges**: Iterates `N` times from `0` to `N-1`.
+   ```html
+   <!-- Renders 0, 1, 2, 3, 4 -->
+   <@for n in 5 key="n">
+     <li>Item #{{ n }}</li>
+   </@for>
+   ```
+
+### The Implicit `index` Variable
+
+In addition to your item variable, every `<@for>` loop automatically injects a zero-indexed `index` variable into the template scope. You don't need to declare it — `ListManager` adds it for you on each iteration:
 
 ```html
 <@for item in state.todos key="item.id">
-    <li class="todo-item">
-      <span class="index">{{ index + 1 }}</span>
-      {{ item.text }}
-    </li>
+  <li class="{{ index % 2 === 0 ? 'even' : 'odd' }}">
+    {{ index + 1 }}. {{ item.title }}
+  </li>
 </@for>
 ```
 
-> **Note:** `index` starts at `0`. Add `1` (as shown above) if you want a human-readable, 1-based count.
+### Empty States (`<@empty>`)
+
+When the iterable source is empty (e.g. `[]`, `{}`, or `0`), you can display a fallback block using the `<@empty>` tag inside the loop:
+
+```html
+<@for item in state.todos key="item.id">
+  <li>{{ item.title }}</li>
+  <@empty>
+    <li class="empty-state">No todos left!</li>
+  </@empty>
+</@for>
+```
+
+### Keys (`key="..."`)
 
 ## 8. Slots & Transclusion
 
@@ -339,6 +443,29 @@ Components can receive child HTML blocks using `<slot>` elements. Both default a
 #### Fallback (Default) Slot Content
 
 If a component's caller does not provide content for a given slot, Avenx-JS automatically falls back to rendering the default content defined inside that `<slot>` element in the component's template. This applies to both named and default slots. For example, in the `Card` component above, if no `slot="header"` element is passed in, the header slot will render its fallback text, `Default Header`, instead of being left empty. This makes it easy to define sensible defaults for optional component content without requiring the caller to always supply every slot.
+
+### Checking Slot Presence (`this.$slots.has()`)
+
+Components can determine whether a slot was provided by the parent using
+`this.$slots.has(slotName)`.
+
+#### Default Slot
+
+```javascript
+if (this.$slots.has('default')) {
+  console.log('Default slot provided');
+}
+```
+
+#### Named Slot
+
+```javascript
+if (this.$slots.has('header')) {
+  console.log('Header slot provided');
+}
+```
+
+If the slot is not provided, `this.$slots.has()` returns `false`, allowing components to conditionally render fallback content.
 
 ## 9. Passing Props to Child Components (`data-props-*`)
 
@@ -377,3 +504,69 @@ This includes nested SVG elements such as `<rect>`, `<circle>`, `<path>`, and ot
   <path d="M50 150 L100 50 L150 150 Z" fill="#FACC15" />
 </svg>
 ```
+
+---
+
+## 11. Static Subtree Optimization & Reconciliation Markers (`data-ax-static`, `data-ax-skip`, `data-ax-key`)
+
+To achieve maximum rendering performance and eliminate Virtual DOM overhead, the Avenx-JS compiler performs static template analysis during component compilation. It decorates template subtrees with internal reconciliation attributes that instruct `DomPatcher` and `ListManager` to bypass unnecessary DOM diffing.
+
+### 1. Static Subtree Marker (`data-ax-static="true"`)
+
+During component parsing (`ComponentParser.optimizeStaticSubtrees()`), Avenx-JS walks the HTML template tree and identifies subtrees that contain no dynamic interpolations (`{{ }}` or `{{{ }}}`), directives (`data-ax-*`), or nested components. The root node of each static subtree is automatically decorated with `data-ax-static="true"`.
+
+During reactive state updates, when `DomPatcher` encounters an element with `data-ax-static="true"`, it immediately bypasses attribute patching and child node diffing for that entire subtree:
+
+```javascript
+// Inside DomPatcher.#patchNode
+if (!isPatchRoot && oldNode.nodeType === Node.ELEMENT_NODE && oldNode.hasAttribute('data-ax-static')) {
+  return; // Skip diffing for static subtree!
+}
+```
+
+#### Compiled Output Example
+
+**Source SFC Template:**
+
+```html
+<div class="user-card">
+  <!-- Static Subtree: No interpolations or directives -->
+  <header class="card-header">
+    <h3>User Profile</h3>
+    <p>Account Overview & Settings</p>
+  </header>
+
+  <!-- Dynamic Content -->
+  <div class="card-body">
+    <p>Welcome, {{ state.username }}</p>
+  </div>
+</div>
+```
+
+**Compiled Template Output:**
+
+```html
+<div class="user-card">
+  <header class="card-header" data-ax-static="true">
+    <h3>User Profile</h3>
+    <p>Account Overview & Settings</p>
+  </header>
+
+  <div class="card-body">
+    <p>Welcome, {{ state.username }}</p>
+  </div>
+</div>
+```
+
+Because `<header>` is tagged with `data-ax-static="true"`, any update to `state.username` re-diffs only `<div class="card-body">`, while `<header>` and its children are skipped entirely during DOM patching.
+
+### 2. Directive Bypass Marker (`data-ax-skip="true"`)
+
+Directives like `data-ax-html` or custom element directives can instruct `DomPatcher` to skip recursive child node diffing (`skipChildren = true`). This prevents `DomPatcher` from overwriting imperatively managed DOM structures or custom inner HTML trees.
+
+### 3. Reconciliation Key Marker (`data-ax-key` / `key`)
+
+During `<@for>` list rendering, `ListManager` assigns or reads `data-ax-key="value"` to track element identities across reactive updates:
+
+- **Node Reuse & Reordering**: During list reconciliations, `DomPatcher` matches elements by `data-ax-key`. Reordered array items are moved in the DOM rather than unmounted and re-created.
+- **Node Isolation**: Ensures component state and input focus inside list items are preserved cleanly during array mutations.

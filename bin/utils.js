@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'node:readline';
 import { execSync } from 'child_process';
+import { red, yellow, gray } from './colors.js';
 
 /**
  * Helper to parse input names into PascalCase and kebab-case.
@@ -34,7 +35,7 @@ export function checkGitStatus() {
       return true;
     }
 
-    console.warn('⚠️ You have unstaged changes in your repository.');
+    console.warn(yellow('⚠️ You have unstaged changes in your repository.'));
 
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
       return true;
@@ -52,7 +53,7 @@ export function checkGitStatus() {
         if (answer.trim().toLowerCase() === 'y') {
           resolve(true);
         } else {
-          console.log('Operation cancelled.');
+          console.log(gray('Operation cancelled.'));
           resolve(false);
         }
       });
@@ -88,7 +89,7 @@ export function promptQuestion(query, defaultValue, validator = null) {
             rl.close();
             resolve(trimmed);
           } else {
-            console.log(`\x1b[31m❌ ${valid}\x1b[0m`);
+            console.log(red(`❌ ${valid}`));
             ask();
           }
         } else {
@@ -102,23 +103,53 @@ export function promptQuestion(query, defaultValue, validator = null) {
 }
 
 /**
- * Reads a template, checking the local .avenxtemplates/ folder first.
+ * Reads a template, checking custom template overrides in templatesDir and templates/ folder first.
  * @param {string} baseDir
  * @param {object} config
  * @param {string} frameworkDir
  * @param {string} subfolder
  * @param {string} filename
+ * @param {string|null} [templateName]
  * @returns {string}
  */
-export function readTemplate(baseDir, config, frameworkDir, subfolder, filename) {
-  const localStructuredPath = path.join(baseDir, config.templatesDir, subfolder, filename);
-  if (fs.existsSync(localStructuredPath)) {
-    return fs.readFileSync(localStructuredPath, 'utf-8');
+export function readTemplate(baseDir, config, frameworkDir, subfolder, filename, templateName = null) {
+  const dirs = [config?.templatesDir || '.avenxtemplates', 'templates'].filter(
+    (dir, idx, self) => dir && self.indexOf(dir) === idx
+  );
+
+  if (templateName) {
+    const ext = path.extname(filename);
+    const basename = filename.replace(/\.template$/, '');
+
+    for (const dir of dirs) {
+      const candidatePaths = [
+        path.join(baseDir, dir, subfolder, templateName, filename),
+        path.join(baseDir, dir, subfolder, `${templateName}.${filename}`),
+        path.join(baseDir, dir, subfolder, `${basename}.${templateName}.template`),
+        path.join(baseDir, dir, templateName, filename),
+        path.join(baseDir, dir, `${templateName}.${filename}`),
+        path.join(baseDir, dir, `${templateName}.${subfolder}${ext}.template`),
+        path.join(baseDir, dir, `${templateName}${ext}.template`),
+      ];
+
+      for (const candidatePath of candidatePaths) {
+        if (fs.existsSync(candidatePath)) {
+          return fs.readFileSync(candidatePath, 'utf-8');
+        }
+      }
+    }
   }
 
-  const localFlatPath = path.join(baseDir, config.templatesDir, filename);
-  if (fs.existsSync(localFlatPath)) {
-    return fs.readFileSync(localFlatPath, 'utf-8');
+  for (const dir of dirs) {
+    const localStructuredPath = path.join(baseDir, dir, subfolder, filename);
+    if (fs.existsSync(localStructuredPath)) {
+      return fs.readFileSync(localStructuredPath, 'utf-8');
+    }
+
+    const localFlatPath = path.join(baseDir, dir, filename);
+    if (fs.existsSync(localFlatPath)) {
+      return fs.readFileSync(localFlatPath, 'utf-8');
+    }
   }
 
   const globalPath = path.join(frameworkDir, 'templates', subfolder, filename);
@@ -130,7 +161,7 @@ export function readTemplate(baseDir, config, frameworkDir, subfolder, filename)
  * @param {string} message
  */
 export function fail(message) {
-  console.error(`\x1b[31m❌ Error: ${message}\x1b[0m`);
+  console.error(red(`❌ Error: ${message}`));
   process.exitCode = 1;
 }
 
@@ -154,3 +185,89 @@ export function abortIfGeneratedPathExists(baseDir, type, name, targetPaths) {
   );
   return true;
 }
+
+/**
+ * Cross-platform directory watcher with recursive support fallback.
+ * Node 18 on Linux does not support fs.watch(dir, { recursive: true }).
+ * @param {string} dirPath - Directory to watch.
+ * @param {Function} callback - Event callback (eventType, filename).
+ * @returns {{close: Function}|object} FSWatcher or compatible watcher object with close() method.
+ */
+export function watchDirectory(dirPath, callback) {
+  try {
+    return fs.watch(dirPath, { recursive: true }, callback);
+  } catch (err) {
+    if (err && err.code === 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM') {
+      return createRecursiveWatcherFallback(dirPath, callback);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Fallback recursive watcher for platforms/Node versions lacking native recursive watch.
+ * Walks directory tree and registers individual fs.watch instances.
+ * @param {string} rootPath - Root directory to watch.
+ * @param {Function} callback - Event callback.
+ * @returns {{close: Function}}
+ */
+function createRecursiveWatcherFallback(rootPath, callback) {
+  const watchers = new Map();
+
+  function scanAndWatch(currentDir) {
+    if (!fs.existsSync(currentDir)) return;
+
+    if (!watchers.has(currentDir)) {
+      try {
+        const watcher = fs.watch(currentDir, (eventType, filename) => {
+          const relativeDir = path.relative(rootPath, currentDir);
+          const relativeFile = filename
+            ? (relativeDir ? path.join(relativeDir, filename) : filename).replace(/\\/g, '/')
+            : (relativeDir ? relativeDir.replace(/\\/g, '/') : '');
+
+          const fullPath = filename ? path.join(currentDir, filename) : currentDir;
+          try {
+            if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+              scanAndWatch(fullPath);
+            }
+          } catch {
+            // Ignore stat errors on deleted / inaccessible entries
+          }
+
+          callback(eventType, relativeFile);
+        });
+
+        watchers.set(currentDir, watcher);
+      } catch {
+        // Ignore watch errors on transient dirs or permission errors
+      }
+    }
+
+    try {
+      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          scanAndWatch(path.join(currentDir, entry.name));
+        }
+      }
+    } catch {
+      // Ignore read errors on inaccessible dirs
+    }
+  }
+
+  scanAndWatch(rootPath);
+
+  return {
+    close() {
+      for (const watcher of watchers.values()) {
+        try {
+          watcher.close();
+        } catch {
+          // Ignore close errors
+        }
+      }
+      watchers.clear();
+    },
+  };
+}
+

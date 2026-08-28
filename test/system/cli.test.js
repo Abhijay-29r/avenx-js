@@ -49,6 +49,22 @@ function cleanup() {
 /**
  *
  */
+function resetTestProject() {
+  if (fs.existsSync(TEST_DIR)) {
+    fs.rmSync(TEST_DIR, { recursive: true, force: true });
+  }
+
+  fs.mkdirSync(TEST_DIR);
+
+  execSync(`node ${BIN_PATH} init`, {
+    cwd: TEST_DIR,
+    encoding: 'utf8',
+  });
+}
+
+/**
+ *
+ */
 async function runTest() {
   console.log('🧪 Testing avenx init...');
 
@@ -160,11 +176,20 @@ async function runTest() {
 
     const bundleContent = fs.readFileSync(bundleJsPath, 'utf-8');
 
-    assert.ok(bundleContent.includes('HtmlEscaper'), 'bundle.js should contain HtmlEscaper');
+    // Assert on the contract, not on internal identifiers: `avenx build` is a
+    // production build, so class names inside the runtime are minified away.
+    // Export names survive because the bundle publishes them by name.
+    assert.ok(
+      bundleContent.includes('AvenxComponent'),
+      'bundle.js should publish AvenxComponent, which compiled components extend',
+    );
 
-    assert.ok(bundleContent.includes('SafeHtml'), 'bundle.js should contain SafeHtml');
+    assert.ok(bundleContent.includes('AvenxApp'), 'bundle.js should publish AvenxApp');
 
-    assert.ok(bundleContent.includes('html'), 'bundle.js should contain html function');
+    assert.ok(
+      bundleContent.includes('globalThis'),
+      'bundle.js should install the runtime on the global object',
+    );
 
     assert.match(buildOutput, /Asset sizes:/, 'prints asset size');
 
@@ -210,10 +235,12 @@ async function runTest() {
 
     execSync(`node ${BIN_PATH} generate component default-box`, { cwd: TEST_DIR });
 
-    const defaultBoxJs = fs.readFileSync(
-      path.join(TEST_DIR, 'src/components/default-box/default-box.component.js'),
-      'utf-8',
+    const defaultBoxJsPath = path.join(
+      TEST_DIR,
+      'src/components/default-box/default-box.component.js',
     );
+
+    const defaultBoxJs = fs.readFileSync(defaultBoxJsPath, 'utf-8');
 
     assert.ok(defaultBoxJs.includes('DefaultBox Component'), 'Should contain default title');
 
@@ -228,10 +255,192 @@ async function runTest() {
     );
 
     assert.strictEqual(
-      fs.readFileSync(path.join(TEST_DIR, 'src/components/default-box/default-box.component.js'), 'utf-8'),
+      fs.readFileSync(defaultBoxJsPath, 'utf-8'),
       defaultBoxJs,
       'Duplicate component generation should not overwrite existing component files',
     );
+
+    console.log('🧪 Testing avenx generate component --force...');
+
+    fs.writeFileSync(
+      defaultBoxJsPath,
+      '// MODIFIED BY TEST',
+    );
+
+    const forceComponentResult = runCli([
+      'generate',
+      'component',
+      'default-box',
+      '--force',
+    ]);
+
+    assert.strictEqual(forceComponentResult.status, 0, 'Force component generation should succeed');
+
+    assert.match(
+      forceComponentResult.stderr,
+      /Force enabled: overwriting existing Component 'default-box'/,
+      'Force generation should warn before overwriting the existing component',
+    );
+
+    const forcedDefaultBoxJs = fs.readFileSync(
+      defaultBoxJsPath,
+      'utf-8',
+    );
+
+    assert.ok(
+      forcedDefaultBoxJs.includes('DefaultBox Component'),
+      'Force generation should overwrite the modified component',
+    );
+
+    assert.ok(
+      !forcedDefaultBoxJs.includes('// MODIFIED BY TEST'),
+      'Force generation should remove the modified component content',
+    );
+
+    console.log('✅ Component --force test passed!');
+
+    console.log('🧪 Testing avenx generate page --force...');
+
+    execSync(`node ${BIN_PATH} generate page force-dashboard`, { cwd: TEST_DIR });
+
+    const forcePageJsPath = path.join(TEST_DIR, 'src/pages/force-dashboard.page.js');
+
+    const forcePageCssPath = path.join(TEST_DIR, 'src/pages/force-dashboard.page.css');
+
+    fs.writeFileSync(forcePageJsPath, '// MODIFIED JS');
+    fs.writeFileSync(forcePageCssPath, '/* MODIFIED CSS */');
+
+    const forcePageResult = runCli([
+      'generate',
+      'page',
+      'force-dashboard',
+      '--force',
+    ]);
+
+    assert.strictEqual(
+      forcePageResult.status,
+      0,
+      'Force page generation should succeed',
+    );
+
+    assert.match(
+      forcePageResult.stderr,
+      /Force enabled: overwriting existing Page 'force-dashboard'/,
+      'Force generation should warn before overwriting the existing page',
+    );
+
+    const forcedPageJs = fs.readFileSync(forcePageJsPath, 'utf-8');
+    const forcedPageCss = fs.readFileSync(forcePageCssPath, 'utf-8');
+
+    assert.ok(
+      forcedPageJs.includes('ForceDashboard'),
+      'Force generation should overwrite the page JS',
+    );
+
+    assert.ok(
+      !forcedPageJs.includes('// MODIFIED JS'),
+      'Force generation should remove modified page JS content',
+    );
+
+    assert.ok(
+      !forcedPageCss.includes('MODIFIED CSS'),
+      'Force generation should overwrite the page CSS',
+    );
+
+    console.log('✅ Page --force test passed!');
+
+    console.log('🧪 Testing avenx generate bridge --force...');
+
+    execSync(`node ${BIN_PATH} generate bridge force-auth`, { cwd: TEST_DIR });
+
+    const forceBridgePath = path.join(
+      TEST_DIR,
+      'src/global/force-auth.bridge.js',
+    );
+
+    fs.writeFileSync(
+      forceBridgePath,
+      '// MODIFIED BY TEST',
+    );
+
+    const forceBridgeResult = runCli([
+      'generate',
+      'bridge',
+      'force-auth',
+      '--force',
+    ]);
+
+    assert.strictEqual(forceBridgeResult.status, 0, 'Force Bridge generation should succeed');
+
+    assert.match(
+      forceBridgeResult.stderr,
+      /Force enabled: overwriting existing Bridge 'force-auth'/,
+      'Force generation should warn before overwriting the existing Bridge',
+    );
+
+    const forcedForceBridgeJs = fs.readFileSync(
+      forceBridgePath,
+      'utf-8',
+    );
+
+    assert.ok(
+      forcedForceBridgeJs.includes('bridge({'),
+      'Force generation should overwrite the modified Bridge',
+    );
+
+    assert.ok(
+      !forcedForceBridgeJs.includes('// MODIFIED BY TEST'),
+      'Force generation should remove the modified Bridge content',
+    );
+
+    console.log('✅ Bridge --force test passed!');
+
+    console.log('🧪 Testing avenx generate guard --force...');
+
+    execSync(`node ${BIN_PATH} generate guard force-auth`, { cwd: TEST_DIR });
+
+    const forceGuardPath = path.join(
+      TEST_DIR,
+      'src/guards/force-auth.guard.js',
+    );
+
+    fs.writeFileSync(
+      forceGuardPath,
+      '// MODIFIED BY TEST',
+    );
+
+    const forceGuardResult = runCli([
+      'generate',
+      'guard',
+      'force-auth',
+      '--force',
+    ]);
+
+    assert.strictEqual(forceGuardResult.status, 0, 'Force guard generation should succeed');
+
+    assert.match(
+      forceGuardResult.stderr,
+      /Force enabled: overwriting existing Guard 'force-auth'/,
+      'Force generation should warn before overwriting the existing guard',
+    );
+
+    const forcedForceGuardJs = fs.readFileSync(
+      forceGuardPath,
+      'utf-8',
+    );
+
+
+    assert.ok(
+      forcedForceGuardJs.includes('ForceAuthGuard extends AvenxGuard'),
+      'Force generation should overwrite the modified guard',
+    );
+
+    assert.ok(
+      !forcedForceGuardJs.includes('// MODIFIED BY TEST'),
+      'Force generation should remove the modified guard content',
+    );
+
+    console.log('✅ Guard --force test passed!');
 
     console.log('🧪 Testing avenx generate component with camelCase name...');
 
@@ -386,6 +595,84 @@ async function runTest() {
 
     console.log('✅ Custom project-level templates tests passed!');
 
+    console.log('🧪 Testing avenx generate page and component with --template / -t flags...');
+
+    // Test 1: Page generation with --template flag using templates/ folder
+    const customTemplatesDir = path.join(TEST_DIR, 'templates');
+    const crudPageDir = path.join(customTemplatesDir, 'page', 'crud');
+    fs.mkdirSync(crudPageDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(crudPageDir, 'page.js.template'),
+      '// CRUD PAGE TEMPLATE FOR {{ name }}\nexport class {{ name }}Page extends AvenxPage {}',
+    );
+    fs.writeFileSync(path.join(crudPageDir, 'page.css.template'), '/* CRUD PAGE CSS */');
+
+    execSync(`node ${BIN_PATH} generate page UserProfile --template crud`, { cwd: TEST_DIR });
+
+    const templateUserProfileJs = fs.readFileSync(
+      path.join(TEST_DIR, 'src/pages/user-profile.page.js'),
+      'utf-8',
+    );
+    const templateUserProfileCss = fs.readFileSync(
+      path.join(TEST_DIR, 'src/pages/user-profile.page.css'),
+      'utf-8',
+    );
+
+    assert.ok(
+      templateUserProfileJs.includes('// CRUD PAGE TEMPLATE FOR UserProfile'),
+      'Should use custom CRUD page template from templates/ folder',
+    );
+    assert.ok(
+      templateUserProfileJs.includes('class UserProfilePage extends AvenxPage'),
+      'Should replace template variables correctly in custom page template',
+    );
+    assert.strictEqual(templateUserProfileCss.trim(), '/* CRUD PAGE CSS */', 'Should use custom CRUD page CSS template');
+
+    // Test 2: Component generation with -t short flag using .avenxtemplates folder
+    const modalCompDir = path.join(localTemplatesDir, 'component', 'modal');
+    fs.mkdirSync(modalCompDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(modalCompDir, 'component.js.template'),
+      '// MODAL COMPONENT TEMPLATE FOR {{ name }}\nexport class {{ name }}Modal extends AvenxComponent {}',
+    );
+    fs.writeFileSync(path.join(modalCompDir, 'component.css.template'), '/* MODAL COMPONENT CSS */');
+
+    execSync(`node ${BIN_PATH} g component Dialog -t modal`, { cwd: TEST_DIR });
+
+    const templateDialogJs = fs.readFileSync(
+      path.join(TEST_DIR, 'src/components/dialog/dialog.component.js'),
+      'utf-8',
+    );
+    const templateDialogCss = fs.readFileSync(
+      path.join(TEST_DIR, 'src/components/dialog/dialog.component.css'),
+      'utf-8',
+    );
+
+    assert.ok(
+      templateDialogJs.includes('// MODAL COMPONENT TEMPLATE FOR Dialog'),
+      'Should use custom Modal component template via -t flag from .avenxtemplates',
+    );
+    assert.ok(
+      templateDialogJs.includes('class DialogModal extends AvenxComponent'),
+      'Should replace template variables correctly in custom modal template',
+    );
+    assert.strictEqual(templateDialogCss.trim(), '/* MODAL COMPONENT CSS */', 'Should use custom modal CSS template');
+
+    // Test 3: Inline flag syntax --template=crud and -t=modal
+    execSync(`node ${BIN_PATH} generate page Settings --template=crud`, { cwd: TEST_DIR });
+    const templateSettingsJs = fs.readFileSync(
+      path.join(TEST_DIR, 'src/pages/settings.page.js'),
+      'utf-8',
+    );
+    assert.ok(
+      templateSettingsJs.includes('// CRUD PAGE TEMPLATE FOR Settings'),
+      'Should support inline --template=crud syntax',
+    );
+
+    console.log('✅ --template / -t flag tests passed!');
+
     console.log('🧪 Testing avenx generate component from a subdirectory...');
 
     // Create nested directory to simulate a subdirectory
@@ -448,7 +735,16 @@ async function runTest() {
 
     console.log('🧪 Testing avenx destroy component (dry-run & actual)...');
 
-    // 1. Dry run of destroying the default-box component
+    // 1. Dry run of destroying the default-box component with --dry-run and -d
+
+    // Reset the fixture because earlier --force tests modify the shared project.
+    resetTestProject();
+
+    execSync(
+      `node ${BIN_PATH} generate component default-box`,
+      { cwd: TEST_DIR }
+    );
+
     const defaultBoxDir = path.join(TEST_DIR, 'src/components/default-box');
     assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should exist before destroy test');
 
@@ -459,7 +755,15 @@ async function runTest() {
 
     assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should still exist after dry-run');
     assert.match(destroyDryRunOutput, /🧪 \[Dry Run\] Component 'default-box' files would be deleted/, 'should print dry run message');
+    assert.match(destroyDryRunOutput, /\[DRY-RUN\] Would delete: src\/components\/default-box\/default-box\.component\.js/, 'should print [DRY-RUN] Would delete: path');
     assert.match(destroyDryRunOutput, /No files were deleted or modified/, 'should report no modifications');
+
+    const destroyDryRunShortOutput = execSync(`node ${BIN_PATH} destroy component default-box -d`, {
+      cwd: TEST_DIR,
+      encoding: 'utf8',
+    });
+    assert.ok(fs.existsSync(defaultBoxDir), 'default-box dir should still exist after -d dry-run');
+    assert.match(destroyDryRunShortOutput, /\[DRY-RUN\] Would delete: src\/components\/default-box\/default-box\.component\.js/, 'should print [DRY-RUN] Would delete: path with -d flag');
 
     // Make sure main.app.js still contains the registration
     let mainAppJsContent = fs.readFileSync(path.join(TEST_DIR, 'src/main.app.js'), 'utf-8');
@@ -544,6 +848,45 @@ async function runTest() {
 
     console.log('✅ Destroy command tests passed!');
 
+    // 6b. Test inspect command (and alias i)
+    console.log('🧪 Testing avenx inspect & avenx i...');
+    execSync(`node ${BIN_PATH} generate component unused-inspect-btn`, { cwd: TEST_DIR });
+
+    // The generator automatically registers and mounts generated components.
+    // Remove those references so this fixture is genuinely unused.
+    const inspectMainAppPath = path.join(TEST_DIR, 'src/main.app.js');
+    let inspectMainAppContent = fs.readFileSync(inspectMainAppPath, 'utf-8');
+
+    inspectMainAppContent = inspectMainAppContent
+      .replace(
+        /import UnusedInspectBtn from '\.\/components\/unused-inspect-btn\/unused-inspect-btn\.component\.js';\r?\n?/,
+        '',
+      )
+      .replace(
+        /app\.register\('UnusedInspectBtn', UnusedInspectBtn\);\r?\n?/,
+        '',
+      )
+      .replace(
+        /app\.mount\('UnusedInspectBtn'\);\r?\n?/,
+        '',
+      );
+
+    fs.writeFileSync(inspectMainAppPath, inspectMainAppContent);
+
+    execSync(`node ${BIN_PATH} generate bridge inspect-auth`, { cwd: TEST_DIR });
+
+    const inspectOutput = execSync(`node ${BIN_PATH} inspect`, { cwd: TEST_DIR, encoding: 'utf8' });
+    assert.match(inspectOutput, /📦 Avenx Project Hierarchy \(src\/\)/, 'inspect should display header');
+    assert.match(inspectOutput, /📄 Pages/, 'inspect should display Pages category');
+    assert.match(inspectOutput, /🧩 Components/, 'inspect should display Components category');
+    assert.match(inspectOutput, /🌉 Bridges/, 'inspect should display Bridges category');
+    assert.match(inspectOutput, /UnusedInspectBtn.*\(⚠️ Unused\)/, 'should flag unused component with ⚠️ Unused');
+    assert.match(inspectOutput, /InspectAuthBridge -> src\/global\/inspect-auth\.bridge\.js/, 'should list bridge');
+
+    const inspectAliasOutput = execSync(`node ${BIN_PATH} i`, { cwd: TEST_DIR, encoding: 'utf8' });
+    assert.strictEqual(inspectAliasOutput, inspectOutput, 'avenx i should produce identical output to avenx inspect');
+    console.log('✅ Inspect command tests passed!');
+
     // 7. Test watch command
     console.log('🧪 Testing avenx watch...');
     const watchProc = spawn(process.execPath, [BIN_PATH, 'watch'], {
@@ -604,6 +947,95 @@ async function runTest() {
     console.log('  ✅ watch command exited gracefully on SIGINT.');
 
     console.log('✅ All watch command tests passed!');
+
+    // 7.5. Test avenx check --json flag
+    console.log('🧪 Testing avenx check --json...');
+    const checkJsonRes = runCli(['check', '--json']);
+    assert.strictEqual(checkJsonRes.status, 0, 'avenx check --json should exit with 0 on valid project');
+    const parsedReport = JSON.parse(checkJsonRes.stdout);
+    assert.strictEqual(parsedReport.valid, true);
+    assert.strictEqual(parsedReport.errorCount, 0);
+    assert.strictEqual(parsedReport.warningCount, 0);
+    assert.deepStrictEqual(parsedReport.diagnostics, []);
+    console.log('✅ avenx check --json system test passed!');
+
+    // 7.6. Test avenx check --watch flag
+    console.log('🧪 Testing avenx check --watch...');
+    const checkWatchProc = spawn(process.execPath, [BIN_PATH, 'check', '--watch'], {
+      cwd: TEST_DIR,
+    });
+
+    let checkWatchOutput = '';
+    let resolveCheckWatchReady;
+    const checkWatchReadyPromise = new Promise((resolve) => {
+      resolveCheckWatchReady = resolve;
+    });
+
+    let resolveCheckRecheckDone;
+    const checkRecheckDonePromise = new Promise((resolve) => {
+      resolveCheckRecheckDone = resolve;
+    });
+
+    checkWatchProc.stdout.on('data', (data) => {
+      const chunk = data.toString('utf8');
+      checkWatchOutput += chunk;
+
+      if (chunk.includes('Watching for template changes')) {
+        resolveCheckWatchReady();
+      }
+      if (chunk.includes('Change detected') || chunk.includes('Re-checking templates')) {
+        resolveCheckRecheckDone();
+      }
+    });
+
+    checkWatchProc.stderr.on('data', (data) => {
+      const chunk = data.toString('utf8');
+      checkWatchOutput += chunk;
+      if (chunk.includes('Change detected') || chunk.includes('Re-checking templates')) {
+        resolveCheckRecheckDone();
+      }
+    });
+
+    // Wait for the template watcher to start
+    await checkWatchReadyPromise;
+    console.log('  Check watch process started and is ready.');
+
+    // Small delay to ensure OS watcher listener is fully attached before file modification
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Make a change to a file to trigger re-check
+    const checkMainAppJsPath = path.join(TEST_DIR, 'src/main.app.js');
+    fs.appendFileSync(checkMainAppJsPath, '\n// Trigger check watch change\n');
+
+    // Wait for re-check to trigger (with timeout protection)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout waiting for template watcher re-check event')), 4000)
+    );
+    await Promise.race([checkRecheckDonePromise, timeoutPromise]);
+    console.log('  ✅ Template re-check was successfully triggered on change.');
+
+
+    // Stop the check watcher by sending SIGINT (Ctrl+C)
+    checkWatchProc.kill('SIGINT');
+
+    const checkExitPromise = new Promise((resolve) => {
+      checkWatchProc.on('exit', (code, signal) => {
+        resolve({ code, signal });
+      });
+    });
+
+    const { code: checkExitCode, signal: checkExitSignal } = await checkExitPromise;
+    assert.ok(
+      checkExitCode === 0 || checkExitCode === null || checkExitSignal === 'SIGINT',
+      `avenx check --watch should exit with 0 or be terminated by SIGINT (code: ${checkExitCode}, signal: ${checkExitSignal})`
+    );
+    assert.ok(
+      checkWatchOutput.includes('Watching for template changes') && checkWatchOutput.includes('No template validation issues found'),
+      'check watch output should contain watch startup and timestamped status'
+    );
+    console.log('  ✅ avenx check --watch exited gracefully on SIGINT.');
+    console.log('✅ avenx check --watch system test passed!');
+
 
     // 8. Test interactive wizard for avenx init
     console.log('🧪 Testing avenx init interactive wizard...');
@@ -685,6 +1117,24 @@ async function runTest() {
       fs.rmSync(INTERACTIVE_TEST_DIR, { recursive: true, force: true });
     }
     console.log('  ✅ Interactive wizard test passed!');
+
+    console.log('🧪 Testing avenx stats & avenx s CLI command...');
+    resetTestProject();
+
+    const statsResult = runCli(['stats']);
+    assert.strictEqual(statsResult.status, 0, 'avenx stats should exit with code 0');
+    assert.ok(statsResult.stdout.includes('📊 Avenx Component & Bundle Footprint Metrics'), 'avenx stats output header verified');
+
+    const statsAliasResult = runCli(['s']);
+    assert.strictEqual(statsAliasResult.status, 0, 'avenx s alias should exit with code 0');
+
+    const statsJsonResult = runCli(['stats', '--json']);
+    assert.strictEqual(statsJsonResult.status, 0, 'avenx stats --json should exit with code 0');
+    const parsedStatsJson = JSON.parse(statsJsonResult.stdout);
+    assert.ok(parsedStatsJson.summary, 'JSON output should contain summary object');
+    assert.ok(Array.isArray(parsedStatsJson.items), 'JSON output should contain items array');
+
+    console.log('  ✅ avenx stats / s tests passed!');
 
   } catch (error) {
     console.error('❌ Test failed!');

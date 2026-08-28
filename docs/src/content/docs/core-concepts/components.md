@@ -26,6 +26,40 @@ The component file contains configuration tags at the top and the HTML template 
 </div>
 ```
 
+## Accessing the Root DOM Element (`this.$element` / `this.el`)
+
+Inside component actions and methods, Avenx-JS provides the `this.$element` getter (also aliased as `this.el`) to access the component's root HTML DOM element directly.
+
+### Lifecycle Availability & Guarantees
+
+The `this.$element` getter returns `Element` when mounted and `null` when unattached:
+
+- **Pre-mount (`onBeforeMount`)**: Returns `null` because the component's HTML template has not yet been compiled and inserted into the document.
+- **Post-mount (`onMount`, `onUpdate`)**: Guaranteed to return the mounted `Element` instance in the document DOM.
+- **Post-unmount (`onUnmount`)**: Returns the element during `onUnmount()` cleanup execution, and resets to `null` after unmounting completes.
+
+```html
+<!-- src/components/chart-card/chart-card.component.js -->
+<action name="onMount">
+  // Access root element safely inside onMount
+  const rootNode = this.$element; // or this.el
+  console.log('Component root tag:', rootNode.tagName);
+  
+  // Attach third-party library (e.g. Chart.js, Tippy.js, D3)
+  this.chartInstance = new Chart(rootNode.querySelector('.canvas'), { ... });
+</action>
+
+<action name="onUnmount">
+  if (this.chartInstance) {
+    this.chartInstance.destroy();
+  }
+</action>
+
+<div class="chart-card">
+  <canvas class="canvas"></canvas>
+</div>
+```
+
 ## Single `<state />` Tag Per Component
 
 > **Important:** Only the **first** `<state />` tag in a `.component.js` file is parsed. If a component contains more than one `<state />` tag, every tag after the first is silently ignored, and the properties declared in those extra tags will **not** become reactive.

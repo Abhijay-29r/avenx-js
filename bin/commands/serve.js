@@ -1,8 +1,158 @@
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { buildProject } from './build.js';
+import { reportRebuildFailure } from '../fatal.js';
+import { cyan, green, yellow, red, gray } from '../colors.js';
+import { watchDirectory } from '../utils.js';
+import { saveTrace } from '../../lib/core/trace/store.js';
+import { TRACE_ENDPOINT } from '../../lib/core/trace/devtools.js';
+
+/**
+ * The largest request body the trace ingest endpoint will buffer.
+ *
+ * A recording is bounded by the recorder's ring buffer, so anything larger is
+ * not a trace and must not be accumulated in memory.
+ * @type {number}
+ */
+const MAX_TRACE_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Checks whether a resolved path is the project root itself or sits beneath it.
+ * @param {string} root - Absolute, resolved project root.
+ * @param {string} target - Absolute, resolved candidate path.
+ * @returns {boolean}
+ */
+function isInsideRoot(root, target) {
+  return target === root || target.startsWith(root + path.sep);
+}
+
+/**
+ * Resolves an incoming request URL to a file path inside the project directory.
+ *
+ * The request target is parsed as a URL so query strings and fragments never
+ * leak into the filesystem path, percent-encoding is decoded before the
+ * containment check, and the resolved path is required to stay within the
+ * project root. Node does not normalize `req.url`, so `..` segments would
+ * otherwise be resolved by `path.join` and escape the project directory.
+ * @param {string} baseDir - The project root directory.
+ * @param {string} requestUrl - The raw request target from `req.url`.
+ * @returns {string|null} An absolute path inside the project, or null when the
+ *   request is malformed or attempts to escape the root.
+ */
+export function resolveRequestPath(baseDir, requestUrl) {
+  const root = path.resolve(baseDir);
+
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(requestUrl || '/', 'http://localhost').pathname);
+  } catch {
+    // Malformed percent-encoding.
+    return null;
+  }
+
+  if (pathname.includes('\0')) {
+    return null;
+  }
+
+  const relative = pathname.replace(/^\/+/, '');
+  let filePath = relative === '' ? path.join(root, 'index.html') : path.resolve(root, relative);
+
+  if (!isInsideRoot(root, filePath)) {
+    return null;
+  }
+
+  // SPA fallback: extensionless paths that do not exist serve the entry document.
+  if (!fs.existsSync(filePath) && !path.extname(filePath)) {
+    filePath = path.join(root, 'index.html');
+  }
+
+  return filePath;
+}
+
+/**
+ * Formats an HTTP response status code with ANSI colors.
+ * @param {number|string} status
+ * @returns {string}
+ */
+export function formatStatusCode(status) {
+  const code = Number(status) || 0;
+  if (code >= 200 && code < 300) {
+    return green(code);
+  }
+  if (code >= 300 && code < 400) {
+    return yellow(code);
+  }
+  if (code >= 400) {
+    return red(code);
+  }
+  return String(code);
+}
+
+/**
+ * Formats a log line for an incoming HTTP request.
+ * @param {string} method - HTTP method (GET, POST, etc.)
+ * @param {string} url - Request URL path.
+ * @param {number|string} statusCode - Response HTTP status code.
+ * @param {number} durationMs - Execution time in milliseconds.
+ * @param {Date} [date] - Timestamp date object.
+ * @returns {string} The formatted log string.
+ */
+export function formatRequestLog(method, url, statusCode, durationMs, date = new Date()) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const timestamp = `[${hours}:${minutes}:${seconds}]`;
+
+  const formattedStatus = formatStatusCode(statusCode);
+  const formattedDuration = `${Number(durationMs || 0).toFixed(1)}ms`;
+
+  return `${timestamp} ${method} ${url} - ${formattedStatus} (${formattedDuration})`;
+}
+
+/**
+ * Attaches an HTTP request logging listener to a response object.
+ * @param {object} req
+ * @param {object} res
+ * @param {Function} [logger] - Custom logger function.
+ * @returns {Function} Completion logger handler.
+ */
+export function attachRequestLogger(req, res, logger = console.log) {
+  const startTime = performance.now();
+  let logged = false;
+
+  const logResponse = () => {
+    if (logged) return;
+    logged = true;
+    const durationMs = performance.now() - startTime;
+    const statusCode = res.statusCode || 200;
+    const method = req.method || 'GET';
+    const url = req.url || '/';
+    const logLine = formatRequestLog(method, url, statusCode, durationMs);
+    logger(logLine);
+  };
+
+  res.on('finish', logResponse);
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      logResponse();
+    }
+  });
+
+  return logResponse;
+}
+
+/**
+ * Applies configured custom headers to an HTTP response.
+ * @param {object} res - Node HTTP response object.
+ * @param {object} [headers] - Header name/value pairs from server.headers.
+ */
+export function applyCustomHeaders(res, headers = {}) {
+  for (const [name, value] of Object.entries(headers || {})) {
+    res.setHeader(name, value);
+  }
+}
 
 /**
  * Opens the browser to the specified URL.
@@ -10,7 +160,9 @@ import { buildProject } from './build.js';
  */
 export function openBrowser(url) {
   const start = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-  exec(`${start} ${url}`);
+  // Pass the URL as an argument rather than interpolating it into a shell
+  // command, so characters in the configured host cannot reach the shell.
+  spawn(start, [url], { shell: process.platform === 'win32', stdio: 'ignore', detached: true }).unref();
 }
 
 /**
@@ -475,14 +627,23 @@ export function watchProject(cli) {
   let timeout;
   const srcPath = path.join(cli.baseDir, cli.config.srcDir);
 
-  if (!fs.existsSync(srcPath)) return;
+  if (!fs.existsSync(srcPath)) return null;
 
-  fs.watch(srcPath, { recursive: true }, (eventType, filename) => {
+  const watcher = watchDirectory(srcPath, (eventType, filename) => {
     if (filename) {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        console.log(`\n📄 Change detected: ${filename}. Rebuilding...`);
-        buildProject(cli);
+        console.log(`\n${cyan(`📄 Change detected: ${filename}. Rebuilding...`)}`);
+
+        try {
+          buildProject(cli);
+        } catch (error) {
+          // A watch session keeps going: the next save usually fixes it. The
+          // browser is not reloaded, so it keeps showing the last good build
+          // rather than a blank page.
+          reportRebuildFailure(error);
+          return;
+        }
 
         if (cli.liveReloadClients) {
           cli.liveReloadClients.forEach((client) => {
@@ -492,14 +653,19 @@ export function watchProject(cli) {
       }, 100);
     }
   });
+
+  if (cli) {
+    cli._watcher = watcher;
+  }
+  return watcher;
 }
 
 /**
  * Listens on the requested port, incrementing it when the address is occupied.
- * @param {import('http').Server} server
+ * @param {object} server
  * @param {number|string} requestedPort
  * @param {string} host
- * @param {(port: number) => void} onListening
+ * @param {Function} onListening
  */
 export function listenWithPortFallback(server, requestedPort, host, onListening) {
   let port = Number(requestedPort);
@@ -512,7 +678,7 @@ export function listenWithPortFallback(server, requestedPort, host, onListening)
 
     const occupiedPort = port;
     port += 1;
-    console.warn(`\nPort ${occupiedPort} is already in use. Trying ${port} instead.`);
+    console.warn(`\n${yellow(`Port ${occupiedPort} is already in use. Trying ${port} instead.`)}`);
     server.listen(port, host);
   });
 
@@ -524,8 +690,9 @@ export function listenWithPortFallback(server, requestedPort, host, onListening)
  * @param {object} cli
  * @param {number|string} port
  * @param {string} [host]
+ * @param {boolean} [open]
  */
-export function serveProject(cli, port, host = 'localhost') {
+export function serveProject(cli, port, host = 'localhost', open = false) {
   buildProject(cli);
 
   if (cli.config.server.liveReload) {
@@ -534,6 +701,8 @@ export function serveProject(cli, port, host = 'localhost') {
   }
 
   const server = http.createServer((req, res) => {
+    attachRequestLogger(req, res);
+    applyCustomHeaders(res, cli.config.server.headers);
     if (cli.config.server.liveReload && req.url === '/__avenx_live_reload__') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -549,16 +718,59 @@ export function serveProject(cli, port, host = 'localhost') {
       });
       return;
     }
+    // Trace ingest. Only mounted for `avenx serve --trace`, so a dev server
+    // without the flag has no endpoint that writes to disk at all.
+    if (cli.traceEnabled && req.method === 'POST' && req.url === TRACE_ENDPOINT) {
+      let body = '';
+      let tooLarge = false;
+      req.on('data', (chunk) => {
+        body += chunk;
+        // A trace is bounded by the recorder's ring buffer, so anything past
+        // this is not a trace and must not be buffered indefinitely.
+        if (body.length > MAX_TRACE_BYTES) {
+          tooLarge = true;
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Trace too large' }));
+          req.destroy();
+        }
+      });
+      req.on('end', () => {
+        if (tooLarge) {
+          return;
+        }
+        try {
+          const trace = JSON.parse(body);
+          const savedPath = saveTrace(cli.baseDir, trace);
+          const nodes = Array.isArray(trace.nodes) ? trace.nodes.length : 0;
+          const status = (trace.determinism && trace.determinism.status) || 'unknown';
+          console.log(
+            `\n${green(`📼 Recorded ${trace.id}`)} ${gray(`· ${nodes} nodes · ${status}`)}\n` +
+              `   ${cyan(`avenx trace view ${trace.id}`)}\n` +
+              `   ${cyan(`avenx trace export ${trace.id}`)}\n`,
+          );
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, id: trace.id, path: savedPath }));
+        } catch (error) {
+          console.error(`Failed to save trace: ${error.message}`);
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: error.message }));
+        }
+      });
+      return;
+    }
+
     if (req.url === '/__avenx-inspect') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(getInspectorHtml(cli));
       return;
     }
 
-    let filePath = path.join(cli.baseDir, req.url === '/' ? 'index.html' : req.url);
+    const filePath = resolveRequestPath(cli.baseDir, req.url);
 
-    if (!fs.existsSync(filePath) && !path.extname(filePath)) {
-      filePath = path.join(cli.baseDir, 'index.html');
+    if (filePath === null) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
     }
 
     const extname = String(path.extname(filePath)).toLowerCase();
@@ -600,11 +812,32 @@ export function serveProject(cli, port, host = 'localhost') {
     }
 </script>
 `;
+          const traceScript = cli.traceEnabled
+            ? `
+<script>
+    // Injected by \`avenx serve --trace\`. Recording is opt-in and never
+    // reaches a production build.
+    window.addEventListener('DOMContentLoaded', function () {
+        if (window.Avenx && window.Avenx.installTraceRecorder) {
+            window.Avenx.installTraceRecorder(${JSON.stringify({
+    endpoint: TRACE_ENDPOINT,
+    redact: (cli.config.trace && cli.config.trace.redact) || [],
+    maxNodes: (cli.config.trace && cli.config.trace.maxNodes) || undefined,
+  })});
+        } else {
+            console.warn('[Avenx] --trace is on but the runtime did not load; nothing is being recorded.');
+        }
+    });
+</script>
+`
+            : '';
+
           const contentStr = content.toString('utf-8');
+          const injected = `${script}${traceScript}`;
           if (contentStr.includes('</body>')) {
-            responseContent = contentStr.replace('</body>', `${script}</body>`);
+            responseContent = contentStr.replace('</body>', `${injected}</body>`);
           } else {
-            responseContent = contentStr + script;
+            responseContent = contentStr + injected;
           }
         }
 
@@ -616,10 +849,17 @@ export function serveProject(cli, port, host = 'localhost') {
 
   listenWithPortFallback(server, port, host, (activePort) => {
     const url = `http://${host}:${activePort}`;
-    console.log(`\n🚀 Dev-Server running at ${url}`);
+    console.log(`\n${green(`🚀 Dev-Server running at ${url}`)}`);
     if (cli.config.server.liveReload) {
-      console.log(`👀 Watching for changes in ${cli.config.srcDir}/...\n`);
+      console.log(cyan(`👀 Watching for changes in ${cli.config.srcDir}/...\n`));
     }
-    openBrowser(url);
+    if (cli.traceEnabled) {
+      console.log(green('📼 Trace recording is ON.'));
+      console.log(gray('   Reproduce the behaviour, then run `await avenxTrace.save()` in the console'));
+      console.log(gray('   (or navigate away — the trace is sent automatically).\n'));
+    }
+    if (open) {
+      openBrowser(url);
+    }
   });
 }

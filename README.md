@@ -15,6 +15,7 @@ Modern frontend development often requires complex build chains and heavy runtim
 - **🎨 Scoped Styling:** CSS is automatically scoped to your component using hashed class generation.
 - **🛠️ Integrated Tooling:** A built-in CLI handles project scaffolding, component generation, and development servers.
 - **📦 Lightweight Core:** Minimal runtime footprint for fast loading and execution.
+- **🔍 Causal Tracing:** Record why your app did what it did, then export that recording as a regression test.
 
 ---
 
@@ -32,9 +33,9 @@ Define your UI using standard HTML with added superpowers. Components support `s
 
 Styles defined in `.component.css` are automatically scoped to that specific component. Use the `<@global>` tag for global variables and the `<@css>` tag for component-specific styles.
 
-### 🌐 Reactive Bridges (Shared State)
+### 🌐 Bridges (Shared State)
 
-Shared state across multiple components is handled via **Bridges**. These are global reactive objects that any component can subscribe to and update.
+Shared state lives in **Bridges** — small modules created with `bridge()` and consumed by importing them. Because the import is the connection, the compiler can see every consumer: it drops unused bridges from the bundle and catches mistyped members before you run the app.
 
 ### 🌊 Declarative Async Data, Suspense & Error Boundaries
 
@@ -63,9 +64,95 @@ Fetch data seamlessly with `<resource>` declarations and handle loading & error 
 </@errorBoundary>
 ```
 
+### 🛡️ Reactive Deadlock Boundary (`<@deadlock>`)
+
+Define a named fallback boundary for reactive-cycle recovery:
+
+```html
+<@deadlock name="dashboard-boundary">
+  <Sidebar />
+  <Content />
+  <Stats />
+  <@fallback as="err">
+    <div class="deadlock-alert">
+      ⚠️ Reactive cycle intercepted in {{ name }}: {{ err.message }}
+    </div>
+  </@fallback>
+</@deadlock>
+```
+
+- **Global Detection:** Scheduler and watcher guards stop runaway reactive work and log `AVX_R18` diagnostics.
+- **Manual Recovery:** Call `$tripDeadlockBoundary('dashboard-boundary', error)` to replace that boundary's active content with its fallback.
+- **Explicit Integration:** Use `onSchedulerDeadlock()` when you want to connect global scheduler detection to a particular component boundary.
+
+Detection does not automatically trip the nearest boundary. The compiled `maxDepth`, `action`, and `isolated` attributes are currently metadata rather than active per-boundary controls. See the [reactive deadlock boundary guide](docs/src/content/docs/core-concepts/deadlock.md) for current behavior and limitations.
+
+### 🔍 Avenx Trace — reproduce a bug once, get a test forever
+
+Avenx records **why** your application did what it did — the click, the action,
+the bridge mutation, the state write, the watchers that woke, the DOM nodes that
+changed — and turns that recording into an executable regression test.
+
+```bash
+npx avenx serve --trace          # reproduce the bug in the browser
+npx avenx trace view latest      # read why it happened
+npx avenx trace export latest --out test/cart-qty.test.js
+```
+
+```text
+▸ click <button.qty-inc> CartItem
+  └─ action CartItem.incQty()  src/components/cart-item/cart-item.component.js:3
+     └─ bridge cart · addQty("a", 1)
+        ├─ write cart.items.0.qty 2 → 3
+        │  ├─ woke CartItem#render
+        │  │  └─ patched <span.qty> text "2" → "3"
+        │  └─ woke CartSummary#render
+        │     ├─ getter cart.total 36 → 48
+        │     └─ patched <strong.total> text "$36.00" → "$48.00"
+        └─ emit cart:changed → 0 listeners
+
+Determinism: deterministic — this trace can be exported as a regression test.
+```
+
+The exported test replays the recorded inputs through the real framework and
+compares **every** state and DOM change against the recording. When the code
+regresses you get the cause, not a bare mismatch:
+
+```text
+Step 1 (click <button.qty-inc>) diverged at position 1:
+  recorded: write count 0 -> 1
+  replayed: write count 0 -> 2
+```
+
+Avenx can do this because template expressions, computed properties and action
+bodies stay **source text** right through to evaluation, and every identifier
+they resolve — including `Date` and `Math` — passes through one sandbox. That
+same choke point is what lets a recorded session be replayed deterministically.
+A framework that compiles expressions into closures has thrown that away before
+the code runs.
+
+Recording is off by default and never reaches a production build — with tracing
+off, each instrumented site is a single boolean check. Determinism is **verified
+by replay**, not claimed by the recorder: a trace that says it is reproducible
+and is not fails loudly rather than passing for the wrong reason.
+
+Configure redaction so a trace never captures what it should not:
+
+```json
+{ "trace": { "redact": ["auth.token", "user.*", "*.password"] } }
+```
+
+See the [Avenx Trace guide](docs/src/content/docs/core-concepts/trace.md).
+
 ### 🛠️ CLI-First Workflow
 
 Generate components, pages, and bridges with a single command. The built-in dev server provides hot-reloading for a seamless development experience.
+
+### 📦 Production Builds
+
+`avenx build` produces a production bundle: the minified runtime, with no testing or lint infrastructure and no Node shims in the graph. Testing helpers live behind `avenx-core/testing` and the ESLint tooling behind `avenx-core/tooling`, so neither can reach an application bundle. `avenx build --dev` builds the readable runtime instead, which is what `avenx serve` uses.
+
+The runtime publishes `globalThis.Avenx` plus seven named globals, rather than copying its whole export surface onto the global object.
 
 ---
 
@@ -88,6 +175,9 @@ npx avenx g counter
 
 # Start development server
 npx avenx serve
+
+# Build for production
+npx avenx build
 ```
 
 Your app will be running at `http://localhost:3000`.
@@ -141,9 +231,9 @@ An Avenx component consists of two files: `<name>.component.js` and `<name>.comp
 </@css>
 ```
 
-### 2. Reactive Bridges (Shared State)
+### 2. Bridges (Shared State)
 
-Bridges allow you to share reactive state between components without complex prop drilling. They are defined in the `src/global/` directory.
+A **Bridge** holds state that several components need, plus the actions that change it. You create one with `bridge()` and use it by importing it.
 
 #### Creation
 
@@ -154,29 +244,39 @@ npx avenx g bridge auth
 #### Definition (`src/global/auth.bridge.js`)
 
 ```javascript
-import { AvenxBridge } from 'avenx-core/runtime';
+import { bridge } from 'avenx-core/runtime';
 
-export default class AuthBridge extends AvenxBridge {
-  constructor() {
-    super();
-    this.isLoggedIn = false;
-    this.user = {
-      name: 'Guest',
-      role: 'visitor',
-    };
-  }
-}
+export default bridge({
+  state: {
+    user: null,
+    status: 'anonymous',
+  },
+
+  get displayName() {
+    return this.user ? this.user.name : 'Guest';
+  },
+
+  login(user) {
+    this.user = user;
+    this.status = 'authenticated';
+    this.emit('login', user);
+  },
+});
 ```
 
 #### Usage in Component
 
-Bridges are automatically available in your component templates and actions.
+Import the bridge, then read it straight from the template. Reads are tracked, so the component re-renders when the data it uses changes — no subscription to write, and none to clean up.
 
 ```html
-<p>Welcome, {{ AuthBridge.user.name }}</p>
+import auth from '../global/auth.bridge.js';
 
-<action name="login"> AuthBridge.isLoggedIn = true; AuthBridge.user.name = 'John Doe'; </action>
+<p>Welcome, {{ auth.displayName }}</p>
+
+<action name="signIn"> auth.login({ name: 'John Doe' }); </action>
 ```
+
+Because a bridge is reached through an import, the compiler knows exactly which components use it: unused bridges are left out of the bundle, mistyped members and unknown event names are reported at build time, and the whole surface is typed in TypeScript. State is read-only outside the bridge, so every mutation has one traceable origin.
 
 ---
 
@@ -304,7 +404,12 @@ my-avenx-app/
 | `avenx build` (or `b`)    | Compiles the project into `dist/`.                     |
 | `avenx clean`             | Clears build output directory.                         |
 | `avenx check` (or `lint`) | Validates component templates without building.        |
+| `avenx doctor`            | Runs environment and project health diagnostics.       |
 | `avenx serve [port]`      | Starts the dev server with hot-reload (default: 3000). |
+| `avenx trace list`        | Lists recorded causal traces.                          |
+| `avenx trace view <id>`   | Prints a trace as a causal tree.                       |
+| `avenx trace export <id>` | Turns a recorded trace into a regression test.         |
+| `avenx trace prune`       | Removes stored traces.                                 |
 | `avenx watch` (or `w`)    | Watch for file changes and rebuild automatically.      |
 
 ### Options
@@ -314,6 +419,8 @@ my-avenx-app/
 | `--dry-run`, `-d`     | Preview actions for generators and destructors without writing/deleting files. |
 | `--port`, `-p <port>` | Configure the port for the development server.                                 |
 | `--host`, `-h <host>` | Configure the host for the development server (default: `localhost`).          |
+| `--trace`             | Record a causal trace while serving. Development only, off by default.         |
+| `--out`, `-o <file>`  | Where `trace export` writes the generated regression test.                     |
 
 ---
 

@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { AvenxComponent } from '../../lib/core/runtime/AvenxComponent.js';
-import { AvenxMock } from '../../lib/core/index.js';
+import { AvenxMock, mountTestComponent, fireEvent } from '../../lib/core/testing.js';
 import { setupDOMMock, teardownDOMMock } from '../helpers/dom-mock.js';
 
 // Sample bridge definition for tests
@@ -144,7 +144,13 @@ class CounterComponent extends AvenxComponent {
 
     // Test route mocking
     sandbox.setRoute({ hash: '#/users', page: 'users', params: { id: '99' } });
-    assert.deepStrictEqual(mounted.instance.$route, { hash: '#/users', page: 'users', params: { id: '99' } });
+    assert.deepStrictEqual(mounted.instance.$route, {
+      hash: '#/users',
+      path: '#/users',
+      page: 'users',
+      params: { id: '99' },
+      query: {},
+    });
 
     // ==========================================
     // 3. createMockRouter
@@ -179,6 +185,56 @@ class CounterComponent extends AvenxComponent {
     const blocked = guarded.push('#/elsewhere');
     assert.strictEqual(blocked, false);
     assert.strictEqual(guarded.currentRoute.hash, '#/private');
+
+    // ==========================================
+    // 4. mountTestComponent and fireEvent Tests
+    // ==========================================
+    console.log('  Testing mountTestComponent and fireEvent helpers...');
+
+    class ButtonComponent extends AvenxComponent {
+      constructor(bridges, props) {
+        super(
+          { clicks: 0, textValue: '' },
+          {},
+          bridges,
+          `<button @click="state.clicks++"><slot>{{props.label || 'Button'}}</slot></button><input @input="state.textValue = $event.target.value" value="{{state.textValue}}" />`,
+          {},
+          props,
+        );
+      }
+    }
+
+    const { instance: btnComp, element: btnEl, html: btnHtml, unmount } = await mountTestComponent(ButtonComponent, {
+      props: { label: 'Click Me' },
+      slots: 'Custom Label',
+    });
+
+    assert.ok(btnEl);
+    assert.strictEqual(btnComp.props.label, 'Click Me');
+    assert.ok(typeof btnHtml === 'string');
+
+    const buttonNode = btnEl.tagName === 'BUTTON' ? btnEl : (btnEl.querySelectorAll('button')[0] || btnEl);
+    assert.strictEqual(btnComp.state.clicks, 0);
+
+    await fireEvent(buttonNode, 'click');
+    assert.strictEqual(btnComp.state.clicks, 1);
+
+    await fireEvent(buttonNode, 'click');
+    assert.strictEqual(btnComp.state.clicks, 2);
+
+    const inputNode = btnEl.querySelectorAll('input')[0];
+    if (inputNode) {
+      await fireEvent(inputNode, 'input', { value: 'Hello Avenx' });
+      assert.strictEqual(btnComp.state.textValue, 'Hello Avenx');
+    }
+
+    unmount();
+
+    const mountedViaMock = await AvenxMock.mountTestComponent(ButtonComponent, {
+      props: { label: 'Submit' },
+    });
+    assert.strictEqual(mountedViaMock.instance.props.label, 'Submit');
+    mountedViaMock.unmount();
 
     // Clean up global DOM mock
     teardownDOMMock();

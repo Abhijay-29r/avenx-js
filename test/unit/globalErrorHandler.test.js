@@ -132,9 +132,29 @@ async function runTests() {
   assert.strictEqual(unmountErrors.length, 2);
   assert.strictEqual(unmountErrors[0].err.message, 'Unmount Fail');
 
+  // 2. Test registration of onWarn and config.warnHandler
+  const warningsHandled = [];
+  const warnApp = new AvenxApp({
+    target: '#app',
+    warnHandler: (msg, comp, code) => {
+      warningsHandled.push({ msg, comp, code, source: 'config' });
+    }
+  });
+
+  const warnChainResult = warnApp.onWarn((msg, comp, code) => {
+    warningsHandled.push({ msg, comp, code, source: 'onWarn' });
+  });
+  assert.strictEqual(warnChainResult, warnApp, 'onWarn should return the app instance for chaining');
+
+  // Trigger a warning via logger.warn
+  import('../../lib/core/runtime/AvenxLogger.js').then(({ logger }) => {
+    logger.warn('[AVX_W01] Test warning message', { component: compInstance });
+    assert.ok(warningsHandled.length >= 2, 'Warnings should be captured by both config and onWarn handlers');
+  });
+
   restoreConsoleError();
   teardownDOMMock();
-  console.log('  ✅ Global Error Event Handlers in AvenxApp tests passed!');
+  console.log('  ✅ Global Error & Warning Event Handlers in AvenxApp tests passed!');
 }
 
 (async () => {

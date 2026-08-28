@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { TemplateRenderer } from '../../lib/core/renderer/renderTemplate.js';
-import { HtmlEscaper, SafeHtml, html } from '../../lib/core/security/escapeHtml.js';
+import { HtmlEscaper, SafeHtml, html, unescapeHtml } from '../../lib/core/security/escapeHtml.js';
 
 try {
   console.log('🧪 Testing HtmlEscaper...');
@@ -12,6 +12,15 @@ try {
     '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
   );
   assert.strictEqual(escaper.escape("john & jane's"), 'john &amp; jane&#39;s');
+
+  // Test unescaping HTML entities
+  assert.strictEqual(
+    escaper.unescape('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'),
+    '<script>alert("xss")</script>',
+  );
+  assert.strictEqual(unescapeHtml('john &amp; jane&#39;s'), "john & jane's");
+  assert.strictEqual(unescapeHtml(null), '');
+  assert.strictEqual(unescapeHtml(undefined), '');
   console.log('  ✅ HtmlEscaper tests passed!');
 
   console.log('🧪 Testing TemplateRenderer automatic HTML escaping...');

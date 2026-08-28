@@ -58,6 +58,7 @@ try {
     assert.strictEqual(defaults.templatesDir, '.avenxtemplates');
     assert.strictEqual(defaults.server.port, 3000);
     assert.strictEqual(defaults.server.liveReload, true);
+    assert.deepStrictEqual(defaults.server.headers, {});
 
     console.log('  Testing valid custom config merge...');
     writeTestConfig({
@@ -72,6 +73,15 @@ try {
     assert.strictEqual(customConfig.server.port, 8080);
     assert.strictEqual(customConfig.server.host, 'localhost');
     assert.strictEqual(customConfig.server.liveReload, false);
+
+    writeTestConfig({
+      server: {
+        headers: { 'Access-Control-Allow-Origin': '*', 'X-Avenx-Test': 'enabled' },
+      },
+    });
+    const headersConfig = loadConfig();
+    assert.strictEqual(headersConfig.server.headers['Access-Control-Allow-Origin'], '*');
+    assert.strictEqual(headersConfig.server.headers['X-Avenx-Test'], 'enabled');
 
     console.log('  Testing invalid config schema validations...');
     writeTestConfig({ srcDir: '' });
@@ -104,6 +114,12 @@ try {
     writeTestConfig({ server: { liveReload: 'false' } });
     assertThrows(() => loadConfig(), 'server.liveReload must be a boolean');
 
+    writeTestConfig({ server: { headers: [] } });
+    assertThrows(() => loadConfig(), 'server.headers must be an object');
+
+    writeTestConfig({ server: { headers: null } });
+    assertThrows(() => loadConfig(), 'server.headers must be an object');
+
     writeTestConfig({ voidTags: 'not-an-array' });
     assertThrows(() => loadConfig(), 'voidTags must be an array of non-empty strings');
 
@@ -124,6 +140,20 @@ try {
 
     writeTestConfig({ preprocessors: 'not-an-object-or-fn' });
     assertThrows(() => loadConfig(), 'preprocessors must be an object or function');
+
+    writeTestConfig({ hooks: 'not-an-object' });
+    assertThrows(() => loadConfig(), 'hooks must be an object');
+
+    writeTestConfig({ hooks: { prebuild: 123 } });
+    assertThrows(() => loadConfig(), 'hooks.prebuild must be a string');
+
+    writeTestConfig({ hooks: { postbuild: true } });
+    assertThrows(() => loadConfig(), 'hooks.postbuild must be a string');
+
+    writeTestConfig({ hooks: { prebuild: 'node pre.js', postbuild: 'node post.js' } });
+    const hooksConfig = loadConfig();
+    assert.strictEqual(hooksConfig.hooks.prebuild, 'node pre.js');
+    assert.strictEqual(hooksConfig.hooks.postbuild, 'node post.js');
 
     writeTestConfig({ warnings: { AVX_W03: 'error', AVX_W01: 'off' } });
     const warnConfig = loadConfig();
@@ -152,8 +182,38 @@ try {
         `Unexpected warning: ${warnings[0]}`
       );
       assert.ok(
-        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors.'),
-        `Unexpected warning: ${warnings[0]}`
+        warnings[0].includes('Supported top-level options are: srcDir, distDir, templatesDir, mode, server, style, debug, outputName, logging, voidTags, warnings, treeShakeComponents, preprocessors, alias, hooks, trace.'),
+        `Unexpected warning options list: ${warnings[0]}`
+      );
+      warnings.length = 0;
+
+      // 1b. Trace options are recognised, and their sub-keys validated
+      writeTestConfig({ trace: { redact: ['auth.token'], maxNodes: 1000 } });
+      let traceConfig = loadConfig();
+      assert.strictEqual(warnings.length, 0, `Trace options should not warn: ${warnings[0]}`);
+      assert.deepStrictEqual(traceConfig.trace.redact, ['auth.token']);
+      assert.strictEqual(traceConfig.trace.maxNodes, 1000);
+      warnings.length = 0;
+
+      writeTestConfig({ trace: { redakt: ['auth.token'] } });
+      loadConfig();
+      assert.ok(
+        warnings.some((w) => w.includes('trace.redakt') && w.includes('Did you mean "trace.redact"?')),
+        `Expected a suggestion for a mistyped trace key: ${warnings.join(' | ')}`
+      );
+      warnings.length = 0;
+
+      // A non-array redact list is dropped rather than silently misapplied:
+      // getting redaction wrong means leaking a secret into a trace.
+      writeTestConfig({ trace: { redact: 'auth.token' } });
+      traceConfig = loadConfig();
+      assert.ok(
+        warnings.some((w) => w.includes('trace.redact') && w.includes('must be an array')),
+        `Expected a warning for a non-array redact list: ${warnings.join(' | ')}`
+      );
+      assert.ok(
+        !Array.isArray(traceConfig.trace.redact) || traceConfig.trace.redact.length === 0,
+        'An invalid redact list must not be applied'
       );
       warnings.length = 0;
 
@@ -197,6 +257,16 @@ try {
       assert.ok(warnings.length > 0, 'Expected warnings to be emitted');
       assert.ok(
         warnings[0].includes('Unknown configuration option "logging.levels" in avenx.config.json. Did you mean "logging.level"?'),
+        `Unexpected warning: ${warnings[0]}`
+      );
+      warnings.length = 0;
+
+      // 6. Unknown nested hooks option with a suggestion
+      writeTestConfig({ hooks: { prebuildd: 'node pre.js' } });
+      loadConfig();
+      assert.ok(warnings.length > 0, 'Expected warnings to be emitted');
+      assert.ok(
+        warnings[0].includes('Unknown configuration option "hooks.prebuildd" in avenx.config.json. Did you mean "hooks.prebuild"?'),
         `Unexpected warning: ${warnings[0]}`
       );
       warnings.length = 0;

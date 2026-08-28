@@ -24,6 +24,7 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 
 | Option         | Type       | Default              | Rules                                                                 |
 | -------------- | ---------- | --------------------- | ---------------------------------------------------------------------- |
+| `mode`         | `string`   | `"production"`       | Build mode: `"production"` or `"development"`. Overridden by `--dev` / `--prod`; `avenx serve` and `avenx watch` default to development. See [Build modes](#build-mode-mode). |
 | `srcDir`       | `string`   | `"src"`              | Non-empty relative path to application source files.                  |
 | `distDir`      | `string`   | `"dist"`              | Non-empty relative path where compiled output is written.             |
 | `outputName`   | `string`   | `"bundle"`         | Base name used for generated JavaScript and CSS bundles. The compiler generates <outputName>.js and <outputName>.css. Must be a non-empty filename without an extension.|
@@ -39,6 +40,33 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 
 Path options must be relative paths. Absolute paths are rejected during configuration loading.
 
+
+## Build mode (`mode`)
+
+`avenx build` produces a production build by default: it bundles the minified runtime and writes the CSS source map as a separate linked file. Development builds bundle the readable runtime and inline the CSS source map instead.
+
+Pin the mode in `avenx.config.json` when a project should always build one way:
+
+```json
+{
+  "mode": "production"
+}
+```
+
+Resolution order, first match wins:
+
+1. `--dev` / `--prod` on the command line.
+2. `mode` in `avenx.config.json`.
+3. `NODE_ENV=development`.
+4. The command's default — development for `avenx serve` and `avenx watch`, production for everything else.
+
+The active mode is printed in the build header, so it is never ambiguous which one ran:
+
+```text
+--- Avenx-JS Compiler (production) ---
+```
+
+Both modes compile the same application and ship the same runtime features. Production is that runtime, minified — no feature is stripped and no behaviour differs. See the [deployment guide](/guides/deployment#build-modes) for the full comparison.
 
 ## Custom void tags
 
@@ -394,4 +422,89 @@ In this example:
 Promoting specific warnings to `"error"` is a powerful tool for enforcing code quality checks in Continuous Integration (CI/CD) pipelines.
 
 By setting critical warnings (such as undeclared variables `AVX_W03` or invalid preprocessor configs `AVX_W25`) to `"error"`, your automated build checks (e.g. `avenx build` or `npm run build`) fail automatically if any component contains template errors, preventing buggy code from being merged or deployed to production.
+
+---
+
+## Environment Variable Interpolation
+
+Avenx-JS supports global environment variable interpolation in `avenx.config.json`. This feature allows developers to parameterize project configurations — such as dev server ports, hostnames, output directories, and bundle budgets — dynamically using environment variables from your shell, `.env` files, or CI/CD pipelines.
+
+### Interpolation Syntax
+
+Environment variable expansion supports both basic variable replacement and fallback default values:
+
+| Syntax Pattern | Description | Example | Resolved Value |
+| :--- | :--- | :--- | :--- |
+| **Basic Syntax**<br>`${VAR_NAME}` or `$VAR_NAME` | Expands to `process.env.VAR_NAME`. If the environment variable is not defined, it resolves to an empty string (`""`). | `"${HOST}"` | `"localhost"` (or `""` if unset) |
+| **Fallback Syntax**<br>`${VAR_NAME:-default_value}` | Expands to `process.env.VAR_NAME` if set. If `VAR_NAME` is unset or empty, it uses `default_value`. | `"${PORT:-3000}"` | `"3000"` (if `PORT` is unset) |
+
+### Supported Configuration Fields & Type Conversion
+
+Environment variable expansion is recursively applied across string and numeric values in `avenx.config.json`, including:
+- **Server Options**: `server.port`, `server.host`
+- **Build & Path Options**: `srcDir`, `distDir`, `templatesDir`, `outputName`
+- **Compiler & Style Options**: `style.preprocessor`, `voidTags`, bundle budget limits, and logging settings
+
+#### Automatic Numeric Type Conversion
+Config options that expect numeric values (such as `server.port`) are automatically converted to JavaScript `number` types after interpolation if the resolved string contains a numeric value. For instance, `"${PORT:-3000}"` resolves to the numeric value `3000`.
+
+### Sample Parameterized Configuration
+
+The following `avenx.config.json` snippet illustrates how to parameterize server, build outDir, and bundle budget settings with fallback values:
+
+```json
+{
+  "server": {
+    "port": "${PORT:-3000}",
+    "host": "${HOST:-localhost}",
+    "open": false
+  },
+  "build": {
+    "outDir": "${BUILD_OUT_DIR:-dist}",
+    "bundleBudget": {
+      "javascript": "${MAX_JS_SIZE:-500}",
+      "css": "${MAX_CSS_SIZE:-100}"
+    }
+  }
+}
+```
+
+---
+
+### Multi-Environment Setup Examples
+
+Using environment variable interpolation allows a single `avenx.config.json` file to adapt seamlessly across local development, containerized deployments, and automated CI/CD pipelines without modifying configuration source files.
+
+#### 1. Local Development
+For day-to-day local development, no environment variables need to be set manually if default fallbacks are provided:
+```bash
+# Uses fallbacks: port 3000, host localhost, outDir dist
+avenx dev
+```
+
+#### 2. Docker Containers
+When running inside Docker, inject container environment variables via `docker run` or Docker Compose:
+```bash
+docker run -e HOST=0.0.0.0 -e PORT=8080 -p 8080:8080 my-avenx-app
+```
+
+#### 3. Continuous Integration (CI/CD) Pipelines
+In CI pipelines (e.g. GitHub Actions, GitLab CI), override build output directories and enforce stricter bundle budgets during automated build checks:
+```yaml
+# GitHub Actions workflow example
+- name: Run Build with Custom Settings
+  env:
+    BUILD_OUT_DIR: "dist/release"
+    MAX_JS_SIZE: "250"
+  run: npm run build
+```
+
+---
+
+### Security & Best Practices
+
+1. **Do Not Commit Secrets in `avenx.config.json`**: Avoid hardcoding sensitive keys, API credentials, or private tokens in `avenx.config.json` or fallback values.
+2. **Use `.env` Files Responsibly**: Store environment secrets in `.env` files and ensure `.env` is included in your `.gitignore`.
+3. **Always Provide Default Fallbacks**: Use the `${VAR_NAME:-fallback}` syntax for non-critical options so local development works out of the box without requiring manual environment exports.
+
 

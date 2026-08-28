@@ -24,6 +24,10 @@ The spacer is not a second list. It gives the scrollbar the full dataset height 
 | :--- | :--- | :--- | :--- |
 | `items` | `Array` | `[]` | The array of dataset items to render in the virtual list. |
 | `itemHeight` / `item-height` | `Number` | `40` | Default row height in pixels. Supports both camelCase (`itemHeight`) and kebab-case (`item-height`). |
+| `pageSize` / `page-size` | `Number` | `0` | Number of items per page. When set (> 0), activates built-in paginated mode. |
+| `page` / `current-page` | `Number` | `1` | The currently active 1-based page index. |
+| `totalItems` / `total-items` | `Number` | `items.length` | Total dataset count. Useful for server-side pagination when `items` contains only the current page payload. |
+| `showControls` / `show-controls` | `Boolean` | `true` | Whether to display the bottom pagination control bar when `pageSize > 0`. |
 
 > [!IMPORTANT]
 > `bufferSize` and `containerHeight` are not component props. The render buffer is fixed at five rows internally, and the viewport fills its parent with `height: 100%`. If the parent has no resolved height, the viewport falls back to a `clientHeight` of `400px`.
@@ -158,6 +162,44 @@ The default height is used only until the row is measured. A row that grows or s
   <button @click="loadMore()" data-ax-show="hasMore && !loading">Load more</button>
   <p data-ax-show="loading">Loading...</p>
 </div>
+```
+
+### High-volume API Data Fetching with `<resource>` & `<@suspense>`
+
+When fetching large datasets (e.g., 10,000+ items) from an API endpoint using `<resource>`, combine `<VirtualList>` with `<@suspense>` and `<@errorBoundary>`. The resource handles async data fetching and pending states, while `<VirtualList>` ensures only the visible rows are rendered into DOM nodes:
+
+```html
+<resource name="users">
+  return fetch('/api/users').then((res) => {
+    if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
+    return res.json();
+  });
+</resource>
+
+<@errorBoundary>
+  <@fallback as="err">
+    <div class="error-banner">Failed to load user directory: {{ err.message }}</div>
+  </@fallback>
+
+  <@suspense>
+    <@fallback>
+      <div class="loading-spinner">Fetching large user dataset from API...</div>
+    </@fallback>
+
+    <!-- Once resolved, users array is passed to VirtualList for high-performance rendering -->
+    <div class="virtual-list-shell" style="height: 500px;">
+      <VirtualList :item-height="40" :items="users">
+        <template data-ax-as="user">
+          <div class="user-row">
+            <span class="user-id">#{{ index + 1 }}</span>
+            <span class="user-name">{{ user.username }}</span>
+            <span class="user-email">{{ user.email }}</span>
+          </div>
+        </template>
+      </VirtualList>
+    </div>
+  </@suspense>
+</@errorBoundary>
 ```
 
 ## Performance tips

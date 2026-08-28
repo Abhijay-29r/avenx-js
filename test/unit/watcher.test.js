@@ -143,6 +143,62 @@ function testWatcherTeardown() {
 }
 
 /**
+ * Tests pause and resume behavior of AvenxWatcher.
+ */
+function testWatcherPauseResume() {
+  console.log('🧪 Testing AvenxWatcher pause/resume...');
+
+  const state = new StateFactory().create({
+    count: 0,
+  });
+
+  let callbackCount = 0;
+  let lastNewValue = null;
+
+  const watcher = new AvenxWatcher(
+    () => state.count,(newVal) =>{
+      callbackCount++;
+      lastNewValue = newVal;
+    },
+  );
+
+  // Watcher should start in active state
+  state.count = 1;
+
+  assert.strictEqual(watcher.value, 1);
+  assert.strictEqual(callbackCount, 1);
+  assert.strictEqual(lastNewValue, 1);
+
+  // Pause the watcher
+  watcher.pause();
+
+  // State mutation should not re-evaluate the watcher or trigger callback
+  state.count = 2;
+
+  assert.strictEqual(
+    watcher.value,
+    1,
+    'Paused watcher should not re-evaluate its value',
+  );
+  assert.strictEqual(
+    callbackCount,
+    1,
+    'Paused watcher should not trigger callback',
+  );
+
+  // Resume the watcher
+  watcher.resume();
+
+  state.count = 3;
+
+  assert.strictEqual(watcher.value, 3);
+  assert.strictEqual(callbackCount, 2);
+  assert.strictEqual(lastNewValue, 3);
+
+  console.log('  ✅ Watcher pause/resume tests passed!');
+}
+
+/**
  * Tests programmatic Component watch method.
  */
 function testComponentWatchAPI() {
@@ -346,9 +402,13 @@ async function runTests() {
     testBasicWatcher();
     testImmediateWatcher();
     testWatcherTeardown();
+    testWatcherPauseResume();
+    testArrayOfGettersWatcher();
     testComponentWatchAPI();
     testFunctionBasedComputedProperty();
     testDynamicDependencyPruning();
+    await testDebounceWatcher();
+    await testThrottleWatcher();
     await testBridgeTargetedUpdates();
     console.log('✅ All AvenxWatcher tests passed successfully!');
   } catch (error) {
@@ -356,6 +416,142 @@ async function runTests() {
     console.error(error);
     process.exit(1);
   }
+}
+
+/**
+ * Tests AvenxWatcher with an array of getter functions (multi-source watch).
+ */
+function testArrayOfGettersWatcher() {
+  console.log('🧪 Testing AvenxWatcher array of getters (multi-source)...');
+
+  const state = new StateFactory().create({
+    a: 10,
+    b: 'hello',
+    c: true,
+  });
+
+  let callbackCount = 0;
+  let lastNewValue = null;
+  let lastOldValue = null;
+
+  const watcher = new AvenxWatcher(
+    [() => state.a, () => state.b],
+    (newVals, oldVals) => {
+      callbackCount++;
+      lastNewValue = newVals;
+      lastOldValue = oldVals;
+    },
+  );
+
+  // Initial value should be array [10, 'hello']
+  assert.deepStrictEqual(watcher.value, [10, 'hello']);
+  assert.strictEqual(callbackCount, 0);
+
+  // Mutating first dependency
+  state.a = 20;
+  assert.strictEqual(callbackCount, 1);
+  assert.deepStrictEqual(lastNewValue, [20, 'hello']);
+  assert.deepStrictEqual(lastOldValue, [10, 'hello']);
+
+  // Mutating second dependency
+  state.b = 'world';
+  assert.strictEqual(callbackCount, 2);
+  assert.deepStrictEqual(lastNewValue, [20, 'world']);
+  assert.deepStrictEqual(lastOldValue, [20, 'hello']);
+
+  // Mutating untracked property should NOT trigger callback
+  state.c = false;
+  assert.strictEqual(callbackCount, 2);
+
+  // Teardown should unbind all tracked dependencies
+  watcher.teardown();
+  state.a = 30;
+  state.b = 'avenx';
+  assert.strictEqual(callbackCount, 2);
+
+  console.log('  ✅ Array of getters AvenxWatcher tests passed!');
+}
+
+/**
+ * Tests AvenxWatcher debounce option.
+ */
+async function testDebounceWatcher() {
+  console.log('🧪 Testing AvenxWatcher debounce option...');
+
+  const state = new StateFactory().create({ count: 0 });
+  let callbackCalls = 0;
+  let lastNew = null;
+  let lastOld = null;
+
+  const watcher = new AvenxWatcher(
+    () => state.count,
+    (newVal, oldVal) => {
+      callbackCalls++;
+      lastNew = newVal;
+      lastOld = oldVal;
+    },
+    { debounce: 50 },
+  );
+
+  // Trigger rapid mutations within 50ms window
+  state.count = 1;
+  state.count = 2;
+  state.count = 3;
+
+  assert.strictEqual(callbackCalls, 0, 'Callback should not run immediately when debounced');
+
+  // Wait for debounce window
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  assert.strictEqual(callbackCalls, 1, 'Callback should run once after debounce window');
+  assert.strictEqual(lastNew, 3);
+  assert.strictEqual(lastOld, 0);
+
+  // Test teardown during pending debounce timer
+  state.count = 4;
+  watcher.teardown();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.strictEqual(callbackCalls, 1, 'Callback should not run after teardown during pending debounce timer');
+
+  console.log('  ✅ Debounce watcher tests passed!');
+}
+
+/**
+ * Tests AvenxWatcher throttle option.
+ */
+async function testThrottleWatcher() {
+  console.log('🧪 Testing AvenxWatcher throttle option...');
+
+  const state = new StateFactory().create({ val: 0 });
+  let callbackCalls = 0;
+  const receivedValues = [];
+
+  new AvenxWatcher(
+    () => state.val,
+    (newVal) => {
+      callbackCalls++;
+      receivedValues.push(newVal);
+    },
+    { throttle: 80 },
+  );
+
+  // Initial mutation at t=0ms (outside window) -> leading execution
+  state.val = 1;
+  assert.strictEqual(callbackCalls, 1, 'Throttle should execute leading call immediately');
+  assert.deepStrictEqual(receivedValues, [1]);
+
+  // High-frequency mutations within throttle window
+  state.val = 2;
+  state.val = 3;
+  assert.strictEqual(callbackCalls, 1, 'Subsequent calls in window should be buffered');
+
+  // Wait for trailing window execution
+  await new Promise((resolve) => setTimeout(resolve, 110));
+
+  assert.strictEqual(callbackCalls, 2, 'Trailing call should execute at end of throttle window');
+  assert.deepStrictEqual(receivedValues, [1, 3]);
+
+  console.log('  ✅ Throttle watcher tests passed!');
 }
 
 runTests();
