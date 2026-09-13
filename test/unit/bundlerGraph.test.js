@@ -18,7 +18,7 @@ import { parseModule } from '../../lib/bundler/parseModule.js';
 
 console.log('🧪 Testing the bundler module graph...');
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'avenx-graph-'));
+const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'avenx-graph-')));
 
 /**
  * Writes a fixture file.
