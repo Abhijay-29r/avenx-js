@@ -1,7 +1,11 @@
+// @avenx-no-dev-runtime
+//
+// The marker above is read by test/run-tests.js, which runs this file without
+// the expression interpreter or the string renderer. It sits in a line comment
+// rather than the block below because it is not a JSDoc tag.
+
 /**
  * What a component does in a process shaped like a production bundle.
- *
- * @avenx-no-dev-runtime
  *
  * Every other test file in this suite runs with the expression interpreter and
  * the string renderer installed by the runner, because a test builds components
@@ -137,21 +141,28 @@ const teardownCaptured = [];
 const priorError = console.error;
 console.error = (...args) => teardownCaptured.push(args.join(' '));
 
-let unmountedCleanly = false;
+let teardownError = null;
 try {
   const instance = new Compiled({}, {});
   instance.mount(host);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.ok(host.innerHTML.length > 0, 'the compiled component should have rendered');
 
-  instance.unmount();
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  unmountedCleanly = true;
+  try {
+    instance.unmount();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } catch (error) {
+    teardownError = error;
+  }
 } finally {
   console.error = priorError;
 }
 
-assert.ok(unmountedCleanly, 'unmounting a compiled component should not throw');
+assert.strictEqual(
+  teardownError,
+  null,
+  `unmounting a compiled component should not throw; got: ${teardownError && teardownError.message}`,
+);
 assert.strictEqual(
   teardownCaptured.length,
   0,
