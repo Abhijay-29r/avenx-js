@@ -182,6 +182,35 @@ try {
   }
   console.log('  ✅ a symlinked install produces the same single registry');
 
+  // A symlink chain, which is what a pnpm store produces: the application links
+  // to a store entry that itself links to the package. Canonicalisation has to
+  // follow the whole chain, not one hop.
+  const chainRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'avenx-chain-')));
+  projects.push(chainRoot);
+  const store = path.join(chainRoot, 'store');
+  fs.mkdirSync(store, { recursive: true });
+  fs.symlinkSync(repoRoot, path.join(store, 'avenx-core'), 'dir');
+
+  const chained = scaffoldFallbackProject(REFUSED.suspense);
+  projects.push(chained);
+  fs.mkdirSync(path.join(chained, 'node_modules'), { recursive: true });
+  fs.rmSync(path.join(chained, 'node_modules', 'avenx-core'), { recursive: true, force: true });
+  fs.symlinkSync(path.join(store, 'avenx-core'), path.join(chained, 'node_modules', 'avenx-core'), 'dir');
+
+  const chainBuild = avenx(['build'], chained);
+  assert.strictEqual(
+    chainBuild.status,
+    0,
+    `a symlink chain should build:\n${chainBuild.stdout}${chainBuild.stderr}`,
+  );
+  const chainBundle = fs.readFileSync(path.join(chained, 'dist', 'bundle.js'), 'utf-8');
+  assert.strictEqual(
+    (chainBundle.match(/let installed = null/g) || []).length,
+    1,
+    'a link to a link must resolve to the same module ids as the real path',
+  );
+  console.log('  ✅ a symlink chain resolves to the same single registry');
+
   // The other half of the contract: a build where nothing fell back must not
   // carry the renderer at all. A fix for the above must not be "include it
   // always".
