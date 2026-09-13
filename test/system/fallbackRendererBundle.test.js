@@ -22,6 +22,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import zlib from 'zlib';
 import { spawnSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -181,6 +182,35 @@ try {
   }
   console.log('  ✅ a symlinked install produces the same single registry');
 
+  // A symlink chain, which is what a pnpm store produces: the application links
+  // to a store entry that itself links to the package. Canonicalisation has to
+  // follow the whole chain, not one hop.
+  const chainRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'avenx-chain-')));
+  projects.push(chainRoot);
+  const store = path.join(chainRoot, 'store');
+  fs.mkdirSync(store, { recursive: true });
+  fs.symlinkSync(repoRoot, path.join(store, 'avenx-core'), 'dir');
+
+  const chained = scaffoldFallbackProject(REFUSED.suspense);
+  projects.push(chained);
+  fs.mkdirSync(path.join(chained, 'node_modules'), { recursive: true });
+  fs.rmSync(path.join(chained, 'node_modules', 'avenx-core'), { recursive: true, force: true });
+  fs.symlinkSync(path.join(store, 'avenx-core'), path.join(chained, 'node_modules', 'avenx-core'), 'dir');
+
+  const chainBuild = avenx(['build'], chained);
+  assert.strictEqual(
+    chainBuild.status,
+    0,
+    `a symlink chain should build:\n${chainBuild.stdout}${chainBuild.stderr}`,
+  );
+  const chainBundle = fs.readFileSync(path.join(chained, 'dist', 'bundle.js'), 'utf-8');
+  assert.strictEqual(
+    (chainBundle.match(/let installed = null/g) || []).length,
+    1,
+    'a link to a link must resolve to the same module ids as the real path',
+  );
+  console.log('  ✅ a symlink chain resolves to the same single registry');
+
   // The other half of the contract: a build where nothing fell back must not
   // carry the renderer at all. A fix for the above must not be "include it
   // always".
@@ -221,6 +251,46 @@ app.mount('Plain');
     'a fully compiled application must not carry the DOM patcher',
   );
   console.log('  ✅ a fully compiled application still leaves the string renderer out');
+
+
+  // What needing the fallback renderer costs, asserted rather than assumed.
+  //
+  // The ceiling is a regression guard on two different things. Too high and a
+  // fix that pulls unrelated modules into every fallback build goes unnoticed;
+  // too low and it fires on the renderer's honest weight. The number below sits
+  // just above what the fallback build measures today.
+  //
+  // It also guards against the wrong fix. "Link the string renderer always"
+  // would make every assertion above pass, and would show up here as the
+  // compiled-only build gaining the same 50 KB -- which the clean-build check
+  // further down would then catch as well.
+  const FALLBACK_GZIP_CEILING_KB = 95;
+  const FALLBACK_OVERHEAD_CEILING_KB = 70;
+
+  const cleanBundleBytes = Buffer.byteLength(cleanBundle);
+  const cleanGzipKb = zlib.gzipSync(cleanBundle).length / 1024;
+
+  const fallbackProject = scaffoldFallbackProject(REFUSED.suspense);
+  projects.push(fallbackProject);
+  const sized = avenx(['build'], fallbackProject);
+  assert.strictEqual(sized.status, 0, `sizing build should succeed:\n${sized.stdout}${sized.stderr}`);
+  const fallbackBundle = fs.readFileSync(path.join(fallbackProject, 'dist', 'bundle.js'), 'utf-8');
+  const fallbackGzipKb = zlib.gzipSync(fallbackBundle).length / 1024;
+  const overheadKb = (Buffer.byteLength(fallbackBundle) - cleanBundleBytes) / 1024;
+
+  assert.ok(
+    fallbackGzipKb < FALLBACK_GZIP_CEILING_KB,
+    `a fallback build should stay under ${FALLBACK_GZIP_CEILING_KB} KB gzipped, measured ${fallbackGzipKb.toFixed(2)} KB`,
+  );
+  assert.ok(
+    overheadKb > 0 && overheadKb < FALLBACK_OVERHEAD_CEILING_KB,
+    `needing the string renderer should cost between 0 and ${FALLBACK_OVERHEAD_CEILING_KB} KB raw, measured ${overheadKb.toFixed(2)} KB. ` +
+      'Zero or less would mean the compiled-only build is carrying it too.',
+  );
+  console.log(
+    `  ✅ fallback build costs ${overheadKb.toFixed(2)} KB raw over compiled-only ` +
+      `(${cleanGzipKb.toFixed(2)} -> ${fallbackGzipKb.toFixed(2)} KB gzipped)`,
+  );
 
   console.log('✅ All fallback renderer bundling tests passed!');
 } finally {

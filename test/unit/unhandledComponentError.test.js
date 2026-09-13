@@ -39,7 +39,8 @@ function explodingComponent(message) {
     }
 
     /**
-     * @returns {string} Never returns.
+     * Always throws, which is the whole point of this class.
+     * @throws {Error} The message this component was built with.
      */
     render() {
       throw new Error(message);

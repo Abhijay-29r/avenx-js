@@ -1,7 +1,11 @@
+// @avenx-no-dev-runtime
+//
+// The marker above is read by test/run-tests.js, which runs this file without
+// the expression interpreter or the string renderer. It sits in a line comment
+// rather than the block below because it is not a JSDoc tag.
+
 /**
  * What a component does in a process shaped like a production bundle.
- *
- * @avenx-no-dev-runtime
  *
  * Every other test file in this suite runs with the expression interpreter and
  * the string renderer installed by the runner, because a test builds components
@@ -95,5 +99,85 @@ console.log('  ✅ the report carries a diagnostic code a developer can look up'
 
 assert.ok(report.includes('Uncompiled'), `the report should name the component; got: ${report}`);
 console.log('  ✅ the report names the component that failed');
+
+// ---------------------------------------------------------------- teardown ---
+//
+// Unmounting reached for the string renderer's DomPatcher unconditionally, to
+// run custom-directive `unmounted` hooks. That metadata is written in one place
+// -- the string renderer's attribute patch -- so a fully compiled application
+// has none of it, and the call threw on every teardown. The throw was caught
+// and discarded, so the rest of the teardown never ran: the instance stayed on
+// the element and its content stayed in the document.
+//
+// It was invisible twice over. Silent because the error was swallowed, and
+// untestable because no test process lacked the renderer.
+
+const { AvenxPage } = await import('../../lib/core/runtime/AvenxPage.js');
+assert.ok(AvenxPage, 'AvenxPage should load without the development runtime');
+
+document.body.innerHTML = '<div id="teardown"></div>';
+const host = document.querySelector('#teardown');
+
+class Compiled extends AvenxComponent {
+  /**
+   * @param {object} bridges - Bridges.
+   * @param {object} props - Props.
+   */
+  constructor(bridges, props) {
+    super({ n: 1 }, {}, bridges, '<div><p>x</p></div>', {}, props, {}, {}, {
+      program: {
+        v: 2,
+        html: '<div><p><!--axt:0--></p></div>',
+        ops: [{ k: 'text', t: 0, x: 0 }],
+        elements: 0,
+        texts: 1,
+      },
+      programExprs: [() => 'rendered'],
+    });
+  }
+}
+
+const teardownCaptured = [];
+const priorError = console.error;
+console.error = (...args) => teardownCaptured.push(args.join(' '));
+
+let teardownError = null;
+try {
+  const instance = new Compiled({}, {});
+  instance.mount(host);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(host.innerHTML.length > 0, 'the compiled component should have rendered');
+
+  try {
+    instance.unmount();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } catch (error) {
+    teardownError = error;
+  }
+} finally {
+  console.error = priorError;
+}
+
+assert.strictEqual(
+  teardownError,
+  null,
+  `unmounting a compiled component should not throw; got: ${teardownError && teardownError.message}`,
+);
+assert.strictEqual(
+  teardownCaptured.length,
+  0,
+  `tearing down a compiled component should report nothing; got: ${JSON.stringify(teardownCaptured)}`,
+);
+assert.strictEqual(
+  host.innerHTML,
+  '',
+  'teardown should have emptied the element; a non-empty element means the teardown block aborted part-way',
+);
+assert.strictEqual(
+  host.__avenx_comp_instance,
+  undefined,
+  'teardown should have removed the instance reference from the element',
+);
+console.log('  ✅ a compiled component tears down cleanly with no string renderer present');
 
 console.log('✅ All production-shape runtime tests passed!');
