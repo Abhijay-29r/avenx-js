@@ -200,7 +200,22 @@ covering a rendering path should carry something equivalent.
 
 ## Known gaps this suite documents
 
-None, currently. Every test in this suite is expected to pass.
+Every test in this suite is expected to pass. One framework limitation is
+recorded here rather than pinned, because pinning it would mean asserting
+behaviour that is wrong:
+
+**A component does not mount its own child components.** Only `AvenxPage` walks
+`[data-avenx-comp]` and instantiates what it finds. A component nesting
+`<Child />` therefore emits the mount point and leaves it empty, silently, on
+both rendering engines -- a fully compiled parent with a fully compiled child
+behaves exactly like a fallback parent with a fallback child.
+
+Every fixture app here roots its tree in a page, which is why no spec sees it.
+That is also the supported arrangement today, so the fixtures are not wrong --
+but the README documents PascalCase nesting without mentioning the page
+requirement, and a developer following it gets an empty element and no
+diagnostic. It is out of scope for the fallback-renderer work and wants its
+own change.
 
 The suite previously carried six `test.fail()` tests -- expected failures kept
 under test so a broken piece of public API could not quietly go uncovered. All
