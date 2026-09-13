@@ -78,6 +78,11 @@ export const APPS = [
     summary: 'The <@defer> tag and its interaction, idle, timer and visible triggers.',
   },
   {
+    name: 'fallback',
+    summary: 'Constructs the IR refuses -- <@suspense>, <@errorBoundary>, <@deadlock> -- beside a compiled parent.',
+    developmentBuild: true,
+  },
+  {
     name: 'guard-gaps',
     summary: 'Pins two guard compilation bugs; its bundle is expected not to parse.',
     documentsKnownGaps: true,

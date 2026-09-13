@@ -91,6 +91,29 @@ function resolveTestFiles(filterPath) {
 }
 
 /**
+ * The marker a test file writes to run without the development runtime.
+ *
+ * A string rather than a filename convention, so the declaration sits in the
+ * file it governs and a reader of that file can see why it behaves differently
+ * from its neighbours.
+ * @type {string}
+ */
+const NO_DEV_RUNTIME = '@avenx-no-dev-runtime';
+
+/**
+ * Whether a test file asked to run without the interpreter and string renderer.
+ * @param {string} file - Absolute path to the test file.
+ * @returns {boolean} True when the file declares the marker.
+ */
+function optsOutOfDevRuntime(file) {
+  try {
+    return fs.readFileSync(file, 'utf-8').includes(NO_DEV_RUNTIME);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Runs a single test file by forking a child process.
  * @param {string} file
  * @returns {Promise<{file: string, success: boolean, code?: number}>}
@@ -101,10 +124,21 @@ async function runTestFile(file) {
 
   const execArgv = [...process.execArgv];
 
-  // Every tier runs with the expression interpreter installed, because a test
-  // constructs components directly and nothing compiled their expressions.
-  // This is what a development build does; a production bundle installs
-  // nothing, which is asserted on a real bundle in test/system.
+  // Every tier runs with the expression interpreter and the string renderer
+  // installed, because a test constructs components directly and nothing
+  // compiled their expressions. This is what a development build does; a
+  // production bundle installs nothing, which is asserted on a real bundle in
+  // test/system.
+  //
+  // A test may opt out, and that matters more than it looks. Installing both
+  // unconditionally means every test runs against a runtime configuration no
+  // `avenx build` output has, so a defect that exists only in the shipped
+  // arrangement is structurally undetectable here -- which is how a blank-page
+  // failure in the fallback renderer survived a full green suite.
+  //
+  // Declaring @avenx-no-dev-runtime runs the file in a bare process, so it
+  // observes what an application observes.
+  const bareRuntime = optsOutOfDevRuntime(file);
   const interpreterPath = path.resolve(__dirname, 'helpers/register-interpreter.js');
   execArgv.push('--import', pathToFileURL(interpreterPath).href);
 
@@ -120,7 +154,13 @@ async function runTestFile(file) {
     const child = fork(file, [], {
       stdio: 'inherit',
       execArgv,
-      env: { ...process.env, NO_COLOR: '1' },
+      env: {
+        ...process.env,
+        NO_COLOR: '1',
+        // Read by helpers/register-interpreter.js, which is the single place
+        // the development runtime is installed from.
+        ...(bareRuntime ? { AVENX_TEST_NO_DEV_RUNTIME: '1' } : {}),
+      },
     });
     child.on('exit', (code) => {
       if (code === 0) {
