@@ -166,11 +166,37 @@ documenting framework bugs, described below.
 | `forms/` | 12 | `data-ax-bind` across every input type, focus, caret and selection retention |
 | `performance/` | 6 | `<@defer>` with interaction, idle, timer and visible triggers |
 | `build/` | 7 | Production and development runtime parity |
+| `rendering/fallback-renderer` | 10 | `<@suspense>`, `<@errorBoundary>`, `<@deadlock>` on both bundles |
 
-Not yet covered, in rough priority order: resources and suspense, error
-boundaries, the deadlock boundary, rewind rollback, virtual list windowing,
-transitions, keep-alive, provide/inject, declarative form validation, the dev
-server and live reload, and trace capture under `avenx serve --trace`.
+`<@suspense>`, `<@errorBoundary>` and `<@deadlock>` are covered by
+`rendering/fallback-renderer.spec.js`, against both the production and the
+development bundle. They are covered for a specific reason: each keeps the
+string renderer, and that path rendered nothing at all in a linked checkout
+while every test in this suite stayed green. A component that renders nothing
+raises no `pageerror`, so the only assertion that can see it is one that looks
+for content.
+
+Not yet covered, in rough priority order: resources, rewind rollback, virtual
+list windowing, transitions, keep-alive, provide/inject, declarative form
+validation, the dev server and live reload, and trace capture under
+`avenx serve --trace`.
+
+## The failure mode that has no symptom
+
+Most framework bugs announce themselves: a thrown error, a wrong value, a
+locator that times out. One does not. A component that mounts and renders
+nothing produces a valid page with a valid empty element, no `pageerror` and no
+console output, and every guard in this harness reports it as healthy.
+
+That is how the fallback rendering path came to render nothing in a linked
+checkout without a single test noticing. `runtimeIssues` cannot see it, because
+there is no issue to see.
+
+The only defence is to assert on content. A spec that opens an app and checks
+it for errors has checked nothing; a spec that asserts particular text is
+present has. `fallback-renderer.spec.js` ends with the general form of that
+assertion -- no `[data-avenx-comp]` element may be empty -- and new specs
+covering a rendering path should carry something equivalent.
 
 ## Known gaps this suite documents
 
