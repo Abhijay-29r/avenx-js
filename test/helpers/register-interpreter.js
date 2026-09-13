@@ -24,5 +24,17 @@
  * `test/system/productionBuild.test.js` asserts its absence from a bundle where
  * every template compiled, again from outside this process.
  */
-import '../../lib/core/expression/interpreter.js';
-import '../../lib/core/renderer/installStringRenderer.js';
+// A test file may opt out by declaring `@avenx-no-dev-runtime`; the runner
+// sets AVENX_TEST_NO_DEV_RUNTIME for those and they run in a process shaped
+// like a production bundle.
+//
+// The check lives here rather than at the runner's injection site because the
+// runner is not the only door. `register-happy-dom.js` imports this module too,
+// so a file that opted out still received the development runtime through the
+// DOM helper -- one opt-out, two ways in, and the one that mattered was the
+// one nobody was looking at. Guarding the install itself closes every path,
+// including any added later.
+if (!process.env.AVENX_TEST_NO_DEV_RUNTIME) {
+  await import('../../lib/core/expression/interpreter.js');
+  await import('../../lib/core/renderer/installStringRenderer.js');
+}
