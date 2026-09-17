@@ -509,14 +509,22 @@ that a template you are still editing keeps rendering when it contains something
 the compiler could not compile. A development build therefore does contain
 `new Function`, and is not intended to be deployed.
 
-#### If the build reports AVX_W48
+#### If the build reports AVX_W48 or AVX_C27
 
-`AVX_W48` lists every expression or body the compiler could not turn into a
-function. Those are the only things that would need an interpreter at run time,
-and a production bundle has none — so they will throw when they first evaluate.
-Rewrite them in the supported expression language, or move the logic into an
-`<action>`, and the warning goes away. A build with no `AVX_W48` needs no
-interpreter, which is the normal case.
+`AVX_W48` (development) and `AVX_C27` (production) list every expression or body
+the compiler could not turn into a function, with its component, file, line and
+reason. A production bundle has no interpreter, so a production build **fails**
+with `AVX_C27` rather than shipping an expression that would throw when it is
+first evaluated; nothing is written and the previous `dist/` is left intact. A
+development build reports `AVX_W48` and still builds, so the rest of a
+component you are editing keeps rendering.
+
+Rewrite each one in the supported expression language, or move the logic into an
+`<action>`, whose body is ordinary JavaScript.
+
+> Before 2026-09, a production build only warned (`AVX_W48`) and reported
+> success, and the expressions failed in the browser. A project whose production
+> build now stops with `AVX_C27` was already shipping those failures.
 
 ### Hosting Configuration
 
