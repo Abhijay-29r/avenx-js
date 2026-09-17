@@ -18,7 +18,8 @@ In Single-File Components (`.component.js` or `.page.js`), component state is de
 
 ### Supported Data Types
 
-Attributes on the `<state>` tag are evaluated as JSON/JavaScript expressions:
+Attributes on the `<state>` tag are evaluated at build time as JSON or as
+constant JavaScript literals:
 
 ```html
 <state 
@@ -32,7 +33,13 @@ Attributes on the `<state>` tag are evaluated as JSON/JavaScript expressions:
 
 - **Strings:** Wrap in outer single quotes or escaped double quotes (e.g. `title="'Hello'"`).
 - **Numbers & Booleans:** Written directly as attribute values (`count="0"`, `isActive="true"`).
-- **Objects & Arrays:** Formatted as valid JSON strings (`user='{ "id": 1 }'`).
+- **Objects & Arrays:** JSON (`user='{ "id": 1 }'`) or a JavaScript literal
+  (`user="{ id: 1, name: 'Alice' }"`, `tags="['frontend', 'web']"`). A literal may
+  contain only constant values — strings, numbers, booleans, `null`, arrays and
+  objects. An initialiser that refers to anything else (`{ items: list }`,
+  `[Date.now()]`) stays a string and the build warns with `AVX_W51`; set such a
+  value in `onMount` or declare a `<computed>`.
+- **Plain text:** anything else is the text as written (`title="Home"`).
 
 ---
 

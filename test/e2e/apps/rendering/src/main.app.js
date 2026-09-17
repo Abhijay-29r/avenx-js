@@ -8,4 +8,5 @@ app.initRouter({
   // Drives a documented compiler bug; see multiline-state.page.js.
   '#/multiline-state': 'MultilineState',
   '#/conditional': 'Conditional',
+  '#/literal-state': 'LiteralState',
 });
