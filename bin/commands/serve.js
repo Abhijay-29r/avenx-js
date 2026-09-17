@@ -727,6 +727,46 @@ export function watchProject(cli) {
 }
 
 /**
+ * The address a configured host should actually bind.
+ *
+ * `localhost` is a name, and Node resolves it to a single family. On a machine
+ * whose resolver answers `::1` first, `server.listen(port, 'localhost')` binds
+ * IPv6 only, and every client that reaches for `127.0.0.1` -- curl, a proxy, a
+ * container, the E2E harness -- gets ECONNREFUSED while the browser works. The
+ * loopback interface is bound explicitly instead, and the IPv6 loopback is
+ * added alongside it by {@link listenLoopbackAlias}, so both families answer.
+ * @param {string} host - The configured host.
+ * @returns {string} The address to bind.
+ */
+export function bindAddressFor(host) {
+  return host === 'localhost' ? '127.0.0.1' : host;
+}
+
+/**
+ * Adds a second listener on the IPv6 loopback for a server bound to 127.0.0.1.
+ *
+ * Only for the default `localhost` host: an explicitly configured address is
+ * bound exactly as asked. Failure is not an error -- a machine without IPv6, or
+ * one where something already holds `[::1]` on this port, simply keeps the IPv4
+ * listener it already has.
+ * @param {object} requestListener - The handler both listeners share.
+ * @param {string} host - The configured host.
+ * @param {number} port - The port the primary listener bound.
+ * @returns {object|null} The secondary server, or null when one was not added.
+ */
+export function listenLoopbackAlias(requestListener, host, port) {
+  if (host !== 'localhost') {
+    return null;
+  }
+  const alias = http.createServer(requestListener);
+  alias.on('error', () => {
+    // No IPv6 loopback, or it is already taken: the IPv4 listener stands alone.
+  });
+  alias.listen(port, '::1');
+  return alias;
+}
+
+/**
  * Listens on the requested port, incrementing it when the address is occupied.
  * @param {object} server
  * @param {number|string} requestedPort
@@ -735,6 +775,7 @@ export function watchProject(cli) {
  */
 export function listenWithPortFallback(server, requestedPort, host, onListening) {
   let port = Number(requestedPort);
+  const address = bindAddressFor(host);
 
   server.once('listening', () => onListening(port));
   server.on('error', (err) => {
@@ -745,10 +786,10 @@ export function listenWithPortFallback(server, requestedPort, host, onListening)
     const occupiedPort = port;
     port += 1;
     console.warn(`\n${yellow(`Port ${occupiedPort} is already in use. Trying ${port} instead.`)}`);
-    server.listen(port, host);
+    server.listen(port, address);
   });
 
-  server.listen(port, host);
+  server.listen(port, address);
 }
 
 /**
@@ -766,7 +807,7 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
     watchProject(cli);
   }
 
-  const server = http.createServer((req, res) => {
+  const requestListener = (req, res) => {
     attachRequestLogger(req, res);
     applyCustomHeaders(res, cli.config.server.headers);
     if (cli.config.server.liveReload && req.url === '/__avenx_live_reload__') {
@@ -895,7 +936,6 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
         if (cli.config.server.liveReload && extname === '.html') {
           const script = `
 <script>
-    window.__avenx_inspect_enabled = true;
     if ('EventSource' in window) {
         const source = new EventSource('/__avenx_live_reload__');
         source.onmessage = (e) => {
@@ -926,7 +966,21 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
 `
             : '';
 
-          const contentStr = content.toString('utf-8');
+          // The inspector flag has to be set *before* the application bundle
+          // runs: `new AvenxApp()` calls `initInspector`, which returns
+          // immediately when the flag is not yet there. Injected at the end of
+          // the body -- after the bundle's <script> -- it always was, so the
+          // inspector page never received any data. The flag therefore goes
+          // into the head, and everything that only reacts to later events
+          // stays at the end of the body.
+          const headScript = '\n<script>window.__avenx_inspect_enabled = true;</script>\n';
+          let contentStr = content.toString('utf-8');
+          if (contentStr.includes('</head>')) {
+            contentStr = contentStr.replace('</head>', `${headScript}</head>`);
+          } else {
+            contentStr = headScript + contentStr;
+          }
+
           const injected = `${script}${traceScript}`;
           if (contentStr.includes('</body>')) {
             responseContent = contentStr.replace('</body>', `${injected}</body>`);
@@ -939,9 +993,14 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
         res.end(responseContent, 'utf-8');
       }
     });
-  });
+  };
+
+  const server = http.createServer(requestListener);
 
   listenWithPortFallback(server, port, host, (activePort) => {
+    // `localhost` names both loopback families. The primary listener holds the
+    // IPv4 one; this adds the IPv6 one so neither address is refused.
+    cli._loopbackAlias = listenLoopbackAlias(requestListener, host, activePort);
     const url = `http://${host}:${activePort}`;
     console.log(`\n${green(`🚀 Dev-Server running at ${url}`)}`);
     if (cli.config.server.liveReload) {
