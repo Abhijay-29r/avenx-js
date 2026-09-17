@@ -108,6 +108,26 @@ If the bound value is `null` or `undefined`, an empty string is rendered.
 
 Only use `SafeHtml` or the `html` helper with trusted content. Rendering untrusted user input without escaping may introduce Cross-Site Scripting (XSS) vulnerabilities.
 
+### Binding `srcdoc`
+
+An `<iframe srcdoc="{{ ... }}">` binding follows the same rule as `data-ax-html`,
+because `srcdoc` is an HTML document rather than a URL. A plain string is
+escaped and shown as text; to render trusted HTML inside the iframe, bind a
+`SafeHtml` value (`html\`...\`` or `new SafeHtml(...)`).
+
+```html
+<iframe srcdoc="{{ page }}"></iframe>
+```
+
+```js
+state.page = '<img src=x onerror="steal()">'; // escaped — shown as text
+state.page = html`<h1>Report</h1>`;            // rendered as markup
+```
+
+> Before 2026-09, `srcdoc` was treated as a URL attribute: only its scheme was
+> checked, so markup with no scheme (`<img onerror=...>`) ran in the iframe. A
+> plain string bound to `srcdoc` is now escaped; wrap trusted HTML in `html`.
+
 ## 2. Two-Way Bindings (`data-ax-bind`)
 
 Form inputs (input, textarea, select) support two-way bindings via `data-ax-bind`. This is translated at compile-time to an attribute binding and an event listener:
