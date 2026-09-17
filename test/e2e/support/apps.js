@@ -83,6 +83,10 @@ export const APPS = [
     developmentBuild: true,
   },
   {
+    name: 'browser-apis',
+    summary: 'Browser APIs used from <resource> and <action> bodies: fetch, timers, window listeners, requestAnimationFrame.',
+  },
+  {
     name: 'guard-gaps',
     summary: 'Pins two guard compilation bugs; its bundle is expected not to parse.',
     documentsKnownGaps: true,
