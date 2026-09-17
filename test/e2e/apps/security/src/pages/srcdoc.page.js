@@ -9,6 +9,7 @@
 </action>
 
 <main>
+  <h1 data-testid="security-heading">Security fixture</h1>
   <iframe data-testid="untrusted-frame" srcdoc="{{ untrusted }}"></iframe>
   <iframe data-testid="trusted-frame" srcdoc="{{ trusted }}"></iframe>
 </main>
