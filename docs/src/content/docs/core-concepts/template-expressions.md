@@ -45,8 +45,10 @@ expression to the engine unsupervised: a member read is emitted as a call that
 receives the key already resolved, so `x.constructor` and `x['const'+'ructor']`
 arrive at the same check as the same string, and neither reaches the `Function`
 constructor or a built-in prototype. Naming a restricted global such as `window`
-or `fetch` is now refused **at build time**, with the file and the line, rather
-than when that branch first runs.
+or `fetch` in a template expression or inline event handler is refused **at
+build time**, with the file and the line, rather than when that branch first
+runs. `<action>` and `<resource>` bodies are different; see
+[Action and resource bodies](#action-and-resource-bodies).
 
 **They are expressions, not statements.** Supported:
 
@@ -73,6 +75,53 @@ in an `<action>` and call it:
 The compiler checks every one of these when you build, so an unsupported
 expression is a build failure with a file, a line and a reason — never a blank
 value discovered in production.
+
+---
+
+## Action and resource bodies
+
+An `<action>` or `<resource>` body is ordinary JavaScript, not a template
+expression. Statements, declarations, `await`, destructuring and every browser
+API are available:
+
+```html
+<resource name="users">
+  return fetch('/api/users').then((res) => res.json());
+</resource>
+
+<action name="onMount">
+  this._timer = setInterval(() => this.state.count++, 1000);
+  window.addEventListener('resize', this.onResize);
+</action>
+```
+
+A free name in a body resolves in this order:
+
+1. component scope — state, computed values, actions, imported bridges, `this`;
+2. the expression globals (`Date`, `Math`, `JSON`, …), through Trace's
+   substitution point, so a recording captures and replays what the action
+   observed;
+3. the page's global object — `fetch`, `window`, `document`, `setTimeout`,
+   `requestAnimationFrame`, `IntersectionObserver`, or a library a page put on
+   `window`.
+
+State wins over a global of the same name. Assigning to a name the page already
+defines (`location = '/login'`) writes that global; assigning to an undeclared
+name creates a component scope key, as it always has.
+
+Two names stay refused, with `AVX_C21` at build time: `eval` and `Function`.
+They build code from strings, which is what would require `'unsafe-eval'`, and a
+production bundle is guaranteed not to.
+
+Trace records the values an action reads through the expression globals in step
+2. Values read directly from page globals in step 3 — a `fetch` response, a
+`setTimeout` callback — are not substituted during replay, so a trace that
+depends on them may be reported as non-deterministic.
+
+> Before 2026-09, action and resource bodies were refused browser globals at
+> build time (`AVX_C21`) and other page globals at run time (`AVX_R15`),
+> contradicting this page and the examples in resources and lifecycle hooks.
+> No change is needed in existing code: bodies that were refused now build.
 
 ---
 

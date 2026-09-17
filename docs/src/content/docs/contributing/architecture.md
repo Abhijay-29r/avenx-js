@@ -68,8 +68,12 @@ other code, so the browser's engine compiles them. Three things follow:
 - **The security boundary did not move.** A member read is emitted as a call to
   `readMember` with the key already resolved, exactly where the interpreter made
   the same call, so `x['const'+'ructor']` still meets one check as one string.
-  Naming a restricted global or writing a forbidden key is refused at build time
-  instead.
+  Naming a restricted global in a template expression or inline handler, or
+  writing a forbidden key, is refused at build time instead. `<action>` and
+  `<resource>` bodies resolve free names through the ambient primitives
+  (`axGetAmbient`, `axSetAmbient`, `axTypeofAmbient`, `axAmbientTarget`): scope,
+  then the expression globals, then the page global; only `eval` and `Function`
+  are refused.
 - **Trace is unaffected.** What the recorder needs is the *substitution point*
   for globals, not the interpreter: a compiled expression naming `Date` emits a
   call to the same resolver, so recording and deterministic replay work as they

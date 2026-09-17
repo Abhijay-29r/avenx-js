@@ -495,9 +495,12 @@ Nothing about the security checks was lost in the move. A member read still
 passes through one function with the key already resolved, so
 `x['const'+'ructor']` and `x.constructor` are the same check; the `Function`
 constructor and built-in prototypes are still unreachable. Two checks moved
-*earlier*: naming a restricted global (`window`, `fetch`, `localStorage`) or
-writing a forbidden key (`__proto__`, `constructor`, `prototype`) now fails the
-build with a file and a line rather than throwing when that branch first runs.
+*earlier*: naming a restricted global (`window`, `fetch`, `localStorage`) in a
+template expression or inline handler, or writing a forbidden key (`__proto__`,
+`constructor`, `prototype`), now fails the build with a file and a line rather
+than throwing when that branch first runs. `<action>` and `<resource>` bodies are
+ordinary JavaScript and may use browser APIs; only `eval` and `Function` are
+refused there (see [Template expressions](/core-concepts/template-expressions/#action-and-resource-bodies)).
 
 #### Development builds
 
