@@ -20,6 +20,30 @@ To bind an event listener, prefix the event name with `@` followed by the expres
 Event handlers can also pass the `event` object to methods (for example, `@click="selectItem(item.id, event)"`). Compiled action handlers additionally expose an implicit `args` array containing the arguments supplied when the handler is invoked.
 :::
 
+## Inline `on*` handlers are not the event system
+
+Use the `@event` directive, never a native inline handler attribute
+(`onclick`, `onerror`, `oninput`, …), to run code on an event.
+
+```html
+<button @click="save()">Save</button>     <!-- correct -->
+<button onclick="save()">Save</button>     <!-- discouraged: AVX_W52 -->
+<button onclick="{{ handler }}">Save</button>  <!-- refused: AVX_C28 -->
+```
+
+- A **static** inline handler (`onclick="save()"`) still compiles, because it is
+  your own literal code, but the build warns (`AVX_W52`): it bypasses the event
+  system and does not run under a strict Content-Security-Policy. Rewrite it as
+  `@click="save()"`.
+- A **bound** inline handler (`onclick="{{ handler }}"`) is a build error
+  (`AVX_C28`): its value would be executed as JavaScript, so a state value would
+  become code. Rewrite it as `@click="handler"` (or `@click="handler()"` to call
+  it).
+
+This applies to inline handler attributes on HTML elements. An `on*` attribute
+on a child component (`<Child onReady="{{ cb }}" />`) is an ordinary prop passed
+to the child, not a DOM handler, and is unaffected.
+
 ## Implicit Event Handler Scope
 
 Event handlers execute inside the component's runtime scope, so several values are automatically available without needing to import or declare them.
