@@ -495,9 +495,12 @@ Nothing about the security checks was lost in the move. A member read still
 passes through one function with the key already resolved, so
 `x['const'+'ructor']` and `x.constructor` are the same check; the `Function`
 constructor and built-in prototypes are still unreachable. Two checks moved
-*earlier*: naming a restricted global (`window`, `fetch`, `localStorage`) or
-writing a forbidden key (`__proto__`, `constructor`, `prototype`) now fails the
-build with a file and a line rather than throwing when that branch first runs.
+*earlier*: naming a restricted global (`window`, `fetch`, `localStorage`) in a
+template expression or inline handler, or writing a forbidden key (`__proto__`,
+`constructor`, `prototype`), now fails the build with a file and a line rather
+than throwing when that branch first runs. `<action>` and `<resource>` bodies are
+ordinary JavaScript and may use browser APIs; only `eval` and `Function` are
+refused there (see [Template expressions](/core-concepts/template-expressions/#action-and-resource-bodies)).
 
 #### Development builds
 
@@ -506,14 +509,22 @@ that a template you are still editing keeps rendering when it contains something
 the compiler could not compile. A development build therefore does contain
 `new Function`, and is not intended to be deployed.
 
-#### If the build reports AVX_W48
+#### If the build reports AVX_W48 or AVX_C27
 
-`AVX_W48` lists every expression or body the compiler could not turn into a
-function. Those are the only things that would need an interpreter at run time,
-and a production bundle has none — so they will throw when they first evaluate.
-Rewrite them in the supported expression language, or move the logic into an
-`<action>`, and the warning goes away. A build with no `AVX_W48` needs no
-interpreter, which is the normal case.
+`AVX_W48` (development) and `AVX_C27` (production) list every expression or body
+the compiler could not turn into a function, with its component, file, line and
+reason. A production bundle has no interpreter, so a production build **fails**
+with `AVX_C27` rather than shipping an expression that would throw when it is
+first evaluated; nothing is written and the previous `dist/` is left intact. A
+development build reports `AVX_W48` and still builds, so the rest of a
+component you are editing keeps rendering.
+
+Rewrite each one in the supported expression language, or move the logic into an
+`<action>`, whose body is ordinary JavaScript.
+
+> Before 2026-09, a production build only warned (`AVX_W48`) and reported
+> success, and the expressions failed in the browser. A project whose production
+> build now stops with `AVX_C27` was already shipping those failures.
 
 ### Hosting Configuration
 

@@ -29,13 +29,14 @@ try {
   // --- Case 1: duplicate class names in different directories should throw ---
   console.log('  Testing: duplicate component names across directories throws AVX_C03');
 
+  // Style blocks live in the component stylesheet. They used to be written
+  // inline here, which was never valid: the template fell back to the string
+  // renderer and printed the rules as text. It is now a build error (AVX_C24).
   const cardTemplate = `
     <state title="Card" />
     <div @css root>{{ title }}</div>
-    <@css>
-        root { padding: 8px; }
-    </@css>
     `;
+  const cardStylesheet = '<@css>\n    root { padding: 8px; }\n</@css>\n';
 
   fs.mkdirSync(sharedDir, { recursive: true });
   fs.writeFileSync(path.join(compDir, 'card.component.js'), cardTemplate);
@@ -69,14 +70,14 @@ try {
   const profileCardTemplate = `
     <state title="Profile Card" />
     <div @css root>{{ title }}</div>
-    <@css>
-        root { padding: 12px; }
-    </@css>
     `;
+  const profileCardStylesheet = '<@css>\n    root { padding: 12px; }\n</@css>\n';
 
   fs.mkdirSync(sharedDir, { recursive: true });
   fs.writeFileSync(path.join(compDir, 'card.component.js'), cardTemplate);
+  fs.writeFileSync(path.join(compDir, 'card.component.css'), cardStylesheet);
   fs.writeFileSync(path.join(sharedDir, 'profile-card.component.js'), profileCardTemplate);
+  fs.writeFileSync(path.join(sharedDir, 'profile-card.component.css'), profileCardStylesheet);
 
   assert.doesNotThrow(() => {
     const modules = new Map();

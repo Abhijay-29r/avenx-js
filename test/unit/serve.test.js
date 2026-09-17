@@ -1,7 +1,7 @@
 import assert from 'assert';
 import http from 'http';
 import { EventEmitter } from 'events';
-import { listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger, applyCustomHeaders } from '../../bin/commands/serve.js';
+import { bindAddressFor, listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger, applyCustomHeaders } from '../../bin/commands/serve.js';
 import { setColorEnabled } from '../../bin/colors.js';
 import { AvenxCLI } from '../../bin/cli.js';
 
@@ -38,11 +38,21 @@ function runTests() {
     console.warn = originalWarn;
   }
 
+  // `localhost` binds the IPv4 loopback explicitly: resolving the name picks a
+  // single family, and on a machine that answers ::1 first every client that
+  // reaches for 127.0.0.1 was refused. The IPv6 loopback is added alongside it
+  // by listenLoopbackAlias.
   assert.deepStrictEqual(server.attempts, [
-    { port: 3000, host: 'localhost' },
-    { port: 3001, host: 'localhost' },
+    { port: 3000, host: '127.0.0.1' },
+    { port: 3001, host: '127.0.0.1' },
   ]);
   assert.strictEqual(activePort, 3001);
+
+  // The bind address a configured host resolves to.
+  assert.strictEqual(bindAddressFor('localhost'), '127.0.0.1', 'localhost binds the IPv4 loopback');
+  assert.strictEqual(bindAddressFor('0.0.0.0'), '0.0.0.0', 'an explicit address is bound as asked');
+  assert.strictEqual(bindAddressFor('::1'), '::1');
+  assert.strictEqual(bindAddressFor('example.internal'), 'example.internal');
   assert.strictEqual(warnings.length, 1);
   assert.ok(warnings[0].includes('Port 3000 is already in use'));
   assert.ok(warnings[0].includes('Trying 3001'));

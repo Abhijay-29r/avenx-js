@@ -104,6 +104,40 @@ export function isDeniedProjectPath(root, filePath) {
 }
 
 /**
+ * Whether a request to a state-changing dev-server endpoint may be honoured.
+ *
+ * The trace ingest endpoint writes a file to `.avenx/traces`, and that file is
+ * later turned into JavaScript by `avenx trace export`. A POST from a page on
+ * another origin is a cross-site request: the browser sends it happily, so any
+ * site the developer visits while `avenx serve --trace` runs could plant a
+ * trace. Same-origin requests carry either no `Origin` (same-origin fetch in
+ * some browsers) or one matching the host serving the page.
+ * @param {object} req - The incoming request.
+ * @returns {boolean} True when the request originates from this server.
+ */
+export function isSameOriginRequest(req) {
+  const origin = req.headers && req.headers.origin;
+  if (!origin) {
+    // No Origin header at all: not a cross-site browser request.
+    return true;
+  }
+  if (origin === 'null') {
+    // An opaque origin -- a sandboxed iframe or a data: URL -- is not this
+    // server, and is exactly what an attacker page would present.
+    return false;
+  }
+  const host = req.headers && req.headers.host;
+  if (!host) {
+    return false;
+  }
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Formats an HTTP response status code with ANSI colors.
  * @param {number|string} status
  * @returns {string}
@@ -569,6 +603,20 @@ export function getInspectorHtml(cli) {
         setInterval(requestUpdate, 1000);
         requestUpdate();
 
+        // Everything below is application data -- component state, props,
+        // bridge state, route params -- and it routinely holds whatever a user
+        // typed or an API returned. It is written with innerHTML, so it is
+        // escaped first; an inspector that renders the app's own data as markup
+        // is a script-execution sink on the dev server's origin.
+        function esc(value) {
+            return String(value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function renderDashboard(data) {
             // 1. Render routes
             const routingList = document.getElementById('routingList');
@@ -580,8 +628,8 @@ export function getInspectorHtml(cli) {
                     item.className = 'info-item';
                     item.innerHTML = \`
                         <div class="info-header">
-                            <span class="route-path">\${pattern}</span>
-                            <span class="route-page">\${pageName}</span>
+                            <span class="route-path">\${esc(pattern)}</span>
+                            <span class="route-page">\${esc(pageName)}</span>
                         </div>
                     \`;
                     routingList.appendChild(item);
@@ -594,10 +642,10 @@ export function getInspectorHtml(cli) {
             const currentRouteInfo = document.getElementById('currentRouteInfo');
             if (data.currentRoute) {
                 currentRouteInfo.innerHTML = \`
-                    <div style="margin-bottom:0.25rem;"><strong>Hash:</strong> <span style="color:var(--accent-blue);">\${data.currentRoute.hash}</span></div>
-                    <div style="margin-bottom:0.25rem;"><strong>Page:</strong> \${data.currentRoute.page}</div>
+                    <div style="margin-bottom:0.25rem;"><strong>Hash:</strong> <span style="color:var(--accent-blue);">\${esc(data.currentRoute.hash)}</span></div>
+                    <div style="margin-bottom:0.25rem;"><strong>Page:</strong> \${esc(data.currentRoute.page)}</div>
                     <div style="margin-top:0.5rem;"><strong>Params:</strong></div>
-                    <pre class="state-explorer">\${JSON.stringify(data.currentRoute.params || {}, null, 2)}</pre>
+                    <pre class="state-explorer">\${esc(JSON.stringify(data.currentRoute.params || {}, null, 2))}</pre>
                 \`;
             } else {
                 currentRouteInfo.innerHTML = '<div style="color:var(--text-muted);">None (App not routing or on initial load)</div>';
@@ -612,13 +660,13 @@ export function getInspectorHtml(cli) {
                     item.className = 'info-item';
                     item.innerHTML = \`
                         <div class="info-header">
-                            <span class="comp-name">\${comp.name}</span>
+                            <span class="comp-name">\${esc(comp.name)}</span>
                         </div>
                         <div class="comp-details">
                             <div style="margin-top:0.25rem;"><strong>Props:</strong></div>
-                            <pre class="state-explorer">\${JSON.stringify(comp.props, null, 2)}</pre>
+                            <pre class="state-explorer">\${esc(JSON.stringify(comp.props, null, 2))}</pre>
                             <div style="margin-top:0.5rem;"><strong>State:</strong></div>
-                            <pre class="state-explorer">\${JSON.stringify(comp.state, null, 2)}</pre>
+                            <pre class="state-explorer">\${esc(JSON.stringify(comp.state, null, 2))}</pre>
                         </div>
                     \`;
                     componentsList.appendChild(item);
@@ -636,9 +684,9 @@ export function getInspectorHtml(cli) {
                     item.className = 'info-item';
                     item.innerHTML = \`
                         <div class="info-header">
-                            <span class="bridge-header">\${name}</span>
+                            <span class="bridge-header">\${esc(name)}</span>
                         </div>
-                        <pre class="state-explorer">\${JSON.stringify(state, null, 2)}</pre>
+                        <pre class="state-explorer">\${esc(JSON.stringify(state, null, 2))}</pre>
                     \`;
                     bridgesList.appendChild(item);
                 });
@@ -693,6 +741,46 @@ export function watchProject(cli) {
 }
 
 /**
+ * The address a configured host should actually bind.
+ *
+ * `localhost` is a name, and Node resolves it to a single family. On a machine
+ * whose resolver answers `::1` first, `server.listen(port, 'localhost')` binds
+ * IPv6 only, and every client that reaches for `127.0.0.1` -- curl, a proxy, a
+ * container, the E2E harness -- gets ECONNREFUSED while the browser works. The
+ * loopback interface is bound explicitly instead, and the IPv6 loopback is
+ * added alongside it by {@link listenLoopbackAlias}, so both families answer.
+ * @param {string} host - The configured host.
+ * @returns {string} The address to bind.
+ */
+export function bindAddressFor(host) {
+  return host === 'localhost' ? '127.0.0.1' : host;
+}
+
+/**
+ * Adds a second listener on the IPv6 loopback for a server bound to 127.0.0.1.
+ *
+ * Only for the default `localhost` host: an explicitly configured address is
+ * bound exactly as asked. Failure is not an error -- a machine without IPv6, or
+ * one where something already holds `[::1]` on this port, simply keeps the IPv4
+ * listener it already has.
+ * @param {object} requestListener - The handler both listeners share.
+ * @param {string} host - The configured host.
+ * @param {number} port - The port the primary listener bound.
+ * @returns {object|null} The secondary server, or null when one was not added.
+ */
+export function listenLoopbackAlias(requestListener, host, port) {
+  if (host !== 'localhost') {
+    return null;
+  }
+  const alias = http.createServer(requestListener);
+  alias.on('error', () => {
+    // No IPv6 loopback, or it is already taken: the IPv4 listener stands alone.
+  });
+  alias.listen(port, '::1');
+  return alias;
+}
+
+/**
  * Listens on the requested port, incrementing it when the address is occupied.
  * @param {object} server
  * @param {number|string} requestedPort
@@ -701,6 +789,7 @@ export function watchProject(cli) {
  */
 export function listenWithPortFallback(server, requestedPort, host, onListening) {
   let port = Number(requestedPort);
+  const address = bindAddressFor(host);
 
   server.once('listening', () => onListening(port));
   server.on('error', (err) => {
@@ -711,10 +800,10 @@ export function listenWithPortFallback(server, requestedPort, host, onListening)
     const occupiedPort = port;
     port += 1;
     console.warn(`\n${yellow(`Port ${occupiedPort} is already in use. Trying ${port} instead.`)}`);
-    server.listen(port, host);
+    server.listen(port, address);
   });
 
-  server.listen(port, host);
+  server.listen(port, address);
 }
 
 /**
@@ -732,7 +821,7 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
     watchProject(cli);
   }
 
-  const server = http.createServer((req, res) => {
+  const requestListener = (req, res) => {
     attachRequestLogger(req, res);
     applyCustomHeaders(res, cli.config.server.headers);
     if (cli.config.server.liveReload && req.url === '/__avenx_live_reload__') {
@@ -753,6 +842,16 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
     // Trace ingest. Only mounted for `avenx serve --trace`, so a dev server
     // without the flag has no endpoint that writes to disk at all.
     if (cli.traceEnabled && req.method === 'POST' && req.url === TRACE_ENDPOINT) {
+      // A trace becomes a generated test, so accepting one from another origin
+      // would let any page the developer visits plant source in the project.
+      if (!isSameOriginRequest(req)) {
+        console.warn(
+          yellow(`Refused a cross-origin trace upload from ${String(req.headers.origin).slice(0, 120)}.`),
+        );
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Cross-origin trace uploads are refused' }));
+        return;
+      }
       let body = '';
       let tooLarge = false;
       req.on('data', (chunk) => {
@@ -851,7 +950,6 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
         if (cli.config.server.liveReload && extname === '.html') {
           const script = `
 <script>
-    window.__avenx_inspect_enabled = true;
     if ('EventSource' in window) {
         const source = new EventSource('/__avenx_live_reload__');
         source.onmessage = (e) => {
@@ -882,7 +980,21 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
 `
             : '';
 
-          const contentStr = content.toString('utf-8');
+          // The inspector flag has to be set *before* the application bundle
+          // runs: `new AvenxApp()` calls `initInspector`, which returns
+          // immediately when the flag is not yet there. Injected at the end of
+          // the body -- after the bundle's <script> -- it always was, so the
+          // inspector page never received any data. The flag therefore goes
+          // into the head, and everything that only reacts to later events
+          // stays at the end of the body.
+          const headScript = '\n<script>window.__avenx_inspect_enabled = true;</script>\n';
+          let contentStr = content.toString('utf-8');
+          if (contentStr.includes('</head>')) {
+            contentStr = contentStr.replace('</head>', `${headScript}</head>`);
+          } else {
+            contentStr = headScript + contentStr;
+          }
+
           const injected = `${script}${traceScript}`;
           if (contentStr.includes('</body>')) {
             responseContent = contentStr.replace('</body>', `${injected}</body>`);
@@ -895,9 +1007,14 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
         res.end(responseContent, 'utf-8');
       }
     });
-  });
+  };
+
+  const server = http.createServer(requestListener);
 
   listenWithPortFallback(server, port, host, (activePort) => {
+    // `localhost` names both loopback families. The primary listener holds the
+    // IPv4 one; this adds the IPv6 one so neither address is refused.
+    cli._loopbackAlias = listenLoopbackAlias(requestListener, host, activePort);
     const url = `http://${host}:${activePort}`;
     console.log(`\n${green(`🚀 Dev-Server running at ${url}`)}`);
     if (cli.config.server.liveReload) {

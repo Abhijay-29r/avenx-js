@@ -6,4 +6,8 @@
     note {
         letter-spacing: 3px;
     }
+
+    guarded {
+        letter-spacing: 5px;
+    }
 </@css>

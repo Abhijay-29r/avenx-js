@@ -2,7 +2,12 @@ import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { AvenxComponent, RESERVED_INSTANCE_KEYS } from '../../lib/core/runtime/AvenxComponent.js';
+import {
+  AvenxComponent,
+  RESERVED_INSTANCE_KEYS,
+  RESERVED_INSTANCE_METHOD_KEYS,
+  LIFECYCLE_HOOK_KEYS,
+} from '../../lib/core/runtime/AvenxComponent.js';
 import ComponentParser from '../../lib/compiler/ComponentParser.js';
 import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
 import { logger } from '../../lib/core/runtime/AvenxLogger.js';
@@ -31,6 +36,18 @@ function runTests() {
     assert.ok(RESERVED_INSTANCE_KEYS.includes(key), `RESERVED_INSTANCE_KEYS should include "${key}"`);
   }
 
+  // The list splits into genuine instance-method collisions, which warn, and
+  // documented lifecycle hooks, which are the supported way to define a hook
+  // and must not warn (AVX_W26).
+  for (const key of ['mount', 'unmount', 'update', 'destroy', 'scheduleUpdate']) {
+    assert.ok(RESERVED_INSTANCE_METHOD_KEYS.includes(key), `RESERVED_INSTANCE_METHOD_KEYS should include "${key}"`);
+    assert.ok(!LIFECYCLE_HOOK_KEYS.includes(key), `"${key}" is not a lifecycle hook`);
+  }
+  for (const key of ['onBeforeMount', 'onMount', 'onBeforeUpdate', 'onUpdate', 'onUnmount', 'onActivate', 'onDeactivate', 'onErrorCaptured']) {
+    assert.ok(LIFECYCLE_HOOK_KEYS.includes(key), `LIFECYCLE_HOOK_KEYS should include "${key}"`);
+    assert.ok(!RESERVED_INSTANCE_METHOD_KEYS.includes(key), `lifecycle hook "${key}" must not be a reserved instance method`);
+  }
+
   // 2. Test Runtime Warning on AvenxComponent construction
   const warnings = [];
   const originalWarn = logger.warn;
@@ -46,11 +63,12 @@ function runTests() {
       customAction: () => {},
     });
 
-    assert.strictEqual(warnings.length, 2, 'Should log 2 warnings for reserved keys "update" and "onMount"');
-    assert.ok(warnings[0].includes('[AVX_W26]'), 'First warning should contain [AVX_W26]');
-    assert.ok(warnings[0].includes('"update"'), 'First warning should mention "update"');
-    assert.ok(warnings[1].includes('[AVX_W26]'), 'Second warning should contain [AVX_W26]');
-    assert.ok(warnings[1].includes('"onMount"'), 'Second warning should mention "onMount"');
+    // "update" collides with a real instance method and warns; "onMount" is a
+    // documented lifecycle hook and must not.
+    assert.strictEqual(warnings.length, 1, 'Should log 1 warning, for the reserved method "update" only');
+    assert.ok(warnings[0].includes('[AVX_W26]'), 'Warning should contain [AVX_W26]');
+    assert.ok(warnings[0].includes('"update"'), 'Warning should mention "update"');
+    assert.ok(!warnings.some((w) => w.includes('"onMount"')), 'No warning for the lifecycle hook "onMount"');
 
     // Reset warnings
     warnings.length = 0;
@@ -62,6 +80,21 @@ function runTests() {
     });
 
     assert.strictEqual(warnings.length, 0, 'Should log no warnings for non-reserved method names');
+
+    // A component defining every documented lifecycle hook as an action warns
+    // for none of them.
+    warnings.length = 0;
+    new AvenxComponent({}, {}, {}, '<div></div>', {
+      onBeforeMount: () => {},
+      onMount: () => {},
+      onBeforeUpdate: () => {},
+      onUpdate: () => {},
+      onUnmount: () => {},
+      onActivate: () => {},
+      onDeactivate: () => {},
+      onErrorCaptured: () => {},
+    });
+    assert.strictEqual(warnings.length, 0, 'Lifecycle hooks defined as actions must not warn');
   } finally {
     logger.warn = originalWarn;
   }
@@ -102,11 +135,12 @@ function runTests() {
 
     parser.parse(testCompPath);
 
-    assert.strictEqual(compilerWarnings.length, 2, 'Compiler should emit 2 warnings for "onMount" and "destroy"');
-    assert.ok(compilerWarnings[0].includes('[AVX_W26]'), 'Compiler warning should contain [AVX_W26]');
-    assert.ok(compilerWarnings[0].includes('"onMount"'), 'Compiler warning should mention "onMount"');
-    assert.ok(compilerWarnings[1].includes('[AVX_W26]'), 'Compiler warning should contain [AVX_W26]');
-    assert.ok(compilerWarnings[1].includes('"destroy"'), 'Compiler warning should mention "destroy"');
+    // onMount is a documented lifecycle hook (no warning); destroy collides
+    // with a reserved instance method (warns).
+    const w26 = compilerWarnings.filter((m) => m.includes('[AVX_W26]'));
+    assert.strictEqual(w26.length, 1, `Compiler should emit 1 AVX_W26, for "destroy" only:\n${compilerWarnings.join('\n')}`);
+    assert.ok(w26[0].includes('"destroy"'), 'Compiler warning should mention "destroy"');
+    assert.ok(!w26.some((m) => m.includes('"onMount"')), 'No compiler warning for the lifecycle hook "onMount"');
   } finally {
     logger.warn = originalWarn;
     if (fs.existsSync(testCompPath)) fs.unlinkSync(testCompPath);

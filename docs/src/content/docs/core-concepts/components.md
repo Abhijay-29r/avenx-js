@@ -91,26 +91,27 @@ Every attribute passed to `<state>` starts as a plain HTML attribute string. Bef
 - `tags='["work", "urgent"]'` is resolved as an `array`, parsed as JSON → `["work", "urgent"]`
 - `user='{"name": "John"}'` is resolved as an `object`, parsed as JSON → `{ name: "John" }`
 
-Strings, booleans, and numbers are coerced automatically and require no special quoting. Arrays and objects are different: the parser attempts to parse the attribute's contents as **JSON**. If parsing fails, the parser cannot safely guess your intent, and the value falls back to a raw string instead of throwing, which often shows up later as a confusing error when your template or actions try to use it as an array or object.
+Strings, booleans, and numbers are coerced automatically and require no special quoting. Arrays and objects can be written two ways:
 
-Because array and object values are parsed as JSON, they must follow strict JSON syntax, most importantly, **object keys and string values must use double quotes**, not single quotes or unquoted identifiers. Since the attribute itself has to be wrapped in quotes too, wrap the **attribute** in single quotes and use **double quotes** for the JSON inside it:
-
-```html
-<state user='{"name": "John", "role": "admin"}' /> <state tags='["work", "urgent", "backend"]' />
-```
-
-The following will **not** parse correctly and will silently fall back to a raw string, because unquoted keys and single-quoted string values are valid JavaScript object literal syntax but not valid JSON:
+- as **JSON**, with double-quoted keys and strings — wrap the attribute in single quotes so the double quotes can be used inside it;
+- as a **JavaScript literal**, with unquoted keys and single-quoted strings.
 
 ```html
-<state user="{name: 'John'}" />
+<state user='{"name": "John", "role": "admin"}' tags='["work", "urgent"]' />
+<state user="{ name: 'John', role: 'admin' }" tags="['work', 'urgent']" />
 ```
 
-When declaring array or object state:
+Both lines declare the same state. A JavaScript literal is evaluated when the component is compiled, so it may contain only constant values: strings, numbers, booleans, `null`, arrays and objects. An initialiser that refers to something else — a variable, a function call, a spread — cannot be evaluated at build time:
 
-- Wrap the whole attribute value in single quotes so double quotes can be used inside it.
-- Use double quotes around every object key and string value.
-- Avoid trailing commas, they are invalid in JSON even though they are valid in JavaScript.
-- If a `<state>` value behaves like a string instead of an array or object, check that it is valid JSON first.
+```html
+<state items="{ list: defaultItems }" />
+```
+
+That value stays the string `"{ list: defaultItems }"`, and the build reports `AVX_W51` with the reason and the line. Set such a value in `onMount`, or declare it as a `<computed>`.
+
+A value that is neither JSON nor a literal is plain text: `title="Home"` is the string `"Home"`, and `label="[beta] feature"` is the string `"[beta] feature"`.
+
+> Before 2026-09, a JavaScript literal such as `{name: 'John'}` fell back to a string silently. Components that relied on that string — reading it back as text — now receive an object instead. To keep a string, wrap the value in single quotes when it contains none of its own (`label="'{ draft }'"` is the string `{ draft }`), or set it in `onMount`.
 
 ## Component Nesting Restrictions
 

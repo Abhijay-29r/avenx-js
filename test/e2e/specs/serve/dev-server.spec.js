@@ -89,7 +89,7 @@ test.describe('avenx serve development cycle', () => {
 
     try {
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Revenue');
 
       const updated = original.replace(
@@ -106,7 +106,7 @@ test.describe('avenx serve development cycle', () => {
       );
 
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Updated Revenue', {
         timeout: 10_000,
       });
@@ -130,6 +130,7 @@ test.describe('avenx serve development cycle', () => {
 
     try {
       const originalWidth = await page
+        .getByTestId('filled')
         .getByTestId('card')
         .evaluate((element) =>
           getComputedStyle(element).borderTopWidth,
@@ -151,7 +152,7 @@ test.describe('avenx serve development cycle', () => {
       await expect
         .poll(
           async () =>
-            page.getByTestId('card').evaluate((element) =>
+            page.getByTestId('filled').getByTestId('card').evaluate((element) =>
               getComputedStyle(element).borderTopWidth,
             ),
           {
@@ -222,7 +223,7 @@ test.describe('avenx serve development cycle', () => {
       expect(afterFailure).toBe(beforeFailure);
 
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Revenue');
 
       await writeProjectFile(
@@ -235,7 +236,7 @@ test.describe('avenx serve development cycle', () => {
       );
 
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Recovered Revenue', {
         timeout: 10_000,
       });
@@ -321,7 +322,7 @@ test.describe('avenx serve development cycle', () => {
       await page.bringToFront();
 
       await expect(
-        page.getByTestId('card'),
+        page.getByTestId('filled').getByTestId('card'),
       ).toBeVisible();
 
       await inspector.bringToFront();
@@ -345,6 +346,47 @@ test.describe('avenx serve development cycle', () => {
           },
         )
         .toContain('StatCard');
+    } finally {
+      await inspector.close();
+    }
+  });
+
+  test('the inspector escapes application state instead of rendering it', async ({
+    page,
+    devServer,
+    projectDir,
+  }) => {
+    // Component state routinely holds whatever a user typed or an API
+    // returned. The inspector writes it with innerHTML, so it must escape it:
+    // otherwise the app's own data executes on the dev server's origin.
+    const componentPath = path.join(projectDir, COMPONENT_PATH);
+    const original = await fs.readFile(componentPath, 'utf8');
+    await fs.writeFile(
+      componentPath,
+      original.replace(
+        '<div @css card data-testid="card">',
+        '<state hostile="\'<img src=x onerror=&quot;window.__inspectorXss = true&quot;>\'" />\n<div @css card data-testid="card">',
+      ),
+      'utf8',
+    );
+
+    await page.goto(`${devServer.url}/index.html`);
+
+    const inspector = await page.context().newPage();
+    try {
+      await inspector.goto(`${devServer.url}/__avenx-inspect`);
+      await inspector.evaluate(() => {
+        window.__inspectorXss = false;
+      });
+
+      // Wait until the inspector has received the component's state.
+      await expect
+        .poll(async () => inspector.locator('#componentsList').innerText(), { timeout: 10_000 })
+        .toContain('hostile');
+
+      expect(await inspector.evaluate(() => window.__inspectorXss)).toBe(false);
+      // The payload is shown as text, so no element was created from it.
+      expect(await inspector.locator('#componentsList img').count()).toBe(0);
     } finally {
       await inspector.close();
     }

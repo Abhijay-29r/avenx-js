@@ -1670,5 +1670,17 @@ export function axKey(key: any): any;
 /** `in`, with the right-hand side coerced the way the interpreter coerced it. */
 export function axIn(key: any, target: any): boolean;
 
+/** Resolves a free identifier in an `<action>` or `<resource>` body: scope, then allowed globals, then the host global. */
+export function axGetAmbient(scope: object, name: string): any;
+
+/** Assigns to a free identifier in an `<action>` or `<resource>` body. */
+export function axSetAmbient(scope: object, name: string, value: any): any;
+
+/** `typeof` applied to a free identifier in an `<action>` or `<resource>` body. */
+export function axTypeofAmbient(scope: object, name: string): string;
+
+/** The object an assignment to a free identifier in an action body writes to. */
+export function axAmbientTarget(scope: object, name: string): object;
+
 /** Every expression primitive, keyed by the name the compiler emits for it. */
 export const EXPRESSION_OPS: Record<string, Function>;
