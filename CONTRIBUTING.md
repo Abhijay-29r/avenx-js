@@ -16,6 +16,22 @@ Before creating a contribution, please:
 
 Before contributing to the compiler, runtime, or CLI, please read the [Contributor Architecture Guide](https://docs.avenx-js.com/contributing/architecture/) for an in-depth map of the compile pipeline, runtime data flow, and test tiers.
 
+## Diagnostic Codes
+
+Avenx.js uses stable diagnostic codes for compiler errors, runtime errors, and warnings. The authoritative registry of diagnostic codes is `lib/core/runtime/AvenxError.js`, which exports `AvenxErrorCodes`.
+
+When adding a new diagnostic code:
+
+1. Add the new code to `AvenxErrorCodes` in `lib/core/runtime/AvenxError.js`.
+2. Add its human-readable message template to `AvenxErrorMessages` in the same file.
+3. Add the corresponding structured entry to `lib/core/diagnostics/catalogue.js`, including its name, severity, category, summary, causes, remedies, and documentation URL.
+4. Update the diagnostic documentation in `docs/src/content/docs/troubleshooting/errors.md` when the new code requires user-facing troubleshooting guidance.
+5. Add or update tests covering the new diagnostic where appropriate.
+
+Do not maintain a separate manual list of diagnostic codes in root-level documentation. The runtime registry is the source of truth for which codes exist, while the diagnostic catalogue provides their structured descriptions.
+
+For compiler error classes, see `docs/src/content/docs/troubleshooting/errors.md`, which documents `CompilerError`, `TemplateValidationError`, `StyleCompilerError`, and `BuildError`.
+
 ## Local Development Workflow
 
 A quick start for working on the codebase:
