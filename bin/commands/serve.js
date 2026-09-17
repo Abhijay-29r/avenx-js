@@ -104,6 +104,40 @@ export function isDeniedProjectPath(root, filePath) {
 }
 
 /**
+ * Whether a request to a state-changing dev-server endpoint may be honoured.
+ *
+ * The trace ingest endpoint writes a file to `.avenx/traces`, and that file is
+ * later turned into JavaScript by `avenx trace export`. A POST from a page on
+ * another origin is a cross-site request: the browser sends it happily, so any
+ * site the developer visits while `avenx serve --trace` runs could plant a
+ * trace. Same-origin requests carry either no `Origin` (same-origin fetch in
+ * some browsers) or one matching the host serving the page.
+ * @param {object} req - The incoming request.
+ * @returns {boolean} True when the request originates from this server.
+ */
+export function isSameOriginRequest(req) {
+  const origin = req.headers && req.headers.origin;
+  if (!origin) {
+    // No Origin header at all: not a cross-site browser request.
+    return true;
+  }
+  if (origin === 'null') {
+    // An opaque origin -- a sandboxed iframe or a data: URL -- is not this
+    // server, and is exactly what an attacker page would present.
+    return false;
+  }
+  const host = req.headers && req.headers.host;
+  if (!host) {
+    return false;
+  }
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Formats an HTTP response status code with ANSI colors.
  * @param {number|string} status
  * @returns {string}
@@ -753,6 +787,16 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
     // Trace ingest. Only mounted for `avenx serve --trace`, so a dev server
     // without the flag has no endpoint that writes to disk at all.
     if (cli.traceEnabled && req.method === 'POST' && req.url === TRACE_ENDPOINT) {
+      // A trace becomes a generated test, so accepting one from another origin
+      // would let any page the developer visits plant source in the project.
+      if (!isSameOriginRequest(req)) {
+        console.warn(
+          yellow(`Refused a cross-origin trace upload from ${String(req.headers.origin).slice(0, 120)}.`),
+        );
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Cross-origin trace uploads are refused' }));
+        return;
+      }
       let body = '';
       let tooLarge = false;
       req.on('data', (chunk) => {
