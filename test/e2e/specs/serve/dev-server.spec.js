@@ -351,6 +351,47 @@ test.describe('avenx serve development cycle', () => {
     }
   });
 
+  test('the inspector escapes application state instead of rendering it', async ({
+    page,
+    devServer,
+    projectDir,
+  }) => {
+    // Component state routinely holds whatever a user typed or an API
+    // returned. The inspector writes it with innerHTML, so it must escape it:
+    // otherwise the app's own data executes on the dev server's origin.
+    const componentPath = path.join(projectDir, COMPONENT_PATH);
+    const original = await fs.readFile(componentPath, 'utf8');
+    await fs.writeFile(
+      componentPath,
+      original.replace(
+        '<div @css card data-testid="card">',
+        '<state hostile="\'<img src=x onerror=&quot;window.__inspectorXss = true&quot;>\'" />\n<div @css card data-testid="card">',
+      ),
+      'utf8',
+    );
+
+    await page.goto(`${devServer.url}/index.html`);
+
+    const inspector = await page.context().newPage();
+    try {
+      await inspector.goto(`${devServer.url}/__avenx-inspect`);
+      await inspector.evaluate(() => {
+        window.__inspectorXss = false;
+      });
+
+      // Wait until the inspector has received the component's state.
+      await expect
+        .poll(async () => inspector.locator('#componentsList').innerText(), { timeout: 10_000 })
+        .toContain('hostile');
+
+      expect(await inspector.evaluate(() => window.__inspectorXss)).toBe(false);
+      // The payload is shown as text, so no element was created from it.
+      expect(await inspector.locator('#componentsList img').count()).toBe(0);
+    } finally {
+      await inspector.close();
+    }
+  });
+
   test('missing files return 404 and extensionless paths fall back to index.html', async ({
     devServer,
   }) => {

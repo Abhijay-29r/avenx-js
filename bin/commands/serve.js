@@ -603,6 +603,20 @@ export function getInspectorHtml(cli) {
         setInterval(requestUpdate, 1000);
         requestUpdate();
 
+        // Everything below is application data -- component state, props,
+        // bridge state, route params -- and it routinely holds whatever a user
+        // typed or an API returned. It is written with innerHTML, so it is
+        // escaped first; an inspector that renders the app's own data as markup
+        // is a script-execution sink on the dev server's origin.
+        function esc(value) {
+            return String(value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function renderDashboard(data) {
             // 1. Render routes
             const routingList = document.getElementById('routingList');
@@ -614,8 +628,8 @@ export function getInspectorHtml(cli) {
                     item.className = 'info-item';
                     item.innerHTML = \`
                         <div class="info-header">
-                            <span class="route-path">\${pattern}</span>
-                            <span class="route-page">\${pageName}</span>
+                            <span class="route-path">\${esc(pattern)}</span>
+                            <span class="route-page">\${esc(pageName)}</span>
                         </div>
                     \`;
                     routingList.appendChild(item);
@@ -628,10 +642,10 @@ export function getInspectorHtml(cli) {
             const currentRouteInfo = document.getElementById('currentRouteInfo');
             if (data.currentRoute) {
                 currentRouteInfo.innerHTML = \`
-                    <div style="margin-bottom:0.25rem;"><strong>Hash:</strong> <span style="color:var(--accent-blue);">\${data.currentRoute.hash}</span></div>
-                    <div style="margin-bottom:0.25rem;"><strong>Page:</strong> \${data.currentRoute.page}</div>
+                    <div style="margin-bottom:0.25rem;"><strong>Hash:</strong> <span style="color:var(--accent-blue);">\${esc(data.currentRoute.hash)}</span></div>
+                    <div style="margin-bottom:0.25rem;"><strong>Page:</strong> \${esc(data.currentRoute.page)}</div>
                     <div style="margin-top:0.5rem;"><strong>Params:</strong></div>
-                    <pre class="state-explorer">\${JSON.stringify(data.currentRoute.params || {}, null, 2)}</pre>
+                    <pre class="state-explorer">\${esc(JSON.stringify(data.currentRoute.params || {}, null, 2))}</pre>
                 \`;
             } else {
                 currentRouteInfo.innerHTML = '<div style="color:var(--text-muted);">None (App not routing or on initial load)</div>';
@@ -646,13 +660,13 @@ export function getInspectorHtml(cli) {
                     item.className = 'info-item';
                     item.innerHTML = \`
                         <div class="info-header">
-                            <span class="comp-name">\${comp.name}</span>
+                            <span class="comp-name">\${esc(comp.name)}</span>
                         </div>
                         <div class="comp-details">
                             <div style="margin-top:0.25rem;"><strong>Props:</strong></div>
-                            <pre class="state-explorer">\${JSON.stringify(comp.props, null, 2)}</pre>
+                            <pre class="state-explorer">\${esc(JSON.stringify(comp.props, null, 2))}</pre>
                             <div style="margin-top:0.5rem;"><strong>State:</strong></div>
-                            <pre class="state-explorer">\${JSON.stringify(comp.state, null, 2)}</pre>
+                            <pre class="state-explorer">\${esc(JSON.stringify(comp.state, null, 2))}</pre>
                         </div>
                     \`;
                     componentsList.appendChild(item);
@@ -670,9 +684,9 @@ export function getInspectorHtml(cli) {
                     item.className = 'info-item';
                     item.innerHTML = \`
                         <div class="info-header">
-                            <span class="bridge-header">\${name}</span>
+                            <span class="bridge-header">\${esc(name)}</span>
                         </div>
-                        <pre class="state-explorer">\${JSON.stringify(state, null, 2)}</pre>
+                        <pre class="state-explorer">\${esc(JSON.stringify(state, null, 2))}</pre>
                     \`;
                     bridgesList.appendChild(item);
                 });
