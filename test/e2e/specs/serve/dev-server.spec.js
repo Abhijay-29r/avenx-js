@@ -89,7 +89,7 @@ test.describe('avenx serve development cycle', () => {
 
     try {
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Revenue');
 
       const updated = original.replace(
@@ -106,7 +106,7 @@ test.describe('avenx serve development cycle', () => {
       );
 
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Updated Revenue', {
         timeout: 10_000,
       });
@@ -130,6 +130,7 @@ test.describe('avenx serve development cycle', () => {
 
     try {
       const originalWidth = await page
+        .getByTestId('filled')
         .getByTestId('card')
         .evaluate((element) =>
           getComputedStyle(element).borderTopWidth,
@@ -151,7 +152,7 @@ test.describe('avenx serve development cycle', () => {
       await expect
         .poll(
           async () =>
-            page.getByTestId('card').evaluate((element) =>
+            page.getByTestId('filled').getByTestId('card').evaluate((element) =>
               getComputedStyle(element).borderTopWidth,
             ),
           {
@@ -222,7 +223,7 @@ test.describe('avenx serve development cycle', () => {
       expect(afterFailure).toBe(beforeFailure);
 
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Revenue');
 
       await writeProjectFile(
@@ -235,7 +236,7 @@ test.describe('avenx serve development cycle', () => {
       );
 
       await expect(
-        page.getByTestId('card-label'),
+        page.getByTestId('filled').getByTestId('card-label'),
       ).toHaveText('Recovered Revenue', {
         timeout: 10_000,
       });
@@ -321,7 +322,7 @@ test.describe('avenx serve development cycle', () => {
       await page.bringToFront();
 
       await expect(
-        page.getByTestId('card'),
+        page.getByTestId('filled').getByTestId('card'),
       ).toBeVisible();
 
       await inspector.bringToFront();
