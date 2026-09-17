@@ -1,7 +1,11 @@
 # Production Readiness — Initial Technical Assessment
 
 Internal engineering document. Status: **baseline**, written before any
-production-readiness change landed.
+production-readiness change landed. It is kept as written, as the record of
+what the project looked like at the start.
+
+> **What happened since:** see `status.md` for what was fixed, what was measured
+> and what remains, and `decisions/` for the reasoning behind each change.
 
 - Branch base: `production-readiness`, created from `develop` (`9bc1822`) and
   fast-forwarded to `main` (`06d55d3`) through `chore/sync-main`. `develop` was
