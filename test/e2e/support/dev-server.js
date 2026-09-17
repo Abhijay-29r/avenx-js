@@ -10,7 +10,6 @@
 
 import { test as base, expect } from '@playwright/test';
 import fs from 'fs/promises';
-import fsSync from 'fs';
 import os from 'os';
 import path from 'path';
 import net from 'net';
@@ -237,6 +236,10 @@ async function startServer(projectDir, port) {
     child,
     port: server.port,
     output: server.output,
+    // The address the tests connect to. `avenx serve` announces `localhost`,
+    // which names both loopback families; the tests use the IPv4 one, and the
+    // server listens on both.
+    url: `http://127.0.0.1:${server.port}`,
   };
 }
 
@@ -262,6 +265,9 @@ export const test = base.extend({
   /**
    * A private project directory for the dev-server tests.
    */
+  // Playwright requires the fixture destructuring form even when no other
+  // fixture is used.
+  // eslint-disable-next-line no-empty-pattern
   projectDir: async ({}, use) => {
     const projectDir = await createScratchProject();
 
@@ -287,10 +293,7 @@ export const test = base.extend({
     const server = await startServer(projectDir, port);
 
     try {
-      await use({
-        ...server,
-        url: `http://127.0.0.1:${server.port}`,
-      });
+      await use({ ...server });
     } finally {
       await terminate(server.child);
     }
