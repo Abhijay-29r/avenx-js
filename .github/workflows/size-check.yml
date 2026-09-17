@@ -51,7 +51,14 @@ jobs:
         run: node scripts/size-check.js --action compare --base base-sizes.json --pr pr-sizes.json --markdown size-report.md --threshold 600
         continue-on-error: true
 
+      # A pull request from a fork gets a read-only token, so commenting fails
+      # with "Resource not accessible by integration" and reddens a check that
+      # has nothing to say about the change. The size comparison above still
+      # runs and still gates the build; only the comment is skipped, and a
+      # failure to comment never fails the job.
       - name: Post or Update Comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
