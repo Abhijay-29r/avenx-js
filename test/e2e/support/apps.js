@@ -87,6 +87,10 @@ export const APPS = [
     summary: 'Browser APIs used from <resource> and <action> bodies: fetch, timers, window listeners, requestAnimationFrame.',
   },
   {
+    name: 'security',
+    summary: 'srcdoc and event-handler attributes: injection is neutralised, trusted opt-in works.',
+  },
+  {
     name: 'guard-gaps',
     summary: 'Pins two guard compilation bugs; its bundle is expected not to parse.',
     documentsKnownGaps: true,
