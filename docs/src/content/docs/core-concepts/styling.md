@@ -361,8 +361,8 @@ By default, scoped component styles only apply to elements defined directly with
 
 Elements passed into a child component via slots are rendered inside the child, but can be styled from the parent component using `&` descendant selectors:
 
-```html
-<!-- ParentComponent.component.js -->
+```css
+/* parent-component.component.css */
 <@css>
     modal-wrapper {
         & .slot-header {
@@ -376,7 +376,10 @@ Elements passed into a child component via slots are rendered inside the child, 
         }
     }
 </@css>
+```
 
+```html
+<!-- parent-component.component.js -->
 <div @css modal-wrapper>
   <CardDialog>
     <template data-slot-props="slotProps">
