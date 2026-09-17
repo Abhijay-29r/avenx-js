@@ -1186,25 +1186,20 @@ Subtrees that meet these requirements are hoisted out of the render function and
 **Warning Message**
 
 ```text
-Method name "{0}" in component "{1}" collides with a reserved lifecycle hook or instance method.
+Method name "{0}" in component "{1}" collides with a reserved instance method (mount, unmount, update, destroy or scheduleUpdate).
 ```
 
-**Cause:** This warning is emitted during component compilation or runtime instantiation when a component declares an action, method, or property name that collides with reserved internal `AvenxComponent` prototype keys or lifecycle hook names (e.g. `mount`, `update`, `destroy`, `onMount`, `onUpdate`).
+**Cause:** This warning is emitted during component compilation or runtime instantiation when a component declares an action or method whose name is a reserved `AvenxComponent` instance method — `mount`, `unmount`, `update`, `destroy` or `scheduleUpdate`. These control mounting, unmounting, DOM patching and update scheduling; an action of the same name shadows one, leading to broken patching or recursion.
 
-Declaring a component action or property with a reserved name overrides the framework's internal component lifecycle methods or prototype functionality, leading to unexpected behavior, broken DOM patching, or unhandled recursion issues.
+**Lifecycle hooks are not reserved.** Declaring `<action name="onMount">` (or `onUnmount`, `onUpdate`, …) is the documented, supported way to define a hook — the framework looks it up and runs it at the right moment. These names do **not** trigger this warning. See [Lifecycle Hooks](/core-concepts/lifecycle-hooks/).
 
-**Reserved Component Prototype Keys & Lifecycle Hooks:**
+**Reserved instance methods (these warn):**
 
-| Category | Reserved Keys | Description |
-| --- | --- | --- |
-| **Core Lifecycle Methods** | `mount`, `unmount`, `update`, `destroy`, `scheduleUpdate` | Framework internal methods controlling component mounting, unmounting, DOM diffing/patching, and update scheduling. |
-| **Lifecycle Hooks** | `onBeforeMount`, `onMount`, `onBeforeUpdate`, `onUpdate`, `onUnmount`, `onActivate`, `onDeactivate`, `onErrorCaptured` | Reserved framework lifecycle hook callback names. |
-| **Instance Properties & API Helpers** | `$parent`, `$refs`, `$slots`, `$route`, `$keepAlive`, `$nextTick`, `nextTick`, `setProps`, `clearKeepAliveCache`, `watch` | Reserved component instance properties and API methods. |
+| Reserved Keys | Description |
+| --- | --- |
+| `mount`, `unmount`, `update`, `destroy`, `scheduleUpdate` | Framework internal methods controlling component mounting, unmounting, DOM diffing/patching, and update scheduling. |
 
-**Resolution:** To resolve this warning:
-
-1. Rename custom component actions or methods to avoid names in the reserved list (e.g. rename `update` to `updateUserProfile`, or `destroy` to `handleDelete`).
-2. If you intended to hook into a framework lifecycle event (such as `onMount` or `onUpdate`), implement it as a standard lifecycle hook callback function rather than redefining it as a custom action method.
+**Resolution:** Rename the colliding action or method (e.g. `update` → `updateUserProfile`, `destroy` → `handleDelete`). To run code on a lifecycle event, declare an `<action>` with the hook's name — that is expected and does not warn.
 
 **Incorrect**
 
