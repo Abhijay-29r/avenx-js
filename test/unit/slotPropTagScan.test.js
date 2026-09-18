@@ -95,4 +95,36 @@ function run(template) {
   console.log('  ✅ an unterminated trailing slot does not truncate the output');
 }
 
+// --- scoped slots are recognised past a ">" in an earlier attribute ------
+{
+  // `escapeScopedSlots` matched the whole opening tag with `[^>]*` before
+  // `data-slot-props`, so an earlier attribute containing ">" ended the match
+  // and the tag was not recognised as a scoped slot at all. Its interpolations
+  // were then left for the parent to evaluate -- the exact premature evaluation
+  // this pass exists to prevent.
+  const escaped = parser.escapeScopedSlots('<template title="a > b" data-slot-props="row">{{ row.n }}</template>');
+  assert.ok(
+    escaped.includes('_AX_LBRACE_row.n_AX_RBRACE_'),
+    `the scoped slot's interpolation must be escaped. Got: ${escaped}`,
+  );
+  assert.ok(escaped.includes('title="a > b"'), 'the attribute containing ">" is preserved');
+
+  const plain = parser.escapeScopedSlots('<template data-slot-props="row">{{ row.n }}</template>');
+  assert.ok(plain.includes('_AX_LBRACE_row.n_AX_RBRACE_'), 'the ordinary case still works');
+
+  const untouched = '<template><p>{{ x }}</p></template>';
+  assert.strictEqual(
+    parser.escapeScopedSlots(untouched),
+    untouched,
+    'a template that is not a scoped slot is left alone',
+  );
+
+  const two = parser.escapeScopedSlots(
+    '<template data-slot-props="a">{{ a.x }}</template><template data-slot-props="b">{{ b.y }}</template>',
+  );
+  assert.ok(two.includes('_AX_LBRACE_a.x_AX_RBRACE_') && two.includes('_AX_LBRACE_b.y_AX_RBRACE_'),
+    'both scoped slots are escaped');
+  console.log('  ✅ a scoped slot is recognised past a ">" in an earlier attribute');
+}
+
 console.log('✅ Slot prop tag scanning tests passed!');
