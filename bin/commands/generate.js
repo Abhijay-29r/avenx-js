@@ -265,7 +265,7 @@ function reportPageWiring(cli, className, lowerName) {
   const mainAppPath = path.join(cli.baseDir, cli.config.srcDir, 'main.app.js');
   const route = lowerName === 'home' || lowerName === 'index' ? '' : `#/${lowerName}`;
 
-  let source = '';
+  let source;
   try {
     source = fs.readFileSync(mainAppPath, 'utf8');
   } catch {

@@ -155,12 +155,12 @@ console.log('🧪 Testing the CLI working-tree guard...');
     fs.writeFileSync(
       harness,
       [
-        "process.stdin.isTTY = true;",
-        "process.stdout.isTTY = true;",
+        'process.stdin.isTTY = true;',
+        'process.stdout.isTTY = true;',
         `const { AvenxCLI } = await import(${JSON.stringify(pathToFileURL(path.join(__dirname, '../../bin/cli.js')).href)});`,
-        "const cli = new AvenxCLI({ baseDir: process.cwd() });",
+        'const cli = new AvenxCLI({ baseDir: process.cwd() });',
         "await cli.run('build', []);",
-        "process.exit(0);",
+        'process.exit(0);',
       ].join('\n'),
     );
 
