@@ -112,9 +112,13 @@ export class AvenxCLI {
     switch (command) {
       case 'init':
         if (!force) {
-          const proceed = await checkGitStatus();
+          const proceed = await checkGitStatus(this.baseDir);
           if (!proceed) {
-            return;
+            // Declining is a refusal to run, not a successful no-op. Exiting 0
+            // here made `avenx build && deploy` deploy whatever was already in
+            // dist/, which contradicts the documented contract that build exits
+            // 0 only on a successful build.
+            process.exit(1);
           }
         }
         await initProject(this, args);
@@ -123,9 +127,13 @@ export class AvenxCLI {
       case 'generate':
       case 'g':
         if (!force) {
-          const proceed = await checkGitStatus();
+          const proceed = await checkGitStatus(this.baseDir);
           if (!proceed) {
-            return;
+            // Declining is a refusal to run, not a successful no-op. Exiting 0
+            // here made `avenx build && deploy` deploy whatever was already in
+            // dist/, which contradicts the documented contract that build exits
+            // 0 only on a successful build.
+            process.exit(1);
           }
         }
         if (type === 'bridge') {
@@ -144,9 +152,13 @@ export class AvenxCLI {
       case 'destroy':
       case 'd':
         if (!force) {
-          const proceed = await checkGitStatus();
+          const proceed = await checkGitStatus(this.baseDir);
           if (!proceed) {
-            return;
+            // Declining is a refusal to run, not a successful no-op. Exiting 0
+            // here made `avenx build && deploy` deploy whatever was already in
+            // dist/, which contradicts the documented contract that build exits
+            // 0 only on a successful build.
+            process.exit(1);
           }
         }
         if (type === 'bridge') {
@@ -165,9 +177,13 @@ export class AvenxCLI {
       case 'build':
       case 'b':
         if (!force) {
-          const proceed = await checkGitStatus();
+          const proceed = await checkGitStatus(this.baseDir);
           if (!proceed) {
-            return;
+            // Declining is a refusal to run, not a successful no-op. Exiting 0
+            // here made `avenx build && deploy` deploy whatever was already in
+            // dist/, which contradicts the documented contract that build exits
+            // 0 only on a successful build.
+            process.exit(1);
           }
         }
         buildProject(this);

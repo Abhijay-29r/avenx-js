@@ -23,12 +23,26 @@ export function parseName(inputName) {
 
 /**
  * Checks if git status is clean or prompts user if there are unstaged changes.
- * @returns {boolean|Promise<boolean>}
+ *
+ * Scoped to the project directory rather than to whatever the shell's working
+ * directory happens to be: the guard exists to protect the files the command
+ * is about to write, and those live under the project root. Reading
+ * `process.cwd()` instead meant a command run from a subdirectory reported the
+ * status of an unrelated enclosing repository.
+ *
+ * Git's own stderr is discarded. Outside a repository git writes
+ * `fatal: not a git repository` to stderr, which `execSync` forwards to the
+ * parent by default -- so every `avenx init` in a plain directory printed a
+ * fatal-looking line above its own output while in fact succeeding.
+ * @param {string} [cwd] - The project root to inspect. Defaults to the process's directory.
+ * @returns {boolean|Promise<boolean>} True to proceed, false when the user declined.
  */
-export function checkGitStatus() {
+export function checkGitStatus(cwd = process.cwd()) {
   try {
     const output = execSync('git status --porcelain', {
+      cwd,
       encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
     });
 
     if (!output.trim()) {

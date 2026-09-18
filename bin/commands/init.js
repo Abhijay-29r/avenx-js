@@ -253,11 +253,6 @@ export async function initProject(cli, args = []) {
     fs.writeFileSync(gitignorePath, `node_modules/\n${cli.config.distDir}/\n.DS_Store\n`);
     console.log('  Created: .gitignore');
   }
-  console.log(green('✅ Project initialized successfully!'));
-  if (isInteractive) {
-    process.stdin.pause();
-  }
-
   // Create initial .prettierrc
   const prettierPath = path.join(cli.baseDir, '.prettierrc');
 
@@ -267,5 +262,13 @@ export async function initProject(cli, args = []) {
     fs.writeFileSync(prettierPath, template);
 
     console.log('  Created: .prettierrc');
+  }
+
+  // Last, so the success line is the last thing printed. It used to be
+  // followed by another "Created:" line, which reads as work continuing after
+  // the command claimed to be finished.
+  console.log(green('✅ Project initialized successfully!'));
+  if (isInteractive) {
+    process.stdin.pause();
   }
 }
