@@ -48,7 +48,12 @@ try {
     const messages = warningsFor('<p>{{ a </p>');
     assert.strictEqual(messages.length, 1, 'one unterminated interpolation, one warning');
     assert.ok(/AVX_W54/.test(messages[0]), `expected AVX_W54, got:\n${messages[0]}`);
-    assert.ok(/Probe/.test(messages[0]), 'the message names the component');
+    assert.ok(
+      /probe\.component\.js/.test(messages[0]),
+      'the message names the file, in the "in template of <file>" form that ' +
+        '`avenx check --json` reads a location out of. ' +
+        `Got:\n${messages[0]}`,
+    );
     console.log('  ✅ fires on an unterminated interpolation');
   }
 
