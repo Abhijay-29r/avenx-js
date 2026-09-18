@@ -330,7 +330,7 @@ npx avenx build
 
 ---
 
-### 6. `avenx watch` (alias: `w`)
+### 5. `avenx watch` (alias: `w`)
 
 Runs an initial build and continuously watches the `src/` directory for code changes, automatically re-building the project distribution files upon every file edit.
 
@@ -344,7 +344,7 @@ Press `Ctrl + C` to terminate watch mode.
 
 ---
 
-### 5. `avenx check` (alias: `lint`)
+### 6. `avenx check` (alias: `lint`)
 
 Parses project templates and performs compile-time validation checks without building the project.
 
@@ -355,6 +355,17 @@ The command detects issues such as:
 - Undeclared actions
 
 Validation issues are reported as warnings.
+
+**Exit codes.** `avenx check` exits `0` only when it finds nothing at all. Any
+diagnostic exits `1`, including a warning — which is deliberately stricter than
+`avenx build`, where a warning still produces a bundle and exits `0`. Use
+`check` to gate a pull request and `build` to ship; a project that wants the two
+to agree can escalate the codes it cares about with `warnings` in
+`avenx.config.json`.
+
+Pass `--json` for machine-readable output: `{ valid, errorCount, warningCount,
+diagnostics[] }`, where each diagnostic carries `file`, `code`, `severity` and
+`message`. `file` is `null` when the diagnostic names no location.
 
 This command is useful for checking templates in development and Continuous Integration (CI/CD) pipelines without generating build output.
 
