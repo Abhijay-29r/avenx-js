@@ -1337,7 +1337,7 @@ Invalid SCSS syntax (referencing an undefined variable `$theme-color` and missin
 
 ```css
 <@css>
-  .card {
+  card {
     /* ❌ Undefined SCSS variable and missing closing brace; emits AVX_W31 */
     background: $theme-color;
     padding: 1.5rem;
@@ -1348,7 +1348,7 @@ Invalid Sass indented format (mixing invalid indentation):
 
 ```css
 <@css>
-  .button
+  button
     color: red
   /* ❌ Indentation syntax mismatch in Sass mode */
     background-color: blue
@@ -1363,13 +1363,17 @@ Valid SCSS stylesheet with defined variables and properly balanced braces:
 <@css>
   $theme-color: #646cff;
 
-  .card {
+  card {
     /* ✅ Properly defined variable and balanced closing brace */
     background: $theme-color;
     padding: 1.5rem;
   }
 </@css>
 ```
+
+The block is named `card`, not `.card`: an Avenx style block is a name an
+element attaches with `@css card`, not a CSS selector. A block named `.card`
+cannot be attached at all and is reported as `AVX_W55`.
 
 ### AVX_W07 — PAGE_ALREADY_REGISTERED
 
