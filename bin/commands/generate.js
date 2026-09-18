@@ -243,7 +243,50 @@ export function generatePage(cli, name, dryRun = false, force = false, templateN
   fs.writeFileSync(cssPath, cssTemplate);
 
   console.log(green(`✅ Page '${capitalizedName}' generated at ${cli.config.srcDir}/pages/${lowerName}.page.js`));
-  console.log(gray(`ℹ️ It will be automatically registered and routed if you update src/main.app.js.`));
+  reportPageWiring(cli, capitalizedName, lowerName);
+}
+
+/**
+ * Tells the developer what to add so the new page can actually be reached.
+ *
+ * The previous line read "it will be automatically registered and routed if
+ * you update src/main.app.js", which says both that nothing is required and
+ * that something is. Nothing is automatic: a page the route table does not
+ * name is compiled into the bundle and never rendered, and the application
+ * shows an empty container with no error. A developer who followed
+ * `avenx init` and `avenx generate page` reached exactly that, so this prints
+ * the line to add rather than alluding to it.
+ * @param {object} cli - The CLI instance.
+ * @param {string} className - The generated page's class name.
+ * @param {string} lowerName - The kebab-case file name.
+ * @returns {void}
+ */
+function reportPageWiring(cli, className, lowerName) {
+  const mainAppPath = path.join(cli.baseDir, cli.config.srcDir, 'main.app.js');
+  const route = lowerName === 'home' || lowerName === 'index' ? '' : `#/${lowerName}`;
+
+  let source = '';
+  try {
+    source = fs.readFileSync(mainAppPath, 'utf8');
+  } catch {
+    console.log(gray(`ℹ️ Add a route for it in ${cli.config.srcDir}/main.app.js.`));
+    return;
+  }
+
+  if (new RegExp(`['"\`]${className}['"\`]`).test(source)) {
+    console.log(gray(`ℹ️ ${cli.config.srcDir}/main.app.js already names '${className}'.`));
+    return;
+  }
+
+  if (/\binitRouter\s*\(/.test(source)) {
+    console.log(gray(`ℹ️ Add it to the route table in ${cli.config.srcDir}/main.app.js:`));
+    console.log(gray(`     '${route}': '${className}',`));
+    return;
+  }
+
+  console.log(gray(`ℹ️ Nothing routes to it yet. Add to ${cli.config.srcDir}/main.app.js:`));
+  console.log(gray(`     app.initRouter({ '${route}': '${className}' });`));
+  console.log(gray('   Without a route, the page is bundled but never rendered (AVX_W53).'));
 }
 
 /**
