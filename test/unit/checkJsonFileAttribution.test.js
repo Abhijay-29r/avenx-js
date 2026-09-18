@@ -82,6 +82,25 @@ const CONFIG_FOOTER = 'Silence this class with "warnings": { "AVX_W52": "off" } 
   console.log('  ✅ a name inside a longer dotted name is not matched');
 }
 
+// --- AVX_W51 and AVX_W52 now name their own file --------------------------
+{
+  // Both used to be attributed to the phantom "config.js". Rather than settle
+  // for null, each message now names its template the way AVX_W03 does, so the
+  // developer reading the warning and the CI job reading the JSON get the same
+  // answer.
+  const w52 = parse(
+    `[AVX_W52] <Probe> uses the inline event handler "onclick" (in template of probe.page.js). ${CONFIG_FOOTER}`,
+  );
+  assert.strictEqual(w52.file, 'probe.page.js', 'AVX_W52 names its template');
+
+  const w51 = parse(
+    '[AVX_W51] State "o" in <Probe> (in template of probe.page.js) looks like an object or ' +
+      `array initialiser but contains a function call. ${CONFIG_FOOTER}`,
+  );
+  assert.strictEqual(w51.file, 'probe.page.js', 'AVX_W51 names its template');
+  console.log('  ✅ AVX_W51 and AVX_W52 name their own template');
+}
+
 // --- the code and message survive ----------------------------------------
 {
   const diagnostic = parse(`[AVX_W52] <Probe> uses the inline event handler "onclick". ${CONFIG_FOOTER}`);
