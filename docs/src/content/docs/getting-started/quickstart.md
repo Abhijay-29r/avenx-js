@@ -40,19 +40,28 @@ Open `src/components/counter/counter.component.js` and update it as follows:
 
 <action name="decrement"> state.count--; </action>
 
-<div class="counter-card">
+<div @css card>
   <h2>{{ title }}</h2>
-  <p class="number">Value: {{ count }} (Double: {{ doubleCount }})</p>
-  <div class="buttons">
-    <button @click="decrement()">Minus</button>
-    <button @click="increment()">Plus</button>
+  <p @css number>Value: {{ count }} (Double: {{ doubleCount }})</p>
+  <div>
+    <button @css action @click="decrement()">Minus</button>
+    <button @css action @click="increment()">Plus</button>
   </div>
 </div>
 ```
 
+Styling is attached with the `@css` directive, which names a block in the
+stylesheet you are about to write. Avenx does not match styles by class name,
+so an element with no `@css` directive is unstyled.
+
 ### Step 4: Define Scoped CSS
 
 Open `src/components/counter/counter.component.css` and define your scoped styles:
+
+A `<@css>` block contains **named blocks**, not CSS selectors. `card { ... }`
+declares a block called `card`, which the template attaches with `@css card`.
+Writing `.card { ... }` would declare a block whose name is `.card` -- a name no
+`@css` directive can spell -- and the build reports it as `AVX_W55`.
 
 ```css
 <@global>
@@ -61,7 +70,7 @@ Open `src/components/counter/counter.component.css` and define your scoped style
 </@global>
 
 <@css>
-    .counter-card {
+    card {
         padding: 2rem;
         border-radius: 12px;
         background: #f9fafb;
@@ -71,13 +80,13 @@ Open `src/components/counter/counter.component.css` and define your scoped style
         margin: 2rem auto;
     }
 
-    .number {
+    number {
         font-size: 1.25rem;
         color: @text-dark;
         margin: 1rem 0;
     }
 
-    button {
+    action {
         background-color: @brand-color;
         color: white;
         border: none;
@@ -87,10 +96,10 @@ Open `src/components/counter/counter.component.css` and define your scoped style
         cursor: pointer;
         font-weight: 600;
         transition: opacity 0.2s;
-    }
 
-    button:hover {
-        opacity: 0.9;
+        &:hover {
+            opacity: 0.9;
+        }
     }
 </@css>
 ```
