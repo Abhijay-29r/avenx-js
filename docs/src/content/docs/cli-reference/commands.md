@@ -281,7 +281,7 @@ npx avenx build --dev
 
 The active mode appears in the build header, and can also be set with `mode` in `avenx.config.json` or via `NODE_ENV=development`. See the [deployment guide](/guides/deployment#build-modes) for what the two modes differ in.
 
-**Exit codes.** `avenx build` exits `0` only on a successful build. Any fatal compiler error, a warning escalated to `"error"`, a failing lifecycle hook, or declining the working-tree prompt exits non-zero, so `avenx build && deploy` never deploys a failed build. See [Build Failures and Exit Codes](/guides/deployment#build-failures-and-exit-codes).
+**Exit codes.** An unrecognised command exits `1` and names the closest match, so a mistyped command in a script never passes as success. `avenx build` exits `0` only on a successful build. Any fatal compiler error, a warning escalated to `"error"`, a failing lifecycle hook, or declining the working-tree prompt exits non-zero, so `avenx build && deploy` never deploys a failed build. See [Build Failures and Exit Codes](/guides/deployment#build-failures-and-exit-codes).
 
 #### Features & Distribution Files
 
