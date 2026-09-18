@@ -145,6 +145,15 @@ console.log('Testing AVX_W53 (no reachable page)...');
   const text = messages.join('\n');
   assert.ok(/AVX_W53/.test(text), `expected AVX_W53 in output, got:\n${text}`);
   assert.ok(/Home/.test(text), 'the message should name the page');
+  // An application that calls app.mount() for a root component renders
+  // something, so the finding must be about the pages being unreachable rather
+  // than about the whole application being blank -- overstating it is the kind
+  // of claim that teaches a developer to stop trusting the diagnostic.
+  assert.ok(
+    !/renders nothing/.test(text),
+    `the message must not claim the whole application renders nothing:\n${text}`,
+  );
+  assert.ok(/can reach/.test(text), 'it should say the pages cannot be reached');
   assert.ok(/src\/main\.app\.js/.test(text), 'the message should name the entry file');
   assert.ok(
     !/\{\d\}/.test(text),
