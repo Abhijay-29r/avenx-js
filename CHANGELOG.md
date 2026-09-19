@@ -16,6 +16,60 @@ rest of that directory, and nothing replaced it, so the reference was dead.)
 Production-readiness cycle. No public API was removed and no documented feature
 was dropped. Behaviour changes are listed with their migration.
 
+### Fixed — found by an adversarial pass over the release candidate
+
+A second review followed the documentation literally, built a realistic
+application, and compared development against production. It found defects the
+first pass and the whole test suite had missed.
+
+- **A component nested inside a component did not mount** when its host
+  appeared during an update rather than at first render. The page's mount pass
+  collects `[data-avenx-comp]` hosts before its children have rendered, so one
+  pass reached one level; deeper levels arrived only when another pass happened
+  to run. The common shape — fetch in `onMount`, render a list of components
+  that contain components — silently lost all of its inner content, with a
+  clean build, a passing `avenx check`, an empty console, and development and
+  production agreeing with each other. No fixture in the suite nested a
+  component inside a component, which is why 156 browser tests said nothing.
+- **Every nested reactive object claimed its component's computed properties.**
+  One proxy handler serves the root state and every object inside it, and the
+  computed traps did not ask which object they were answering for. So
+  `Object.keys(state.query)` listed computed names, `JSON.stringify(state.form)`
+  serialised computed values into a request, and `state.query.total` returned
+  the component's `total`. Templates never showed it, because they read
+  computeds off the root where they belong.
+- **`this.$router` did not exist.** The routing guide documents
+  `navigate()`, `back()`, `forward()` and `go()` on it, and the routing
+  tutorial uses it for programmatic navigation; every one of those examples
+  threw. It is now implemented, and declared in the type surface.
+- **Route parameters were reported as undeclared.** A page routed as
+  `'/profile/:id'` receives `id` as state, but the template validator only read
+  `<state>`, so `{{ id }}` raised `AVX_W03` and `avenx check` exited 1 — the
+  documented feature failing the documented CI command on correct code.
+- `AVX_W07` fired when a page was registered again with the *same* class, which
+  overwrites nothing. The routing tutorial tells the reader to register pages by
+  hand while the compiler already does, so following it logged one warning per
+  page on every load.
+- `avenx init my-app` discarded the name and scaffolded into the current
+  directory, exiting 0 — the routing tutorial opened with exactly that command.
+  It now refuses an argument it does not use and prints the recipe that works.
+
+### Added — found by the same pass
+
+- `AVX_W56` reports a component a template renders that the application never
+  registers. Pages are registered by the compiler and components are not, so a
+  hand-written `main.app.js` silently loses them; the runtime renders an empty
+  element and says nothing until the page is opened.
+
+### Fixed — documentation that did not survive being followed
+
+- The installation page required Node 18 in one paragraph and recommended v16
+  two lines later, with v16 in its requirements table. The CLI exits 1 below 18.
+- The routing tutorial's login step could never succeed: it branched on
+  `username === 'admin'` with no input on the page.
+- Its profile page copied a query parameter into state inside `onMount`, so the
+  sub-nav links it tells the reader to add changed the URL and nothing else.
+
 ### Fixed — the scaffolded first run
 
 The path a new user takes — `avenx init`, `avenx generate page`, `avenx build`,
@@ -92,6 +146,9 @@ console. Four separate defects met there, each individually invisible.
 
 | Change | Migration |
 |---|---|
+| `avenx init <name>` exits 1 instead of ignoring the name | `mkdir <name> && cd <name> && npx avenx init` |
+| `AVX_W56` may appear on an existing project | Register the component, or silence the code |
+| `this.$router` now exists | None; it previously threw |
 | `''`, `'/'` and `'/about'` route patterns now match | None. They previously matched nothing; a table declaring the root twice still works |
 | An unrecognised command exits 1 | Fix the typo; the message names the closest command |
 | Declining the working-tree prompt exits 1 | Pass `--force`, or commit first |
