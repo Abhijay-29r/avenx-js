@@ -12,9 +12,13 @@ Client-side routing is essential for Single Page Applications (SPAs). In this st
 Before starting, make sure you have an Avenx-JS project initialized using the CLI:
 
 ```bash
-npx avenx init my-router-app
+mkdir my-router-app
 cd my-router-app
+npx avenx init
 ```
+
+`avenx init` scaffolds into the current directory, so create and enter the
+directory first.
 
 ---
 
@@ -78,22 +82,23 @@ app.initRouter(
 
 ## Step 3: Extract Dynamic Route Parameters & Query Strings
 
-Route parameters specified with a colon (e.g. `:id`) and query parameters (e.g. `?tab=settings`) are automatically parsed and passed to page components.
+Route parameters specified with a colon (e.g. `:id`) and query parameters (e.g. `?tab=settings`) are automatically parsed and passed to page components. They arrive as page state: `:id` becomes `id`, and the query string becomes `query`.
+
+Derive anything you show from them with `<computed>` rather than copying them in
+`onMount`. Navigating between two URLs of the same route — which is what the
+sub-nav links below do — updates the parameters on the existing page instance
+instead of mounting a new one, so `onMount` does not run again and a value
+copied there would stay at whatever the first URL said.
 
 Update `src/pages/profile.page.js`:
 
 ```html
 <!-- src/pages/profile.page.js -->
-<state activeTab="'overview'" />
+<computed name="activeTab" value="query && query.tab ? query.tab : 'overview'" />
 
 <action name="onMount">
   // Access route params via state.id or this.$route.params.id
   console.log(`Mounted profile page for user ID: ${this.state.id}`);
-  
-  // Access query parameters (e.g. #/profile/42?tab=activity)
-  if (this.state.query && this.state.query.tab) {
-    this.state.activeTab = this.state.query.tab;
-  }
 </action>
 
 <div class="profile-page">
@@ -130,9 +135,14 @@ In addition to standard HTML hash links (`<a href="#/profile/42">`), you can tri
 
 <div class="login-page">
   <h2>Sign In</h2>
+  <input data-ax-bind="username" placeholder="Username" />
   <button @click="handleLogin()">Log In</button>
 </div>
 ```
+
+The input is bound to `username` with `data-ax-bind`, so typing `admin` and
+pressing **Log In** takes the first branch. Without it `username` stays `''`
+and the action can only ever reach the `alert`.
 
 ---
 
@@ -178,5 +188,5 @@ npx avenx serve
 
 1. Open `http://localhost:3000/#/`. You will see the **Home** page.
 2. Try navigating directly to `http://localhost:3000/#/profile/42`. Because `window.isLoggedIn` is false, `AuthGuard` automatically redirects you to `#/login`!
-3. Click **Log In** on the Login page. The `handleLogin` action sets `window.isLoggedIn = true` and programmatically navigates to `#/profile/42`.
+3. Type `admin` into the username field and click **Log In**. The `handleLogin` action sets `window.isLoggedIn = true` and programmatically navigates to `#/profile/42`. Any other value alerts instead.
 4. Try typing an unknown hash like `http://localhost:3000/#/unknown/page`. The wildcard `*` route resolves and renders the **NotFound** 404 page!

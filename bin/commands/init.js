@@ -4,11 +4,39 @@ import { fileURLToPath } from 'url';
 import { readTemplate } from '../utils.js';
 import { runWizard } from '../wizard.js';
 import { getInitialHtml } from './serve.js';
-import { bold, cyan, green } from '../colors.js';
+import { bold, cyan, green, red, gray } from '../colors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf8'));
+
+/**
+ * Stops `avenx init` from silently ignoring an argument it does not use.
+ *
+ * `init` scaffolds into the current working directory, as the CLI reference
+ * states. It also accepted and discarded any other word on the command line, so
+ * `avenx init my-app` -- which the routing tutorial documented, and which is
+ * what every other scaffolder in the ecosystem means -- scattered a project
+ * across whatever directory the user happened to be in and exited 0. The next
+ * documented step, `cd my-app`, then failed with no explanation of why.
+ *
+ * Refusing is the honest answer: creating the directory instead would be a new
+ * behaviour, and guessing which the user meant after the files are already
+ * written is worse than not starting.
+ * @param {string[]} args - The arguments passed after `init`.
+ * @returns {void}
+ * @throws {never} Exits the process with code 1 when an argument is unexpected.
+ */
+function rejectUnexpectedArguments(args) {
+  const unexpected = (args || []).filter((arg) => !arg.startsWith('-'));
+  if (unexpected.length === 0) return;
+
+  const name = unexpected[0];
+  console.error(red(`avenx init does not take a project name (got "${name}").`));
+  console.error(gray('It scaffolds into the current directory. To create a new one:'));
+  console.error(gray(`  mkdir ${name} && cd ${name} && npx avenx init`));
+  process.exit(1);
+}
 
 /**
  * Initializes a new Avenx project structure.
@@ -16,6 +44,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../../packa
  * @param {string[]} [args] - CLI arguments.
  */
 export async function initProject(cli, args = []) {
+  rejectUnexpectedArguments(args);
+
   const { stylePreprocessor, layoutTemplate, isInteractive } = await runWizard(args);
 
   console.log(bold(cyan(`🚀 Initializing new Avenx-JS project (Style: ${stylePreprocessor}, Layout: ${layoutTemplate})...`)));
