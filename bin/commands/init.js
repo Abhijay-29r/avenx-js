@@ -124,7 +124,6 @@ export async function initProject(cli, args = []) {
           "app.register('Navbar', Navbar);\n\n" +
           'app.initRouter({\n' +
           "  '': 'Home',\n" +
-          "  '#/': 'Home',\n" +
           "  '#/about': 'About',\n" +
           '});\n',
       );

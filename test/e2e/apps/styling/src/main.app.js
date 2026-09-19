@@ -9,5 +9,4 @@ app.register('BetaBox', BetaBox);
 
 app.initRouter({
   '': 'Styling',
-  '#/': 'Styling',
 });

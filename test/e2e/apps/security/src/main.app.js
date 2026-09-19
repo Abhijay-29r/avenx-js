@@ -11,5 +11,4 @@ if (typeof window !== 'undefined') {
 
 app.initRouter({
   '': 'Srcdoc',
-  '#/': 'Srcdoc',
 });

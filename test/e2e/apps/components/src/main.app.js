@@ -9,5 +9,4 @@ app.register('CardBadge', CardBadge);
 
 app.initRouter({
   '': 'Composition',
-  '#/': 'Composition',
 });

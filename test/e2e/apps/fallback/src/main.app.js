@@ -14,5 +14,4 @@ app.register('Dl', Dl);
 
 app.initRouter({
   '': 'Shell',
-  '#/': 'Shell',
 });

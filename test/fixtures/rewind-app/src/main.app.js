@@ -9,6 +9,5 @@ app.register('PostCard', PostCard);
 
 app.initRouter({
   '': 'Cart',
-  '#/': 'Cart',
   '#/cart': 'Cart',
 });
