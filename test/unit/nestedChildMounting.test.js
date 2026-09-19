@@ -257,4 +257,55 @@ function count(root, id) {
   console.log('  ✅ a prop forwarded through the child reaches the grandchild');
 }
 
+// Prop *propagation* through a nested chain is covered by
+// test/e2e/specs/components/composition.spec.js instead of here. It depends on
+// the compiled render program raising `onChildProps` when a prop op writes to a
+// child host, and the hand-written render() classes in this file never take the
+// compiled path -- a test here would pass whether or not the mechanism works.
+
+// --- repeated updates do not duplicate or churn instances ---------------
+{
+  class ChurnPage extends AvenxPage {
+    constructor(bridges, components) {
+      super({ rows: ['a'] }, {}, bridges, '', {}, components, {}, {}, {});
+    }
+
+    render() {
+      return `<ul>${this.state.rows
+        .map((row) => `<div data-avenx-comp="Outer" data-props-tag="'${row}'"></div>`)
+        .join('')}</ul>`;
+    }
+  }
+
+  const app = appWith({ Outer, Inner });
+  app.registerPage('Churn', ChurnPage);
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+
+  const page = new ChurnPage(app.bridges, app.components);
+  page.$app = app;
+  page.mount(host);
+
+  const firstInner = host.querySelector('[data-avenx-comp="Inner"]').__avenx_comp_instance;
+  const firstUid = firstInner && firstInner.uid;
+
+  for (let i = 0; i < 10; i += 1) {
+    page.state.rows = [`row${i}`];
+    page.update();
+  }
+
+  assert.strictEqual(count(host, 'outer'), 1, 'ten updates must not accumulate children');
+  assert.strictEqual(count(host, 'inner'), 1, 'nor grandchildren');
+
+  const lastInner = host.querySelector('[data-avenx-comp="Inner"]').__avenx_comp_instance;
+  assert.strictEqual(
+    lastInner && lastInner.uid,
+    firstUid,
+    'the instance is reused across updates rather than rebuilt, so listeners and ' +
+      'subscriptions are not rebound every time',
+  );
+  page.unmount();
+  console.log('  ✅ repeated updates reuse instances and do not duplicate them');
+}
+
 console.log('✅ Nested child component mounting tests passed!');

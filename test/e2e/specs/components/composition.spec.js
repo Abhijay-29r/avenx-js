@@ -29,6 +29,27 @@ test.describe('component composition', () => {
     await expect(page.getByTestId('filled').getByTestId('badge')).toHaveText('100/high');
   });
 
+  test('propagates a changed prop through a nested component', async ({ page }) => {
+    // StatCard forwards its own `value` prop down to CardBadge. When the page
+    // changes `revenue`, StatCard re-renders and writes the new value onto the
+    // badge's host element -- but nothing reconciled that onto the badge
+    // *instance*, because a component discarded the notification that says a
+    // child's prop changed. The prop therefore stopped one level below the
+    // page: the card updated and the badge kept its first value forever.
+    const filled = page.getByTestId('filled');
+
+    await expect(filled.getByTestId('card-value')).toHaveText('100');
+    await expect(filled.getByTestId('badge')).toHaveText('100/high');
+
+    await page.getByTestId('raise').click();
+
+    await expect(filled.getByTestId('card-value')).toHaveText('150');
+    await expect(filled.getByTestId('badge')).toHaveText(
+      '150/high',
+      { timeout: 5000 },
+    );
+  });
+
   test('mounts nested components in a list assigned after mount', async ({ page }) => {
     // The shape a real page has: fetch on mount, render a list of components
     // that contain components. Each row must carry its own badge, and each
