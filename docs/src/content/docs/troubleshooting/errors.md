@@ -753,7 +753,7 @@ This validation exists purely to help catch mistakes early — it will not preve
 WARNING: {0} exceeds {1} KB ({2} KB)
 ```
 
-**Cause:** This warning is emitted during the bundling phase when a compiled JavaScript chunk or CSS asset exceeds the configured bundle size budget. Avenx-JS compares the final output size of generated assets against the thresholds defined in `avenx.config.json`. Exceeding these limits does not stop the build, but it indicates that the generated bundle may negatively affect application performance, particularly initial page load times.
+**Cause:** This warning is emitted during the bundling phase when a compiled JavaScript chunk or CSS asset exceeds the configured bundle size budget. Only assets a browser downloads on a page load are weighed: source maps, the trace sidecar (`bundle.trace.json`) and the Atlas (`bundle.atlas.json`) are build artifacts and are excluded, so a development build is not reported for the size of its source map. Avenx-JS compares the final output size of generated assets against the thresholds defined in `avenx.config.json`. Exceeding these limits does not stop the build, but it indicates that the generated bundle may negatively affect application performance, particularly initial page load times.
 
 This typically happens for a few common reasons:
 
@@ -1337,7 +1337,7 @@ Invalid SCSS syntax (referencing an undefined variable `$theme-color` and missin
 
 ```css
 <@css>
-  .card {
+  card {
     /* ❌ Undefined SCSS variable and missing closing brace; emits AVX_W31 */
     background: $theme-color;
     padding: 1.5rem;
@@ -1348,7 +1348,7 @@ Invalid Sass indented format (mixing invalid indentation):
 
 ```css
 <@css>
-  .button
+  button
     color: red
   /* ❌ Indentation syntax mismatch in Sass mode */
     background-color: blue
@@ -1363,13 +1363,17 @@ Valid SCSS stylesheet with defined variables and properly balanced braces:
 <@css>
   $theme-color: #646cff;
 
-  .card {
+  card {
     /* ✅ Properly defined variable and balanced closing brace */
     background: $theme-color;
     padding: 1.5rem;
   }
 </@css>
 ```
+
+The block is named `card`, not `.card`: an Avenx style block is a name an
+element attaches with `@css card`, not a CSS selector. A block named `.card`
+cannot be attached at all and is reported as `AVX_W55`.
 
 ### AVX_W07 — PAGE_ALREADY_REGISTERED
 

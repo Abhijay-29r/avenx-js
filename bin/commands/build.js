@@ -121,11 +121,23 @@ export function parseDiagnostic(severity, args) {
 
   // Extract file path/name if not found on error object
   if (!file) {
+    // Remedy text routinely names the configuration file -- "Silence this class
+    // with \"warnings\": { \"AVX_W52\": \"off\" } in avenx.config.json" is the
+    // standard footer on a silenceable warning. That is a configuration
+    // reference, not the location the diagnostic is about, and the last pattern
+    // below matched `config.js` inside it: AVX_W51 and AVX_W52 were both
+    // reported in `avenx check --json` against a file called "config.js", which
+    // exists in no project. A CI job annotating a pull request from this output
+    // pointed at a path that is not there.
+    const searchable = rawMsg.replace(/avenx\.config\.json/gi, '');
+
     const fileMatch =
-      rawMsg.match(/in template of\s+["']?([^"'\s]+\.[a-zA-Z0-9]+)["']?/i) ||
-      rawMsg.match(/in component\s+<([^>]+)>/i) ||
-      rawMsg.match(/at\s+["']?([^"'\s]+\.[a-zA-Z0-9]+)["']?/i) ||
-      rawMsg.match(/["']?([a-zA-Z0-9_\-/\\]+\.(?:js|component\.js|page\.js|html|json))["']?/i);
+      searchable.match(/in template of\s+["']?([^"'\s]+\.[a-zA-Z0-9]+)["']?/i) ||
+      searchable.match(/in component\s+<([^>]+)>/i) ||
+      searchable.match(/at\s+["']?([^"'\s]+\.[a-zA-Z0-9]+)["']?/i) ||
+      // The trailing guard stops a name from matching inside a longer dotted
+      // one, which is the general form of the same mistake.
+      searchable.match(/["']?([a-zA-Z0-9_\-/\\]+\.(?:component\.js|page\.js|js|mjs|cjs|html|css|json))(?![\w.])["']?/i);
 
     if (fileMatch) {
       file = fileMatch[1];

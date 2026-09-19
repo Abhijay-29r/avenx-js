@@ -20,7 +20,7 @@ The following flags can be passed globally to `avenx` commands:
 | Option | Alias | Description | Supported Commands |
 | :--- | :--- | :--- | :--- |
 | `--dry-run` | `-d` | Previews file creation, modification, or deletion actions without modifying disk. | `generate`, `destroy` |
-| `--force` | `-f` | Forces command execution by bypassing uncommitted Git working tree status checks. | `init`, `generate`, `destroy`, `build` |
+| `--force` | `-f` | Forces command execution by bypassing uncommitted Git working tree status checks. The check reads the project directory, and is skipped when the project is not in a Git repository. Declining its prompt exits `1`. | `init`, `generate`, `destroy`, `build` |
 | `--dev` | | Builds in development mode: readable runtime, inline CSS source maps. | `build`, `serve`, `watch` |
 | `--prod` | | Builds in production mode: minified runtime. The default for `build`. | `build`, `serve`, `watch` |
 | `--json` | `-j` | Machine-readable output. | `check`, `stats`, `atlas`, `impact`, `why`, `explain`, `trace list`, `trace view` |
@@ -281,7 +281,7 @@ npx avenx build --dev
 
 The active mode appears in the build header, and can also be set with `mode` in `avenx.config.json` or via `NODE_ENV=development`. See the [deployment guide](/guides/deployment#build-modes) for what the two modes differ in.
 
-**Exit codes.** `avenx build` exits `0` only on a successful build. Any fatal compiler error, a warning escalated to `"error"`, or a failing lifecycle hook exits non-zero, so `avenx build && deploy` never deploys a failed build. See [Build Failures and Exit Codes](/guides/deployment#build-failures-and-exit-codes).
+**Exit codes.** An unrecognised command exits `1` and names the closest match, so a mistyped command in a script never passes as success. `avenx build` exits `0` only on a successful build. Any fatal compiler error, a warning escalated to `"error"`, a failing lifecycle hook, or declining the working-tree prompt exits non-zero, so `avenx build && deploy` never deploys a failed build. See [Build Failures and Exit Codes](/guides/deployment#build-failures-and-exit-codes).
 
 #### Features & Distribution Files
 
@@ -330,7 +330,7 @@ npx avenx build
 
 ---
 
-### 6. `avenx watch` (alias: `w`)
+### 5. `avenx watch` (alias: `w`)
 
 Runs an initial build and continuously watches the `src/` directory for code changes, automatically re-building the project distribution files upon every file edit.
 
@@ -344,7 +344,7 @@ Press `Ctrl + C` to terminate watch mode.
 
 ---
 
-### 5. `avenx check` (alias: `lint`)
+### 6. `avenx check` (alias: `lint`)
 
 Parses project templates and performs compile-time validation checks without building the project.
 
@@ -355,6 +355,17 @@ The command detects issues such as:
 - Undeclared actions
 
 Validation issues are reported as warnings.
+
+**Exit codes.** `avenx check` exits `0` only when it finds nothing at all. Any
+diagnostic exits `1`, including a warning — which is deliberately stricter than
+`avenx build`, where a warning still produces a bundle and exits `0`. Use
+`check` to gate a pull request and `build` to ship; a project that wants the two
+to agree can escalate the codes it cares about with `warnings` in
+`avenx.config.json`.
+
+Pass `--json` for machine-readable output: `{ valid, errorCount, warningCount,
+diagnostics[] }`, where each diagnostic carries `file`, `code`, `severity` and
+`message`. `file` is `null` when the diagnostic names no location.
 
 This command is useful for checking templates in development and Continuous Integration (CI/CD) pipelines without generating build output.
 

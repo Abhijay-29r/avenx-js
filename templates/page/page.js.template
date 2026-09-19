@@ -1,6 +1,6 @@
 <state title="{{ name }}" />
 
-<div class="page-container">
+<div @css container>
     <h1>{{ title }}</h1>
     <p>Welcome to the {{ name }} page.</p>
 </div>

@@ -58,6 +58,31 @@ test.describe('hash routing', () => {
     await expect(page.getByTestId('page-not-found')).toBeVisible();
   });
 
+  test('renders the root route for a URL with no hash', async ({ page, app }) => {
+    // The blank page this guards: the fixture declares its root as '/', and
+    // only a pattern spelled '#/' used to match anything. A URL with no hash at
+    // all is what a visitor types, so this is the first thing anyone sees.
+    await app.open('routing');
+
+    await expect(page.getByTestId('page-home')).toBeVisible();
+  });
+
+  test('renders the root route for a bare "#" URL', async ({ page, app }) => {
+    // What any `<a href="#">` on the page leaves in the URL. It used to
+    // normalize to '#', which matched no pattern, so the router fell through to
+    // the wildcard and showed the not-found page.
+    await app.open('routing', { hash: '#' });
+
+    await expect(page.getByTestId('page-home')).toBeVisible();
+    await expect(page.getByTestId('page-not-found')).toHaveCount(0);
+  });
+
+  test('renders the root route for an explicit "#/" URL', async ({ page, app }) => {
+    await app.open('routing', { hash: '#/' });
+
+    await expect(page.getByTestId('page-home')).toBeVisible();
+  });
+
   test('renders the deep-linked route on a cold load', async ({ page, app }) => {
     // Loading straight into a route, rather than navigating to it, is the
     // classic SPA break: the router has to resolve the hash that was already
