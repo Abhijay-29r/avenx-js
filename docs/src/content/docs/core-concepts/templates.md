@@ -573,6 +573,26 @@ Here, `data-props-user` passes the value of `state.currentUser` from the parent 
 <MyProfile data-props-user="state.currentUser" data-props-isAdmin="state.isAdmin" />
 ```
 
+### The plain attribute form
+
+A plain attribute whose value interpolates does the same thing, and reads more
+like ordinary HTML:
+
+```html
+<MyProfile user="{{ currentUser }}" isAdmin="{{ isAdmin }}" />
+```
+
+The two differ only in how the value is read. `data-props-user="currentUser"`
+is an **expression**, so a literal string needs its own quotes
+(`data-props-title="'Account Overview'"`). `user="{{ currentUser }}"` is an
+**interpolation**, so an unbraced value is a literal string
+(`title="Account Overview"`). Both deliver the value to `this.props.<name>`,
+and both are reactive: the child updates when the state behind the value
+changes.
+
+Use whichever reads better. The generated components and the Quick Start use
+the plain form.
+
 ## 10. SVG Support
 
 Avenx-JS natively supports rendering SVG elements inside templates. During template cloning and patching, the framework automatically preserves the correct SVG namespace (`http://www.w3.org/2000/svg`), ensuring that SVG graphics render correctly in the browser.

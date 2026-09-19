@@ -9,7 +9,7 @@ Before installing the Avenx CLI, ensure your environment meets the following req
 *   **Node.js**: Version `18.0.0` or later is strictly required.
 *   **Compatibility Check**: Upon startup, the CLI automatically verifies your Node.js engine version. Running the CLI on unsupported, older environments will cause the application to terminate immediately with an exit code `1`.
 
-To begin using Avenx-JS, make sure you have [Node.js](https://nodejs.org/) (v16 or higher recommended) installed on your machine.
+To begin using Avenx-JS, make sure you have [Node.js](https://nodejs.org/) v18 or later installed on your machine. The CLI refuses to run on anything older.
 
 ## Installing the Core package
 
@@ -29,6 +29,6 @@ npx avenx init
 
 | Dependency     | Requirement       | Purpose                                   |
 | -------------- | ----------------- | ----------------------------------------- |
-| Node.js        | v16.0.0+          | Running CLI commands and local dev server |
+| Node.js        | v18.0.0+          | Running CLI commands and local dev server |
 | NPM / Yarn     | v7.0.0+           | Installing dependency packages            |
 | Modern Browser | ES6 Proxy support | Required for the reactive runtime engine  |

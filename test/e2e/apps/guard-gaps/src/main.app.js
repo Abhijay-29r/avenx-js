@@ -6,7 +6,6 @@ const app = new AvenxApp({ target: '#app' });
 
 app.initRouter({
   '': 'Home',
-  '#/': 'Home',
   '#/first': { page: 'Home', guards: [FirstGuard] },
   '#/second': { page: 'Home', guards: [SecondGuard] },
 });

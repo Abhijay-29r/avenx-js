@@ -237,7 +237,15 @@ import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
 
     assert.strictEqual(mountedParams.userId, '%E0%A4%A', 'Router should fall back to the raw parameter value');
 
-    // 9. Duplicate page registration should warn
+    // 9. Page registration warns about a real overwrite, and only that.
+    //
+    // This step used to register `TestPage` over itself and assert a warning.
+    // That assertion encoded a warning that was not true: the message says the
+    // page "will be overwritten", and `pages.set(name, sameClass)` overwrites
+    // nothing. It also fired on the documented path -- the routing tutorial
+    // tells the reader to register each page by hand, and the compiler already
+    // auto-registers every page under src/pages -- so a tutorial-following app
+    // logged one of these per page on every load.
     const originalWarn = console.warn;
     let warningMessage = '';
 
@@ -247,7 +255,28 @@ import { AvenxPage } from '../../lib/core/runtime/AvenxPage.js';
 
     app.registerPage('TestPage', TestPage);
 
-    assert.ok(warningMessage.includes('already registered'), 'Expected duplicate page registration warning');
+    assert.strictEqual(
+      warningMessage,
+      '',
+      'Re-registering the identical page class overwrites nothing and must be silent',
+    );
+
+    class ReplacementPage extends AvenxPage {
+      render() {
+        return '<div>Replacement</div>';
+      }
+    }
+
+    app.registerPage('TestPage', ReplacementPage);
+
+    assert.ok(
+      warningMessage.includes('already registered'),
+      'Replacing a page with a different class is a real overwrite and must warn',
+    );
+
+    // Put the original class back so the steps below still route to it.
+    warningMessage = '';
+    app.registerPage('TestPage', TestPage);
 
     console.warn = originalWarn;
 

@@ -11,5 +11,4 @@ app.register('Ticker', Ticker);
 
 app.initRouter({
   '': 'Shell',
-  '#/': 'Shell',
 });

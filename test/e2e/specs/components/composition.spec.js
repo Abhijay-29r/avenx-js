@@ -12,7 +12,53 @@ test.describe('component composition', () => {
   });
 
   test('mounts one child component per usage', async ({ page }) => {
-    await expect(page.getByTestId('card')).toHaveCount(2);
+    // Two written directly in the template, plus one per row of the list the
+    // page assigns in onMount.
+    await expect(page.getByTestId('filled').getByTestId('card')).toHaveCount(1);
+    await expect(page.getByTestId('bare').getByTestId('card')).toHaveCount(1);
+    await expect(page.getByTestId('late').getByTestId('card')).toHaveCount(2);
+  });
+
+  test('mounts a component nested inside a component', async ({ page }) => {
+    // StatCard renders CardBadge. Nothing in this suite nested one component
+    // inside another until now, which is how a defect that left every
+    // grandchild unmounted survived a full green E2E run: the page's mount
+    // pass collects mount points before its children have rendered, so the
+    // inner host does not exist yet.
+    await expect(page.getByTestId('filled').getByTestId('badge')).toHaveCount(1);
+    await expect(page.getByTestId('filled').getByTestId('badge')).toHaveText('100/high');
+  });
+
+  test('propagates a changed prop through a nested component', async ({ page }) => {
+    // StatCard forwards its own `value` prop down to CardBadge. When the page
+    // changes `revenue`, StatCard re-renders and writes the new value onto the
+    // badge's host element -- but nothing reconciled that onto the badge
+    // *instance*, because a component discarded the notification that says a
+    // child's prop changed. The prop therefore stopped one level below the
+    // page: the card updated and the badge kept its first value forever.
+    const filled = page.getByTestId('filled');
+
+    await expect(filled.getByTestId('card-value')).toHaveText('100');
+    await expect(filled.getByTestId('badge')).toHaveText('100/high');
+
+    await page.getByTestId('raise').click();
+
+    await expect(filled.getByTestId('card-value')).toHaveText('150');
+    await expect(filled.getByTestId('badge')).toHaveText(
+      '150/high',
+      { timeout: 5000 },
+    );
+  });
+
+  test('mounts nested components in a list assigned after mount', async ({ page }) => {
+    // The shape a real page has: fetch on mount, render a list of components
+    // that contain components. Each row must carry its own badge, and each
+    // badge must have computed from its own row's value.
+    const late = page.getByTestId('late');
+
+    await expect(late.getByTestId('badge')).toHaveCount(2);
+    await expect(late.getByTestId('badge').nth(0)).toHaveText('10/low');
+    await expect(late.getByTestId('badge').nth(1)).toHaveText('80/high');
   });
 
   test('passes parent state into the child as props', async ({ page }) => {

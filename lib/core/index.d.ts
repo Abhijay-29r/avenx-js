@@ -235,6 +235,14 @@ export class AvenxComponent<S extends Record<string, any> = Record<string, any>>
     };
 
     /**
+     * The router this component's application initialised, if any.
+     *
+     * Use it to navigate from inside an action: `this.$router.navigate('#/home')`.
+     * Null when the application never called `initRouter`.
+     */
+    readonly $router: AvenxRouter | null;
+
+    /**
      * Runs after the current reactive DOM update flush completes.
      * With a callback, invokes it after the flush. Without a callback, returns a Promise.
      */
