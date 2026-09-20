@@ -282,7 +282,7 @@ export class AvenxCLI {
       case 'watch':
       case 'w':
         console.log(cyan(`👀 Watching for changes in ${this.config.srcDir}/...\n`));
-        buildProject(this);
+        buildProject(this, { watch: true });
         watchProject(this);
         process.on('SIGINT', () => {
           console.log(`\n${gray('Stopping watch...')}`);

@@ -42,16 +42,22 @@ function runHook(phase, command, baseDir) {
  * Throws on any failure. The caller turns that into an exit code; nothing here
  * may report success for a build that did not complete.
  * @param {object} cli - AvenxCLI instance containing config and baseDir.
+ * @param {object} [options] - Build options.
+ * @param {boolean} [options.watch] - True when this build is one cycle of a
+ *   long-lived watch session, which is what allows the compilation cache.
  * @returns {object} The compiler's build result.
  * @throws {BuildError} When a hook or the compilation fails.
  */
-export function buildProject(cli) {
+export function buildProject(cli, options = {}) {
   const hooks = (cli && cli.config && cli.config.hooks) || {};
   const baseDir = (cli && cli.baseDir) || process.cwd();
 
   runHook('prebuild', hooks.prebuild, baseDir);
 
-  const result = new AvenxCompiler(cli.config).build();
+  // `watch` is what lets the compiler reuse cached compilation products, and it
+  // is passed only by the commands that keep a process alive across rebuilds.
+  // `avenx build` calls this without it and so always builds cold.
+  const result = new AvenxCompiler({ ...cli.config, watch: options.watch === true }).build();
 
   runHook('postbuild', hooks.postbuild, baseDir);
 
@@ -170,9 +176,12 @@ function getTimestamp() {
  * Runs a single template check pass and returns structured results.
  * @param {object} cli - AvenxCLI instance containing config and baseDir.
  * @param {string[]} [args] - Command line arguments.
+ * @param {object} [options] - Pass options.
+ * @param {boolean} [options.watch] - True when this pass is one cycle of
+ *   `check --watch`, which is what allows the compilation cache.
  * @returns {{ valid: boolean, errorCount: number, warningCount: number, diagnostics: any[] }}
  */
-export function runCheckPass(cli, args = []) {
+export function runCheckPass(cli, args = [], options = {}) {
   const isJson = args.includes('--json') || args.includes('-j');
   const diagnostics = [];
 
@@ -222,6 +231,7 @@ export function runCheckPass(cli, args = []) {
     const compiler = new AvenxCompiler({
       ...cli.config,
       ...(cli.baseDir ? { rootDir: cli.baseDir } : {}),
+      watch: options.watch === true,
     });
     const model = compiler.analyze();
 
@@ -280,7 +290,7 @@ export function checkProject(cli, args = []) {
 
     const executeCheck = () => {
       const timestamp = getTimestamp();
-      const report = runCheckPass(cli, args);
+      const report = runCheckPass(cli, args, { watch: true });
 
       if (isJson) {
         const jsonReport = {
