@@ -1870,7 +1870,7 @@ Directives are evaluated inside `#applyDirectives` in a strict priority order. E
 | 1 | `data-ax-html` | Evaluates expression, sets `innerHTML`. Accepts `SafeHtml` for raw output or escapes via `HtmlEscaper`. Sets `skipChildren = true` - all child diffing is skipped. |
 | 2 | `data-ax-show` | Evaluates boolean expression. Toggles `display: none` with transition support (`enter`/`leave`). Preserves original `display` value. |
 | 3 | `data-ax-class` | Accepts a string (space-separated classes) or object (`{ className: boolean }`). Removes previous classes, adds new set - idempotent across re-renders. |
-| 4 | `:[attr]="expr"` | Dynamic attribute name binding. Evaluates bracketed expression for the actual attribute name. Tracks previous names in `__avenxDynAttrs` for cleanup. |
+| 4 | `:[attr]="expr"` | Dynamic attribute name binding. Evaluates bracketed expression for the actual attribute name. Both the name and the value are expressions -- writing either as `{{ ... }}` is refused at build time (`AVX_C29`). Tracks previous names in `__avenxDynAttrs` for cleanup. |
 | 5 | `data-ax-*` (custom) | Custom directive registrations. Splits attribute on `.` for modifier support. Manages lifecycle hooks (`mounted`, `updated`, `unmounted`) via session tracking. |
 
 ---
@@ -1890,7 +1890,7 @@ Directives are evaluated inside `#applyDirectives` in a strict priority order. E
 | `data-ax-list-item` | Marks a node as managed by `ListManager` - skipped during diff |
 | `data-avenx-comp` | Component boundary marker - patching delegates to component instance |
 | `data-avenx-transcluded` | Marks a `<slot>` as containing transcluded content |
-| `:[expr]="expr"` | Dynamic attribute name/value binding |
+| `:[expr]="expr"` | Dynamic attribute name/value binding. Both slots are **expressions**, not interpolations: `:[key]="{{ value }}"` and `:[{{ key }}]="value"` are refused at build time (`AVX_C29`). |
 
 
 ### Usage Example
