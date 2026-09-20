@@ -23,6 +23,7 @@ import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { fileURLToPath } from 'url';
 import AvenxCompiler from '../../lib/compiler.js';
 import {
   clearIncrementalCache,
@@ -35,7 +36,9 @@ import { logger } from '../../lib/core/runtime/AvenxLogger.js';
 
 console.log('🧪 Testing incremental rebuilds against cold builds...');
 
-const FIXTURE = path.join(import.meta.dirname, '../fixtures/atlas-app');
+// `fileURLToPath` rather than `import.meta.dirname`: the package supports
+// Node 18, where the latter does not exist.
+const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/atlas-app');
 const roots = [];
 
 /**
