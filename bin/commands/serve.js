@@ -715,8 +715,10 @@ export function watchProject(cli) {
       timeout = setTimeout(() => {
         console.log(`\n${cyan(`📄 Change detected: ${filename}. Rebuilding...`)}`);
 
+        const startedAt = performance.now();
+
         try {
-          buildProject(cli);
+          buildProject(cli, { watch: true });
         } catch (error) {
           // A watch session keeps going: the next save usually fixes it. The
           // browser is not reloaded, so it keeps showing the last good build
@@ -724,6 +726,11 @@ export function watchProject(cli) {
           reportRebuildFailure(error);
           return;
         }
+
+        // What the rebuild cost, on every cycle. Rebuild latency is the
+        // most-felt property of a development loop, and a number that is printed
+        // is one a developer can notice getting worse.
+        console.log(green(`✅ Rebuilt in ${Math.round(performance.now() - startedAt)}ms`));
 
         if (cli.liveReloadClients) {
           cli.liveReloadClients.forEach((client) => {
@@ -814,7 +821,7 @@ export function listenWithPortFallback(server, requestedPort, host, onListening)
  * @param {boolean} [open]
  */
 export function serveProject(cli, port, host = 'localhost', open = false) {
-  buildProject(cli);
+  buildProject(cli, { watch: true });
 
   if (cli.config.server.liveReload) {
     cli.liveReloadClients = [];

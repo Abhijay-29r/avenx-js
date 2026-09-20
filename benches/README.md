@@ -15,6 +15,7 @@ node benches/run.js
 - **component-parser.bench.js**: Measures the speed of parsing `.component.js` and `.component.css` files into JavaScript classes.
 - **style-processor.bench.js**: Measures the speed of processing HTML templates, scoping CSS rules, and applying variables.
 - **runtime-render.bench.js**: Measures the speed of the runtime template interpolation (rendering).
+- **incremental-rebuild.bench.js**: Measures what the compilation cache saves a watch rebuild, comparing a rebuild after a one-line edit against a cold build of the same project at two sizes.
 
 ## Methodology
 

@@ -38,8 +38,57 @@ Avenx-JS reads optional project settings from `avenx.config.json` in the project
 | `voidTags`     | `string[]` | `[]`                   | Extra tag names the compiler treats as void (self-closing), in addition to the built-in HTML void tags (`img`, `br`, `input`, etc.). Each entry must be a non-empty string. |
 | `templateGlobals` | `string[]` | `[]`                 | Identifiers a plugin publishes into every component's template scope through `app.mixin()`. Declaring them lets template validation accept `{{ t('home.title') }}` without weakening the check for anything else. See [Plugin-provided template globals](#plugin-provided-template-globals). |
 | `warnings`     | `object`   | `{}`                   | Map of compiler warning codes (`AVX_W01`, `AVX_W03`, etc.) to severity overrides (`"off"`, `"ignore"`, `"warn"`, or `"error"`). |
+| `incremental`  | `boolean`  | `false`                | Lets `avenx serve`, `avenx watch` and `avenx check --watch` reuse the compilation of a file that has not changed, so a rebuild after one edit does not recompile the project. See [Incremental rebuilds](#incremental-rebuilds-incremental). |
 
 Path options must be relative paths. Absolute paths are rejected during configuration loading.
+
+
+## Incremental rebuilds (`incremental`)
+
+Every rebuild recompiles the whole project by default. Editing one line of one
+component costs what a cold build costs, and it grows with the project.
+
+Setting `incremental` to `true` lets the long-lived commands — `avenx serve`,
+`avenx watch` and `avenx check --watch` — reuse the compilation of any file whose
+inputs have not changed:
+
+```json
+{
+  "incremental": true
+}
+```
+
+On a 300-component project this makes a rebuild after a one-line edit about 1.6x
+faster than a cold build, and the gap widens as the project grows
+(`npm run bench` reports the current numbers). Each watch cycle prints how long
+it took, so the effect is visible rather than claimed.
+
+### What it does not change
+
+`avenx build` is never incremental, whatever this option says. A production
+artifact must not depend on the state of an in-memory cache, so a build always
+starts cold — which is also why the cache is never written to disk.
+
+A rebuild's output is identical to a cold build's, byte for byte, including the
+source maps, the trace sidecar and the Atlas. Warnings are reported on a reused
+file exactly as they were on a compiled one, so `check --watch` cannot disagree
+with itself between passes.
+
+### What invalidates it
+
+A file is recompiled when its own source changes, when its stylesheet changes, or
+when anything it resolves against changes: a bridge's declared surface, the set of
+component names in the project, the route parameters of a page, the build mode,
+`avenx.config.json`, or the compiler itself. Adding, renaming or deleting any file
+changes the set of component names, so the rebuild that follows is a full one.
+
+### Why it is off by default
+
+The option exists so that projects can adopt it deliberately. Reusing a previous
+compilation is only safe while the cache key covers everything a unit was derived
+from, and the test that demonstrates that — an edit sequence whose incremental
+output is compared byte for byte against a cold build at every step — is younger
+than the code it checks. It will default to `true` once it has run for a while.
 
 
 ## Plugin-provided template globals
