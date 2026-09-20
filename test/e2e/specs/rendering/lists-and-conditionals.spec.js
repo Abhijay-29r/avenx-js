@@ -184,3 +184,52 @@ test.describe('conditional rendering', () => {
     await expect(page.getByTestId('greeting')).toHaveCount(0);
   });
 });
+
+test.describe('keyed list rows that carry event handlers', () => {
+  // Every list fixture above renders an inert row. A real row has a button on
+  // it, and a handler compiles to a binding with no watcher -- which is what
+  // `ForBinding`'s refresh of a reused row used to trip over, aborting
+  // reconciliation between moving the survivors and disposing the rows that
+  // had left. The symptom was a list that reordered correctly and then kept
+  // every filtered-out row, silently.
+  test.beforeEach(async ({ app }) => {
+    await app.open('rendering', { hash: '#/filtered-list' });
+  });
+
+  test('removes the rows a filter excludes', async ({ page }) => {
+    await expect(page.getByTestId('row-label')).toHaveText(['one', 'two', 'three']);
+
+    await page.getByTestId('show-kept').click();
+
+    // The count and the DOM must agree. They did not: the count said 2 while
+    // all three rows were still on screen.
+    await expect(page.getByTestId('visible-count')).toHaveText('2');
+    await expect(page.getByTestId('row-label')).toHaveText(['one', 'three']);
+  });
+
+  test('keeps reconciling after a removal', async ({ page }) => {
+    await page.getByTestId('show-kept').click();
+    await expect(page.getByTestId('row-label')).toHaveText(['one', 'three']);
+
+    await page.getByTestId('show-all').click();
+    await expect(page.getByTestId('row-label')).toHaveText(['one', 'two', 'three']);
+    await expect(page.getByTestId('visible-count')).toHaveText('3');
+  });
+
+  test('falls through to the empty branch when every row leaves', async ({ page }) => {
+    await page.getByTestId('drop-all').click();
+
+    await expect(page.getByTestId('row')).toHaveCount(0);
+    await expect(page.getByTestId('row-empty')).toHaveText('nothing');
+  });
+
+  test('the handler on a surviving row still fires', async ({ page }) => {
+    await page.getByTestId('show-kept').click();
+    await expect(page.getByTestId('row-label')).toHaveText(['one', 'three']);
+
+    // The second surviving row: it was reused and moved, so its handler is the
+    // one most likely to have been lost.
+    await page.getByTestId('row-button').nth(1).click();
+    await expect(page.getByTestId('last-clicked')).toHaveText('three');
+  });
+});
