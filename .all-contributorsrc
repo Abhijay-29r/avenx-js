@@ -1027,6 +1027,15 @@
       "contributions": [
         "test"
       ]
+    },
+    {
+      "login": "alfarant07",
+      "name": "Anthony Alfaro",
+      "avatar_url": "https://avatars.githubusercontent.com/u/169631373?v=4",
+      "profile": "https://github.com/alfarant07",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs",
