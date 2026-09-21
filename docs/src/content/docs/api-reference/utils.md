@@ -1654,11 +1654,11 @@ async function measureCustomWorkflow() {
 
 ---
 
-## 15. HtmlDiff DOM Comparison Algorithm & API
+## 15. `HtmlDiff` HTML Comparison Utility
 
-`HtmlDiff` is a lightweight string-comparison utility for detecting HTML content changes at the template string level. It compares two raw HTML strings and returns the new content only when they differ, making it suitable for coarse-grained change detection before handing off to a reconciliation engine.
+`HtmlDiff` is a lightweight utility for detecting changes between two HTML strings. It performs a direct string comparison and returns the new HTML only when the content has changed.
 
-For granular DOM node diffing with in-place patching, attribute synchronization, and directive evaluation, see [DomPatcher](#16-dompatcher).
+`HtmlDiff` does **not** perform recursive DOM reconciliation or apply DOM patches. For node-level DOM comparison and in-place updates, use [`DomPatcher`](#16-dompatcher).
 
 ### Importing
 
@@ -1674,42 +1674,75 @@ const differ = new HtmlDiff();
 
 The constructor takes no arguments.
 
-### Methods
+### `diff(currentHtml, nextHtml)`
 
-#### `diff(currentHtml, nextHtml)`
+Compares the current HTML string with the next HTML string.
 
-Compares two HTML strings for equality. If they differ, returns the next HTML string. If they are identical, returns `null`.
+**Signature:**
 
-- **Signature:** `diff(currentHtml: string, nextHtml: string): string | null`
+```typescript
+diff(currentHtml: string, nextHtml: string): string | null
+```
 
-- **Parameters:**
+**Parameters:**
 
-  - `currentHtml: string`: The current HTML content to compare against.
-  - `nextHtml: string`: The new HTML content to compare.
+* `currentHtml` (`string`): The current HTML content.
+* `nextHtml` (`string`): The new HTML content to compare.
 
-- **Returns:**
+**Returns:**
 
-  - `string | null`: `string` if the `nextHtml` value differs from `currentHtml` and `null` if both strings are identical.
+* `string`: The `nextHtml` value when the two strings are different.
+* `null`: When `currentHtml` and `nextHtml` are identical.
 
-### Usage Example
+### How Comparison Works
+
+`HtmlDiff` uses a direct equality comparison:
+
+1. The current and next HTML strings are compared.
+2. If both strings are identical, `null` is returned.
+3. If they differ, the complete `nextHtml` string is returned.
+
+The utility does not inspect individual elements, attributes, text nodes, or child-node relationships.
+
+### Example
 
 ```javascript
 import { HtmlDiff } from 'avenx-core/runtime';
 
 const differ = new HtmlDiff();
 
-const oldHtml = '<div class="card"><h2>Title</h2><p>Content</p></div>';
-const newHtml = '<div class="card"><h2>Title</h2><p>Updated content</p></div>';
-const unchangedHtml = '<div class="card"><h2>Title</h2><p>Content</p></div>';
+const currentHtml = '<div class="card">Hello</div>';
+const nextHtml = '<div class="card">Updated</div>';
 
-differ.diff(oldHtml, newHtml);
-// Returns: '<div class="card"><h2>Title</h2><p>Updated content</p></div>'
+const changedHtml = differ.diff(currentHtml, nextHtml);
 
-differ.diff(oldHtml, unchangedHtml);
-// Returns: null
+console.log(changedHtml);
+// '<div class="card">Updated</div>'
 ```
 
----
+When there is no change:
+
+```javascript
+const currentHtml = '<div class="card">Hello</div>';
+const nextHtml = '<div class="card">Hello</div>';
+
+const changedHtml = differ.diff(currentHtml, nextHtml);
+
+console.log(changedHtml);
+// null
+```
+
+### `HtmlDiff` vs. `DomPatcher`
+
+`HtmlDiff` and `DomPatcher` serve different purposes:
+
+| Utility      | Purpose                                                                         |
+| ------------ | ------------------------------------------------------------------------------- |
+| `HtmlDiff`   | Detects whether two HTML strings differ and returns the new HTML when they do.  |
+| `DomPatcher` | Performs recursive DOM comparison and applies changes directly to the live DOM. |
+
+For DOM-level reconciliation, attribute updates, child-node changes, and directive processing, use `DomPatcher`.
+
 
 ## 16. DomPatcher
 
