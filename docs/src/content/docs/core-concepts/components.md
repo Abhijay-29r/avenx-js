@@ -113,85 +113,77 @@ A value that is neither JSON nor a literal is plain text: `title="Home"` is the 
 
 > Before 2026-09, a JavaScript literal such as `{name: 'John'}` fell back to a string silently. Components that relied on that string — reading it back as text — now receive an object instead. To keep a string, wrap the value in single quotes when it contains none of its own (`label="'{ draft }'"` is the string `{ draft }`), or set it in `onMount`.
 
-## Component Nesting Restrictions
+## Nesting Components
 
-> **Important:** Custom components can currently only be resolved, instantiated, and mounted when they are declared directly inside an Avenx Page template (`.page.js`).
-
-Standard Avenx components (`.component.js`) do not support mounting child components inside their own templates. Child component registration and mounting are handled at the `AvenxPage` level and are not available to the base `AvenxComponent` class.
-
-For example, placing a custom component inside a Page template is supported:
+A component may render another component. A component tag is resolved wherever
+it appears -- in a page template, in a component template, or inside a `<@for>`
+or `<@if>` within either -- and props flow down through every level.
 
 ```html
-<!-- src/pages/home/home.page.js -->
-<div class="home-page">
-  <Navbar />
-  <Card />
-</div>
-```
-
-In this case, the Page runtime can resolve and mount the `Navbar` and `Card` components.
-
-However, nesting one custom component inside another standard component is currently not supported:
-
-```html
-<!-- src/components/card/card.component.js -->
-<div class="card">
-  <Navbar />
-  <p>Card content</p>
-</div>
-```
-
-Although the compiler may parse the custom `<Navbar />` tag, the base `AvenxComponent` runtime does not resolve and mount it as a child component.
-
-### Symptom
-
-When a custom component tag is placed inside a standard `.component.js` template, the application may render an empty element or placeholder in the DOM instead of mounting the expected child component.
-
-For example:
-
-```html
-<div class="card">
-  <Navbar />
-</div>
-```
-
-may result in the child component area appearing as an empty `div` in the rendered DOM.
-
-This behavior occurs because child component mounting is handled by `AvenxPage`, while standard `AvenxComponent` instances do not currently provide child component registration or mounting functionality.
-
-### Recommended Component Design
-
-Until nested components are supported by the component runtime:
-
-- Declare custom component instances directly inside `.page.js` templates.
-- Use Pages as the composition layer for combining multiple components.
-- Keep `.component.js` templates focused on their own markup, state, computed values, and actions.
-- Avoid placing custom component tags inside standard component templates.
-- Move sibling components to the containing Page when multiple components need to appear together.
-
-Instead of nesting components like this:
-
-```html
-<!-- Not currently supported -->
-<!-- src/components/dashboard/dashboard.component.js -->
+<!-- src/pages/dashboard.page.js -->
 <div class="dashboard">
-  <Navbar />
-  <Stats />
+  <Navbar user="{{ currentUser }}" />
+  <Stats period="{{ period }}" />
 </div>
 ```
-
-compose them directly in the Page template:
 
 ```html
-<!-- Recommended -->
-<!-- src/pages/dashboard/dashboard.page.js -->
-<div class="dashboard">
-  <Navbar />
-  <Stats />
+<!-- src/components/stats/stats.component.js -->
+<div class="stats">
+  <!-- A component inside a component. -->
+  <StatCard label="Open" value="{{ this.props.openCount }}" />
+  <StatCard label="Done" value="{{ this.props.doneCount }}" />
 </div>
 ```
 
-This structure ensures that each custom component can be correctly resolved, instantiated, and mounted by the Page runtime.
+```html
+<!-- src/components/stat-card/stat-card.component.js -->
+<div class="stat-card">
+  <p>{{ this.props.label }}</p>
+  <p>{{ this.props.value }}</p>
+  <!-- And another level below that. -->
+  <Badge text="{{ this.props.label }}" />
+</div>
+```
+
+Every component in that chain mounts, and a change to the page's state reaches
+`Badge` through each level in the same flush.
+
+Registration is per application, not per parent. A component is registered once
+in `src/main.app.js` -- which `avenx g component` does for you -- and is then
+available to every template:
+
+```javascript
+app.register('StatCard', StatCard);
+app.register('Badge', Badge);
+```
+
+### How deep it goes
+
+Mounting a child renders its template, which can introduce mount points of its
+own, so the page reconciles children in repeated passes until a pass mounts
+nothing new. The depth is therefore not fixed by the mechanism, but it is
+bounded: a tree nested more than 50 levels deep, or a component that renders
+itself without a base case, stops at that bound and reports
+[`AVX_R36`](/troubleshooting/errors#avx-r36-component-nesting-limit) rather
+than looping. Reaching it almost always means a component is rendering itself.
+
+### When to nest and when not to
+
+Nesting being available does not make it the right choice everywhere. Passing a
+value down through several levels that do nothing with it but pass it on is the
+case a [Bridge](/core-concepts/bridges) or
+[Provide & Inject](/core-concepts/provide-inject) exists for. Prefer props for
+one or two levels, and a Bridge when the state genuinely spans the tree.
+
+:::note
+Before 2026-09, child mounting reached only one level below whatever was
+already rendered, so a grandchild rendered or did not depending on when its
+parent's list was populated -- a component whose data arrived in `onMount()`
+appeared empty, with a clean build and a silent console. Earlier versions of
+this page documented that limitation as a rule and recommended composing every
+component as a sibling in a page. That is no longer necessary.
+:::
 
 ## Slot Fallback Content
 

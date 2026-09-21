@@ -18,6 +18,45 @@ import { explainDiagnostic } from './commands/explain.js';
 import { runTrace } from './commands/trace.js';
 import { runAtlas, runQuery } from './commands/atlas.js';
 
+/**
+ * The scaffold kinds `generate` and `destroy` accept as their first argument.
+ * @type {string[]}
+ */
+const SCAFFOLD_TYPES = ['component', 'c', 'page', 'p', 'bridge', 'guard'];
+
+/**
+ * Refuses a scaffold command whose type is not one this CLI knows.
+ *
+ * `avenx g <name>` is the documented shorthand for generating a component, so
+ * an unrecognised first argument is normally a name. It cannot be a name when a
+ * second positional argument follows it: `avenx g pge home` can only have meant
+ * `avenx g page home`, and reading it as the shorthand created a component
+ * called "pge", registered it in `src/main.app.js`, discarded "home" and exited
+ * 0.
+ * @param {string} command - The command being run, for the message.
+ * @param {string} type - The first positional argument.
+ * @param {string|undefined} name - The second positional argument, if any.
+ * @returns {boolean} True when the command should not proceed.
+ */
+function refuseUnknownScaffoldType(command, type, name) {
+  if (!name || SCAFFOLD_TYPES.includes(type)) return false;
+
+  const verb = command === 'd' || command === 'destroy' ? 'remove' : 'scaffold';
+  const closest = getClosestKey(type, SCAFFOLD_TYPES);
+
+  console.error(red(`❌ Error: Unknown type "${type}".`));
+  console.error(gray('   Expected one of: component, page, bridge, guard.'));
+  if (closest) {
+    console.error(gray(`   Did you mean "avenx ${command} ${closest} ${name}"?`));
+  }
+  console.error(
+    gray(`   To ${verb} a component called "${type}", run "avenx ${command} ${type}" with no second argument.`),
+  );
+  process.exitCode = 1;
+  return true;
+}
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const findProjectRoot = loadConfig.findProjectRoot;
@@ -171,6 +210,8 @@ export class AvenxCLI {
           generatePage(this, name, dryRun, force, templateName);
         } else if (type === 'component' || type === 'c') {
           generateComponent(this, name, dryRun, force, templateName, withTest, noTest);
+        } else if (refuseUnknownScaffoldType('g', type, name)) {
+          break;
         } else {
           // Default to component if type is not specified (e.g., `avenx g MyButton`)
           generateComponent(this, type, dryRun, force, templateName, withTest, noTest);
@@ -196,6 +237,8 @@ export class AvenxCLI {
           destroyPage(this, name, dryRun);
         } else if (type === 'component' || type === 'c') {
           destroyComponent(this, name, dryRun);
+        } else if (refuseUnknownScaffoldType('d', type, name)) {
+          break;
         } else {
           // Default to component if only one arg or type is 'component'
           destroyComponent(this, name || type, dryRun);

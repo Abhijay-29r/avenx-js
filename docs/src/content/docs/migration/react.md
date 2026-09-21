@@ -159,9 +159,9 @@ export function Panel({ title, children }) {
 
 If the parent omits a slot's content, the child's fallback markup inside `<slot>` renders instead (the `Default Header` above), so optional regions stay usable without every caller supplying them. Scoped slots go further and let the child pass data back into the parent's slot template via `:prop` bindings — see [Scoped Slots](/core-concepts/components#scoped-slots--passing-slot-props).
 
-### Why Components Mount Inside Pages
+### Composing Components
 
-Avenx-JS currently resolves and mounts **custom components only when they are declared directly inside a `.page.js` template**. React lets you nest components arbitrarily; Avenx-JS does not support mounting one standard `.component.js` inside another (see [Component Nesting Restrictions](/core-concepts/components#component-nesting-restrictions)). The supported shape is:
+Components nest the way they do in React: a component tag is resolved wherever it appears, including inside another component's template, and props flow down through every level (see [Nesting Components](/core-concepts/components#nesting-components)).
 
 ```html
 <!-- src/pages/dashboard/dashboard.page.js -->
@@ -171,7 +171,17 @@ Avenx-JS currently resolves and mounts **custom components only when they are de
 </div>
 ```
 
-Nesting `UserCard` inside `Navbar`'s template instead will not instantiate it — hoist the custom component to the page, or compose it with `<slot>` transclusion so the page supplies the child content.
+```html
+<!-- src/components/navbar/navbar.component.js -->
+<nav>
+  <!-- Resolved and mounted, the same as in the page above. -->
+  <UserCard data-props-title="'Account Overview'" />
+</nav>
+```
+
+The differences that remain are registration and depth. A component is registered once for the whole application in `src/main.app.js` rather than imported into each parent, and a tree nested beyond 50 levels — in practice, a component rendering itself without a base case — stops and reports `AVX_R36` instead of looping.
+
+> Before 2026-09, child mounting reached only one level below whatever was already rendered, and earlier versions of this guide told you to hoist every component into the page. That is no longer necessary.
 
 ### `className` → `class` + Scoped Styles
 

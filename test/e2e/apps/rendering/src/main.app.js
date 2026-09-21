@@ -8,4 +8,5 @@ app.initRouter({
   '#/multiline-state': 'MultilineState',
   '#/conditional': 'Conditional',
   '#/literal-state': 'LiteralState',
+  '#/filtered-list': 'FilteredList',
 });
