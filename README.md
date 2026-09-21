@@ -1,6 +1,6 @@
 ![Avenx Header](https://raw.githubusercontent.com/Avenx-JS/.github/refs/heads/main/media/core-header.jpeg)
 
-# 🚀 Avenx-JS
+# 🚀 [Avenx-JS] (https://avenx-js.com/)
 
 **Avenx-JS** is a lightweight, experimental frontend framework designed for simplicity and performance. It features a custom compiler-driven component system, Proxy-based reactivity, scoped CSS, and powerful CLI tooling—all with zero runtime dependencies.
 
