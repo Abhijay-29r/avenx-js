@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/Avenx-JS/.github/refs/heads/main/media/logo.png" width="150px">
+
 # Avenx.js
 
 **A frontend framework that can explain itself.**
@@ -13,30 +15,6 @@ Single-file components, compiled templates, and a compiler that keeps a model of
 [**Documentation**](https://docs.avenx-js.com/) &nbsp;·&nbsp; [**Quick start**](#-quick-start) &nbsp;·&nbsp; [**Why Avenx**](#-why-avenx-is-different) &nbsp;·&nbsp; [**CLI**](#-cli-reference) &nbsp;·&nbsp; [**Contributing**](#-contributing)
 
 </samp>
-
-<br/>
-
-<details>
-<summary><b>📋 Full table of contents</b></summary>
-<br/>
-
-- [🧭 What Avenx is](#-what-avenx-is)
-- [✨ Why Avenx is different](#-why-avenx-is-different)
-  - [🔭 Atlas — ask the compiler what a change will break](#-atlas--ask-the-compiler-what-a-change-will-break)
-  - [🔍 Trace — record why a bug happened, then replay it](#-trace--record-why-a-bug-happened-then-replay-it)
-  - [🔄 Rewind — optimistic updates that undo themselves](#-rewind--optimistic-updates-that-undo-themselves)
-  - [🔒 Compiled expressions — no `eval`, no `new Function`](#-compiled-expressions--no-eval-no-new-function)
-- [🚀 Quick start](#-quick-start)
-- [📖 A tour of the syntax](#-a-tour-of-the-syntax)
-- [📦 What's in the box](#-whats-in-the-box)
-- [🔧 CLI reference](#-cli-reference)
-- [🧩 Tooling and ecosystem](#-tooling-and-ecosystem)
-- [📍 Project status](#-project-status)
-- [📚 Documentation](#-documentation)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
-
-</details>
 
 </div>
 
