@@ -8,6 +8,7 @@ import { initProject } from './commands/init.js';
 import { generateComponent, generatePage, generateBridge, generateGuard } from './commands/generate.js';
 import { destroyComponent, destroyPage, destroyBridge, destroyGuard } from './commands/destroy.js';
 import { buildProject, cleanProject, checkProject } from './commands/build.js';
+import { runFormat } from './commands/format.js';
 import { serveProject, watchProject } from './commands/serve.js';
 import { printHelp } from './commands/help.js';
 import { runDoctor } from './commands/doctor.js';
@@ -71,7 +72,7 @@ const findProjectRoot = loadConfig.findProjectRoot;
 export const KNOWN_COMMANDS = [
   'init', 'generate', 'g', 'destroy', 'd', 'build', 'b', 'clean', 'check', 'lint',
   'doctor', 'env', 'explain', 'inspect', 'i', 'stats', 's', 'atlas', 'impact', 'why',
-  'trace', 'serve', 'watch', 'w', 'help',
+  'trace', 'serve', 'watch', 'w', 'format', 'help',
 ];
 
 /**
@@ -331,6 +332,9 @@ export class AvenxCLI {
           console.log(`\n${gray('Stopping watch...')}`);
           process.exit(0);
         });
+        break;
+      case 'format':
+        runFormat();
         break;
       case 'trace':
         runTrace(this, args);
