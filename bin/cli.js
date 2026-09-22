@@ -334,7 +334,7 @@ export class AvenxCLI {
         });
         break;
       case 'format':
-        runFormat();
+        runFormat(this);
         break;
       case 'trace':
         runTrace(this, args);
