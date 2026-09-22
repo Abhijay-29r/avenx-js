@@ -8,7 +8,7 @@
 
 Single-file components, compiled templates, and a compiler that keeps a model of your whole application —<br/>so you can ask it what a change will break before you make it.
 
-[![npm](https://img.shields.io/npm/v/avenx-core?style=flat-square&color=6366f1&label=npm)](https://www.npmjs.com/package/avenx-core) [![docs](https://img.shields.io/badge/docs-avenx--js.com-6366f1?style=flat-square)](https://docs.avenx-js.com/) [![runtime deps](https://img.shields.io/badge/runtime%20deps-0-6366f1?style=flat-square)](#-whats-in-the-box) [![node](https://img.shields.io/badge/node-%E2%89%A518-22c55e?style=flat-square)](https://nodejs.org) [![license](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE) [![contributors](https://img.shields.io/github/all-contributors/Avenx-JS/avenx-js?style=flat-square&color=f59e0b)](CONTRIBUTORS.md)
+[![npm](https://img.shields.io/npm/v/avenx-core?style=flat&color=3b82f6&label=npm)](https://www.npmjs.com/package/avenx-core) [![docs](https://img.shields.io/badge/docs-avenx--js.com-6366f1?style=flat)](https://docs.avenx-js.com/) [![runtime deps](https://img.shields.io/badge/runtime%20deps-0-f97316?style=flat)](#-whats-in-the-box) [![node](https://img.shields.io/badge/node-%E2%89%A518-22c55e?style=flat)](https://nodejs.org) [![license](https://img.shields.io/badge/license-MIT-ef4444?style=flat)](LICENSE) [![contributors](https://img.shields.io/github/all-contributors/Avenx-JS/avenx-js?style=flat&color=f59e0b)](CONTRIBUTORS.md)
 
 <samp>
 
@@ -802,7 +802,7 @@ Avenx is **pre-1.0**. Under SemVer that means a minor release may change public
 behaviour; every such change is listed in [CHANGELOG.md](CHANGELOG.md) with its
 migration.
 
-- **Published:** `avenx-core@0.4.3` on npm.
+- **Published:** `avenx-core@1.0.0-rc.1` on npm.
 - **In progress:** a production-readiness cycle ahead of a release candidate.
   The unreleased section of the changelog records what it has found and fixed.
 - **Node:** 18 or newer. CI runs the suite on 18, 20 and 22.
