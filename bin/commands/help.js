@@ -35,8 +35,9 @@ ${bold(cyan('Commands:'))}
   ${green('trace prune')}               ${gray('Remove stored traces')}
   ${green('serve [port]')}              ${gray('Start dev server with hot-reload (default: 3000)')}
   ${green('watch (w)')}                 ${gray('Watch for file changes and rebuild automatically')}
-  ${green('help')}                      ${gray('Show this help message')}
-
+  ${green('format')}                    ${gray('Format project files using Prettier')}
+  ${green('help')}                      ${gray('Show this help message')} 
+  
 ${bold(cyan('Options:'))}
   ${green('--dev')}                     ${gray('Build for development: readable runtime, inline CSS source maps')}
   ${green('--prod')}                    ${gray('Build for production (the default for "build")')}
