@@ -1,694 +1,934 @@
-![Avenx Header](https://raw.githubusercontent.com/Avenx-JS/.github/refs/heads/main/media/core-header.jpeg)
+<div align="center">
 
-# 🚀 [Avenx-JS] (https://avenx-js.com/)
+# Avenx.js
 
-**Avenx-JS** is a lightweight, experimental frontend framework designed for simplicity and performance. It features a custom compiler-driven component system, Proxy-based reactivity, scoped CSS, and powerful CLI tooling—all with zero runtime dependencies.
+**A frontend framework that can explain itself.**
+
+Single-file components, compiled templates, and a compiler that keeps a model of your whole application —<br/>so you can ask it what a change will break before you make it.
+
+[![npm](https://img.shields.io/npm/v/avenx-core?style=flat-square&color=6366f1&label=npm)](https://www.npmjs.com/package/avenx-core) [![docs](https://img.shields.io/badge/docs-avenx--js.com-6366f1?style=flat-square)](https://docs.avenx-js.com/) [![runtime deps](https://img.shields.io/badge/runtime%20deps-0-6366f1?style=flat-square)](#-whats-in-the-box) [![node](https://img.shields.io/badge/node-%E2%89%A518-22c55e?style=flat-square)](https://nodejs.org) [![license](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE) [![contributors](https://img.shields.io/github/all-contributors/Avenx-JS/avenx-js?style=flat-square&color=f59e0b)](CONTRIBUTORS.md)
+
+<samp>
+
+[**Documentation**](https://docs.avenx-js.com/) &nbsp;·&nbsp; [**Quick start**](#-quick-start) &nbsp;·&nbsp; [**Why Avenx**](#-why-avenx-is-different) &nbsp;·&nbsp; [**CLI**](#-cli-reference) &nbsp;·&nbsp; [**Contributing**](#-contributing)
+
+</samp>
+
+<br/>
+
+<details>
+<summary><b>📋 Full table of contents</b></summary>
+<br/>
+
+- [🧭 What Avenx is](#-what-avenx-is)
+- [✨ Why Avenx is different](#-why-avenx-is-different)
+  - [🔭 Atlas — ask the compiler what a change will break](#-atlas--ask-the-compiler-what-a-change-will-break)
+  - [🔍 Trace — record why a bug happened, then replay it](#-trace--record-why-a-bug-happened-then-replay-it)
+  - [🔄 Rewind — optimistic updates that undo themselves](#-rewind--optimistic-updates-that-undo-themselves)
+  - [🔒 Compiled expressions — no `eval`, no `new Function`](#-compiled-expressions--no-eval-no-new-function)
+- [🚀 Quick start](#-quick-start)
+- [📖 A tour of the syntax](#-a-tour-of-the-syntax)
+- [📦 What's in the box](#-whats-in-the-box)
+- [🔧 CLI reference](#-cli-reference)
+- [🧩 Tooling and ecosystem](#-tooling-and-ecosystem)
+- [📍 Project status](#-project-status)
+- [📚 Documentation](#-documentation)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+
+</details>
+
+</div>
 
 ---
 
-## ✨ Why Avenx?
+## 🧭 What Avenx is
 
-Modern frontend development often requires complex build chains and heavy runtime libraries. Avenx explores a different path by providing:
+Avenx-JS is a compiler-first frontend framework. You write a component as one
+file — declarations and markup together — and the compiler turns it into a
+render program: a static HTML skeleton plus one binding per dynamic part. There
+is no virtual DOM, and there is no expression interpreter in your production
+bundle, because every expression was compiled to a JavaScript function at build
+time.
 
-- **⚡ Zero Boilerplate:** Logic, state, and template in a single unified component file.
-- **🔄 Transparent Reactivity:** Automatic UI updates via JavaScript Proxies without manual `setState` or `ref` calls.
-- **🎨 Scoped Styling:** CSS is automatically scoped to your component using hashed class generation.
-- **🛠️ Integrated Tooling:** A built-in CLI handles project scaffolding, component generation, and development servers.
-- **📦 Lightweight Core:** Minimal runtime footprint for fast loading and execution.
-- **🗺️ Compiler Semantic Model:** Ask the compiler what depends on a piece of state, before you change it.
-- **🔍 Causal Tracing:** Record why your app did what it did, then export that recording as a regression test.
-- **↩️ Atomic Actions:** Mark an action `atomic` and every state write it makes is undone if it fails.
+> [!TIP]
+> What is unusual is what the compiler does with what it learns. It keeps a
+> **semantic model of the whole application** — every state key, computed
+> value, action, template binding, route and guard, and the relationships
+> between them — and exposes it as a tool you can query from the command line.
+
+The whole build, end to end:
+
+```mermaid
+flowchart LR
+
+subgraph P["① project pass"]
+  direction TB
+  P1["<b>bridges</b><br/>.bridge.js → descriptors"]
+  P2["<b>names</b><br/>every component + page"]
+  P3["<b>route params</b><br/>per routed page"]
+  P4["<b>guards</b><br/>.guard.js"]
+  P1 --> P2 --> P3 --> P4
+end
+
+subgraph U["② per component / page"]
+  direction TB
+  U1["<b>declarations</b><br/>state · computed<br/>action · resource"]
+  U2["<b>stylesheet</b><br/>@def vars · named<br/>blocks → hashed classes"]
+  U3["<b>template front-end</b><br/>two-way bindings<br/>@css · component tags"]
+  SEM(["semantic template"])
+  U4{"IR builds<br/>and lowers?"}
+  U5["<b>render program</b><br/>skeleton + one op<br/>per dynamic part"]
+  U6["<b>string renderer</b><br/>AVX_W47"]
+  U7["<b>codegen</b><br/>expressions · actions<br/>→ closures"]
+  U8["<b>component class</b><br/>virtual ES module"]
+  U1 --> U3
+  U2 --> U3
+  U3 --> SEM --> U4
+  U4 -- yes --> U5 --> U7
+  U4 -- no --> U6 --> U7
+  U7 --> U8
+end
+
+subgraph B["③ bundler"]
+  direction TB
+  B1["resolve"] --> B2["link graph"] --> B3["tree-shake"] --> B4["emit + minify"]
+end
+
+subgraph F["④ finish"]
+  direction TB
+  F1["<b>Atlas model</b><br/>render edges<br/>routes · guards"]
+  F2["<b>diagnostics</b><br/>W40 W41 W42<br/>W43 W44 W47 W48"]
+  F3["<b>verify</b><br/>parses · capabilities"]
+  F1 --> F2 --> F3
+end
+
+SRC["<b>src/</b>"] --> P --> U --> B --> F --> OUT["<b>dist/</b><br/>bundle.js<br/>bundle.css<br/>bundle.atlas.json<br/>bundle.trace.json"]
+```
+
+Two things in there are worth pointing at. The **semantic template** is the fork:
+the render program is compiled from the template as you wrote it, before any
+directive has been rewritten into markup, because `<@for item in items>` still
+says what it means at that stage and afterwards it does not. And **nothing is
+written until everything is produced** — the bundle is checked for parseability
+and for the runtime capabilities the build decided to link, staged, and only
+then promoted, so a failure never leaves a new script beside a stale stylesheet.
+
+<table>
+<tr>
+<th align="left" width="50%">🧑‍💻 You write a component…</th>
+<th align="left" width="50%">⚙️ …the compiler emits this</th>
+</tr>
+<tr valign="top">
+<td>
+
+```html
+<state name="World" />
+
+<action name="shout">
+  name = name.toUpperCase();
+</action>
+
+<div @css card>
+  <h1>Hello, {{ name }}!</h1>
+  <button @click="shout()">Shout</button>
+</div>
+```
+
+</td>
+<td>
+
+```js
+// skeleton — parsed once per class
+html: '<div class="avenx-a050b589">
+         <h1>Hello, <!--axt:0-->!</h1>
+         <button data-axb="0">Shout</button>
+       </div>'
+
+// one op per dynamic part
+ops: [ { k: 'text',  t: 0, x: 0 },
+       { k: 'event', e: 0, n: 'click' } ]
+
+// compiled at build time
+exprs: [ ($s) => axGet($s, 'name') ]
+stmts: [ ($s) => axCall(…, 'shout') ]
+```
+
+</td>
+</tr>
+</table>
+
+No imports, no `setState`, no hooks, no build configuration — and nothing left
+to interpret at run time. That right-hand column is real output, lightly wrapped
+to fit: `{{ name }}` became a comment marker plus one `text` op, the handler
+became a `data-axb` hook plus one `event` op, and both expressions became
+ordinary JavaScript functions. The matching `.component.css` holds styles scoped
+to this component and nothing else.
+
+> [!IMPORTANT]
+> **Avenx is pre-1.0 and under active development.** The latest published
+> release is `0.4.3`; a production-readiness cycle is in progress ahead of a
+> release candidate. See [Project status](#-project-status) for what that
+> means in practice.
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
-## ⚡ Key Features
+## ✨ Why Avenx is different
 
-### 🔄 Proxy-based Reactivity
+Most of what a framework offers is table stakes: components, reactivity,
+routing, scoped styles. Avenx has those. These four are the reasons to look at
+it instead of something else.
 
-State management is built directly into the core. Changing a property on the `state` object automatically updates the DOM that reads it.
+<table>
+<tr align="center" valign="top">
+<td width="25%">
+<br/>🔭<br/><br/>
+<b><a href="#-atlas--ask-the-compiler-what-a-change-will-break">Atlas</a></b>
+<br/><br/>
+<sub>Ask what a change will break —<br/>and see where the analysis stopped.</sub>
+<br/><br/>
+</td>
+<td width="25%">
+<br/>🔍<br/><br/>
+<b><a href="#-trace--record-why-a-bug-happened-then-replay-it">Trace</a></b>
+<br/><br/>
+<sub>Record why a bug happened,<br/>then replay it as a test.</sub>
+<br/><br/>
+</td>
+<td width="25%">
+<br/>🔄<br/><br/>
+<b><a href="#-rewind--optimistic-updates-that-undo-themselves">Rewind</a></b>
+<br/><br/>
+<sub>Actions that undo their writes —<br/>and warn what they cannot.</sub>
+<br/><br/>
+</td>
+<td width="25%">
+<br/>🔒<br/><br/>
+<b><a href="#-compiled-expressions--no-eval-no-new-function">Compiled</a></b>
+<br/><br/>
+<sub>No <code>eval</code>, no interpreter.<br/>Runs under <code>script-src 'self'</code>.</sub>
+<br/><br/>
+</td>
+</tr>
+</table>
 
-### ⚙️ Compiled Rendering
+<br/>
 
-The compiler turns a template into a **render program**: a static HTML skeleton
-plus one binding operation per dynamic part. The skeleton is parsed once per
-component class; each binding becomes its own reactive effect. A state change
-wakes the bindings that read it and writes to their nodes — nothing is
-serialised, reparsed or diffed.
+### 🔭 Atlas — ask the compiler what a change will break
 
-The cost of an update is therefore proportional to the change rather than to the
-template. Changing one text binding, measured in happy-dom:
+`avenx impact` and `avenx why` answer data-flow questions about your own code.
+This is real output from a small store application — a bridge holding
+`items`, a getter that sums them, and a page that reads it:
 
-| Bindings in the component | Before | After |
-| ---: | ---: | ---: |
-| 10 | 0.371 ms | 0.015 ms |
-| 500 | 16.758 ms | 0.019 ms |
-| 1500 | 161.018 ms | 0.050 ms |
+```console
+$ npx avenx impact cart.items
 
-The compiler reads the template through a typed **intermediate representation**,
-so `<@if>`, `<@for>`, `<slot>`, `<@defer>` and component tags arrive at the
-backend as the constructs they are rather than as markup a previous pass rewrote
-them into. Control flow compiles to a **block**: a skeleton parsed once for the
-life of the page and cloned per arm or per row, reconciled by key.
+What depends on: cart.items
+   state  src/global/cart.bridge.js:5
 
-A template using a construct the IR does not model yet — a suspense or error
-boundary, a deadlock boundary, a transition, a template ref — renders through
-the previous string renderer instead, and `avenx build` says which and why
-(`AVX_W47`). There is no partial mode: a template is compiled entirely or not at
-all.
+├─ reads cart.count .reduce  src/global/cart.bridge.js:9
+│  └─ reads Home {{ }} "cart.count"  src/pages/home.page.js:6
+└─ writes cart.add  src/global/cart.bridge.js:17
+   └─ invokes Home @click="cart.add(product.id)"  src/pages/home.page.js:12
+      └─ declares Home  src/pages/home.page.js
+         ├─ routes-to /  src/main.app.js:9
+         └─ routes-to *  src/main.app.js:11
 
-That renderer is only linked into a bundle when something in the build needs it,
-so an application whose every template compiles does not carry it. Measured on a
-scaffolded hello-world, production build: **366,780 → 320,431 bytes raw,
-82,654 → 72,636 gzipped**, with `<@if>`, compiled lists, compiled slots and
-compiled `<@defer>` added over the same period.
+7 related nodes
 
-A keyed list update, measured against the same component on both paths
-(`benches/list-rendering.bench.js`, happy-dom — ratios, not milliseconds):
+1 unresolved relationship — this answer may be incomplete:
+  ? spread  ...  src/global/cart.bridge.js:17
+```
 
-| Rows | Rename one | Move one | Append one |
-| ---: | ---: | ---: | ---: |
-| 20 | 8.0x | 4.1x | 8.6x |
-| 100 | 8.5x | 4.6x | 9.1x |
-| 500 | 6.0x | 3.4x | 6.3x |
+> [!NOTE]
+> Note how that output ends. This is a data-flow map, not a module graph, and
+> it tells you where its own analysis stopped instead of quietly presenting a
+> partial answer as a complete one. Every answer prints that count, including
+> when it is zero.
 
-See the [rendering guide](docs/src/content/docs/core-concepts/rendering.md).
+The same model produces build-time diagnostics — a state key nothing reads, an
+action nothing invokes — and both refuse to fire when the analysis behind them
+was incomplete. Atlas runs at compile time only: `avenx build` writes
+`dist/bundle.atlas.json` beside the bundle and the runtime never reads it.
 
-### 🔒 Compiled Expressions — no `eval`, no `new Function`
+**→ [Atlas guide](https://docs.avenx-js.com/core-concepts/atlas/)**
 
-Every template interpolation, computed value, directive binding, inline handler
-and `<action>` body is compiled to an ordinary JavaScript function **at build
-time** and linked into the bundle, so the browser's own engine compiles it.
+<sub><a href="#-why-avenx-is-different">↑ back to features</a></sub>
+
+<br/>
+
+### 🔍 Trace — record why a bug happened, then replay it
+
+Serve with `--trace`, reproduce the behaviour, and read back the causal chain
+from the event to the DOM write. Real output from the same application:
+
+```console
+$ npx avenx trace view latest
+
+Trace trace-3b96  ·  6 nodes  ·  recorded 2026-09-21T19:32:48.861Z
+  http://localhost:4700/
+
+▸ click <button> Home
+  └─ bridge cart · add("a")
+     ├─ write items [0 items] → [1 item]
+     │  └─ woke text cart.count
+     │     └─ patched <h1> text "0" → "1"
+     └─ emit cart:added → 0 listeners
+
+Determinism: deterministic — this trace can be exported as a regression test.
+```
+
+`avenx trace export latest --out test/cart-add.test.js` turns that recording
+into a test. The generated test calls `replay()`, which drives the recorded
+inputs back through the real framework and compares **every** state and DOM
+change against the recording, so a regression reports its cause rather than a
+bare mismatch. The convenience assertions it writes alongside are a starting
+point the file tells you to prune.
+
+Recording is opt-in, development-only, and absent from production bundles —
+with tracing off, each instrumented site is one boolean check.
+
+**→ [Trace guide](https://docs.avenx-js.com/core-concepts/trace/)**
+
+<sub><a href="#-why-avenx-is-different">↑ back to features</a></sub>
+
+<br/>
+
+### 🔄 Rewind — optimistic updates that undo themselves
+
+Mark an action `atomic` and every state write it makes is journaled. If it
+throws, or returns a promise that rejects, the journal is played backwards:
+component state, bridge state, nested properties, array and `Map`/`Set`
+mutations, and keys the action created or deleted all come back. Because the
+restore goes through the same reactive machinery as an ordinary write, the DOM
+corrects itself.
+
+```html
+<action name="incQty" atomic>
+  busy = true;
+  cart.addQty(props.id, 1);
+  return api.setQty(props.id, qty);
+</action>
+```
+
+A library can do that much. What a library cannot do is tell you at build time
+which of an action's effects a rewind will **not** undo:
+
+```console
+$ npx avenx build
+
+[AVX_W43] session.save is atomic, but 2 effect(s) cannot be rewound:
+  storage localStorage.setItem(  src/global/session.bridge.js:8
+  emit emit('saved'  src/global/session.bridge.js:9
+Everything it writes through Avenx state will be restored; the effects above
+will not. Move them after the transaction, or accept that a rewind leaves them
+in place.
+```
+
+When the analysis cannot resolve an action's write set it says so (`AVX_W42`)
+and marks its own effect list as incomplete, rather than reporting a shorter
+list as if it were the whole one.
+
+**→ [Rewind guide](https://docs.avenx-js.com/core-concepts/rewind/)**
+
+<sub><a href="#-why-avenx-is-different">↑ back to features</a></sub>
+
+<br/>
+
+### 🔒 Compiled expressions — no `eval`, no `new Function`
+
+Every interpolation, computed value, directive binding, inline handler and
+`<action>` body is compiled to an ordinary JavaScript function at build time and
+linked into the bundle:
 
 ```text
 count * 2                ->  ($s) => (axGet($s, "count") * 2)
 if (!text) { return; }   ->  ($s) => { if (!axGet($s, "text")) { return; } … }
 ```
 
-A production bundle contains no `eval`, no `new Function` and no `with`, so it
-runs under `script-src 'self'` — checked on the emitted bundle by the test
-suite, not asserted here. Earlier versions shipped this code as **source text**
-and interpreted it in the browser, which put a JavaScript parser and a
-tree-walking evaluator in every bundle and still fell back to `new Function` for
-any action using `if`, `for`, `try` or a declaration.
-
-The security checks did not move, they are only called rather than interpreted:
-a member read still passes the key already resolved through one gate, so
-`x['const'+'ructor']` and `x.constructor` meet the same check. Two checks moved
-*earlier* — naming a restricted global, or writing `__proto__` / `constructor` /
-`prototype`, now fails the build with a file and a line.
-
-A development build still carries the interpreter, so a template you are editing
-keeps rendering; `AVX_W48` names anything the compiler could not compile.
-
-See the [template expressions guide](docs/src/content/docs/core-concepts/template-expressions.md)
-and the [deployment guide](docs/src/content/docs/guides/deployment.md).
-
-### 🔀 Conditional Rendering (`<@if>`)
-
-```html
-<@if user.isAdmin>
-  <AdminPanel />
-<@elseif user.isMember>
-  <p>Welcome back, {{ user.name }}.</p>
-<@else>
-  <a href="/signup">Create an account</a>
-</@if>
-```
-
-Each arm is its own compiled block, so switching arms is the only thing that
-rebuilds DOM — an update that leaves the same arm selected touches nothing, and
-focus, selection and scroll position inside the branch survive.
-
-Bracket a top-level comparison: `<@if (count > 3)>`, not `<@if count > 3>`. The
-`>` that means "greater than" and the `>` that ends the tag are the same
-character, so the compiler refuses the ambiguous form and names the one that
-works rather than silently testing `count`.
-
-### 🧩 Declarative Components
-
-Define your UI using standard HTML with added superpowers. Components support `state`, `computed` properties, and `actions` (methods) defined directly in the `.component.js` file.
-
-### 🎨 Intelligent Scoped CSS
-
-Styles defined in `.component.css` are automatically scoped to that specific component. Use the `<@global>` tag for global variables and the `<@css>` tag for component-specific styles.
-
-### 🌐 Bridges (Shared State)
-
-Shared state lives in **Bridges** — small modules created with `bridge()` and consumed by importing them. Because the import is the connection, the compiler can see every consumer: it drops unused bridges from the bundle and catches mistyped members before you run the app.
-
-### 🌊 Declarative Async Data, Suspense & Error Boundaries
-
-Fetch data seamlessly with `<resource>` declarations and handle loading & error states declaratively using `<@suspense>` and `<@errorBoundary>`:
-
-```html
-<resource name="users">
-  return fetch('/api/users').then(res => res.json());
-</resource>
-
-<@errorBoundary>
-  <@fallback as="err">
-    <div class="error">Failed to load users: {{ err.message }}</div>
-  </@fallback>
-  <@suspense>
-    <@fallback>
-      <div class="loading">Loading user list...</div>
-    </@fallback>
-
-    <div class="user-list">
-      <@for user in users>
-        <p>{{ user.username }}</p>
-      </@for>
-    </div>
-  </@suspense>
-</@errorBoundary>
-```
-
-### 🛡️ Reactive Deadlock Boundary (`<@deadlock>`)
-
-Define a named fallback boundary for reactive-cycle recovery:
-
-```html
-<@deadlock name="dashboard-boundary">
-  <Sidebar />
-  <Content />
-  <Stats />
-  <@fallback as="err">
-    <div class="deadlock-alert">
-      ⚠️ Reactive cycle intercepted in {{ name }}: {{ err.message }}
-    </div>
-  </@fallback>
-</@deadlock>
-```
-
-- **Global Detection:** Scheduler and watcher guards stop runaway reactive work and log `AVX_R18` diagnostics.
-- **Manual Recovery:** Call `$tripDeadlockBoundary('dashboard-boundary', error)` to replace that boundary's active content with its fallback.
-- **Explicit Integration:** Use `onSchedulerDeadlock()` when you want to connect global scheduler detection to a particular component boundary.
-
-Detection does not automatically trip the nearest boundary. The compiled `maxDepth`, `action`, and `isolated` attributes are currently metadata rather than active per-boundary controls. See the [reactive deadlock boundary guide](docs/src/content/docs/core-concepts/deadlock.md) for current behavior and limitations.
-
-### ↩️ Avenx Rewind — an optimistic update that undoes itself
-
-Mark an action `atomic` and every state write it makes is journaled. If the
-action throws, or returns a promise that rejects, the journal is played
-backwards and the state is what it was before the action ran.
-
-```html
-<action name="incQty" atomic>
-  busy = true; cart.addQty(props.id, 1);
-  <!-- writes bridge state, through a bridge action -->
-  return api.setQty(props.id, qty);
-  <!-- if this rejects, none of the above stands -->
-</action>
-```
-
-No `catch`, no snapshot, no inverse. Component state, bridge state, nested
-properties, array and `Map`/`Set` mutations, and keys the action created or
-deleted all come back — and because the restore goes through the same reactive
-machinery as an ordinary write, the DOM corrects itself.
-
-Every framework can be made to do that much with a library. What a library
-cannot do is tell you, at build time, **which of the action's effects a rewind
-will not undo**:
-
-```text
-[AVX_W43] session.save is atomic, but 2 effect(s) cannot be rewound:
-  storage localStorage.setItem(  src/bridges/session.bridge.js:14
-  emit emit('saved'  src/bridges/session.bridge.js:15
-
-[AVX_W44] PostCard.like and PostCard.unlike are both atomic and both write
-PostCard.likes — if they can be in flight at once, a rewind may find a value
-it did not write.
-
-[AVX_W42] cart.setField is atomic, but its write set could not be resolved
-completely: dynamic-member "item[field]".
-```
-
-That last one is the house rule again: Avenx reports where its own analysis was
-incomplete rather than concluding from it. The rewind is unaffected — the
-journal watches the reactive proxies, not the prediction — but the two warnings
-above it are not to be trusted for that action.
-
-Two optimistic updates racing on the same value is the case naive rollback gets
-wrong. The default `safe` policy restores a path only if the value there is
-still the one the transaction wrote, so the second click's increment survives
-the first click's rollback, and the conflict is reported rather than hidden.
-
-With no transaction open, a write costs one boolean read — the same guard shape
-tracing uses. Measured over 100,000 writes: 89.24 ms idle, 89.89 ms inside a
-transaction.
-
-See the [Avenx Rewind guide](docs/src/content/docs/core-concepts/rewind.md).
-
-### 🗺️ Avenx Atlas — ask the compiler what breaks before you break it
-
-The compiler keeps a semantic model of your whole application: components,
-pages, bridges, **individual state keys**, computed values, actions, resources,
-template bindings, event handlers, routes and guards — and the relationships
-between them.
-
-```bash
-npx avenx atlas             # what is in this application
-npx avenx impact cart.items # what can be affected if this changes
-npx avenx why cart.total    # where this value comes from
-```
-
-```text
-What depends on: cart.items
-   state  src/bridges/cart.bridge.js:5
-
-├─ reads cart.total .reduce  src/bridges/cart.bridge.js:10
-│  ├─ reads CartSummary {{ }} "cart.total"  src/components/cart-summary/cart-summary.component.js:14
-│  └─ reads Checkout {{ }} "cart.total"  src/pages/checkout.page.js:7
-│     └─ declares Checkout  src/pages/checkout.page.js
-│        └─ routes-to /checkout  src/main.app.js:9
-├─ reads CartList <@for> "cart.items"  src/components/cart-list/cart-list.component.js:9
-├─ reads CartList {{ }} "item.qty" .[].qty  src/components/cart-list/cart-list.component.js:10
-└─ writes cart.addQty .[].qty [possible]  src/bridges/cart.bridge.js:23
-   └─ invokes CartItem.incQty  src/components/cart-item/cart-item.component.js:7
-      └─ invokes CartItem @click="incQty()"  src/components/cart-item/cart-item.component.js:19
-
-0 unresolved relationships in this answer.
-```
-
-This is a **data-flow** map, not a module graph. The loop variable inside
-`<@for item in cart.items>` resolves back to the state it iterates, so
-`{{ item.qty }}` is reported as a read of `cart.items[].qty`.
-
-Every edge declares how much to trust it — `certain` when it follows from a
-declaration, `possible` when it does not — and everything the analyser could
-**not** follow is listed with its reason and location rather than silently
-dropped. Every answer prints that count, including when it is zero. An
-uncertain answer is better than a confidently wrong one.
-
-Two diagnostics fall out of the model, and both refuse to fire when the
-analysis behind them was incomplete:
-
-```text
-[AVX_W40] cart.discount is written by cart.applyCoupon but read nowhere.
-[AVX_W41] CartSummary.neverCalled is never invoked from a template, action or guard.
-```
-
-Atlas is **compile-time only**. `avenx build` writes `dist/bundle.atlas.json`
-beside the bundle and never references it, so the runtime is byte-for-byte
-unchanged.
-
-Atlas and [Trace](docs/src/content/docs/core-concepts/trace.md) are two sides of
-one model: **Atlas is what can happen, Trace is what did.** A test in this
-repository checks that every causal step in a recorded trace corresponds to an
-edge Atlas predicted.
-
-See the [Avenx Atlas guide](docs/src/content/docs/core-concepts/atlas.md).
-
-### 🔍 Avenx Trace — reproduce a bug once, get a test forever
-
-Avenx records **why** your application did what it did — the click, the action,
-the bridge mutation, the state write, the watchers that woke, the DOM nodes that
-changed — and turns that recording into an executable regression test.
-
-```bash
-npx avenx serve --trace          # reproduce the bug in the browser
-npx avenx trace view latest      # read why it happened
-npx avenx trace export latest --out test/cart-qty.test.js
-```
-
-```text
-▸ click <button.qty-inc> CartItem
-  └─ action CartItem.incQty()  src/components/cart-item/cart-item.component.js:3
-     └─ bridge cart · addQty("a", 1)
-        ├─ write cart.items.0.qty 2 → 3
-        │  ├─ woke CartItem#render
-        │  │  └─ patched <span.qty> text "2" → "3"
-        │  └─ woke CartSummary#render
-        │     ├─ getter cart.total 36 → 48
-        │     └─ patched <strong.total> text "$36.00" → "$48.00"
-        └─ emit cart:changed → 0 listeners
-
-Determinism: deterministic — this trace can be exported as a regression test.
-```
-
-The exported test replays the recorded inputs through the real framework and
-compares **every** state and DOM change against the recording. When the code
-regresses you get the cause, not a bare mismatch:
-
-```text
-Step 1 (click <button.qty-inc>) diverged at position 1:
-  recorded: write count 0 -> 1
-  replayed: write count 0 -> 2
-```
-
-Avenx can do this because every identifier an expression resolves — including
-`Date` and `Math` — passes through **one substitution point**, every state write
-through one Proxy trap, and every DOM change through one patcher. That is what
-lets a recorded session be replayed deterministically.
-
-Expressions and action bodies are compiled to closures at build time, and that
-costs Trace nothing: a compiled expression naming `Date` emits a call to the
-same resolver the recorder substitutes. What compiling removes is the parser and
-the tree-walking evaluator from your production bundle, neither of which the
-recorder needed.
-
-Recording is off by default and never reaches a production build — with tracing
-off, each instrumented site is a single boolean check. Determinism is **verified
-by replay**, not claimed by the recorder: a trace that says it is reproducible
-and is not fails loudly rather than passing for the wrong reason.
-
-Configure redaction so a trace never captures what it should not:
-
-```json
-{ "trace": { "redact": ["auth.token", "user.*", "*.password"] } }
-```
-
-See the [Avenx Trace guide](docs/src/content/docs/core-concepts/trace.md).
-
-### 🛠️ CLI-First Workflow
-
-Generate components, pages, and bridges with a single command. The built-in dev server provides hot-reloading for a seamless development experience.
-
-### 📦 Production Builds
-
-`avenx build` compiles your components to ES modules and links them with Avenx's own bundler. The runtime is an ordinary dependency in that graph, resolved through `avenx-core/runtime` — not a prebuilt file prepended to your application.
-
-That means your imports are **resolved, not rewritten**: npm packages work from components, pages, bridges and guards, ES and CommonJS alike; local modules resolve by path, by extension-less path or through a directory index; and an import that names nothing **fails the build** with the specifier and the file that asked for it. Nothing is ever dropped silently.
-
-It also means the build can leave things out. A module ships when something reaches it, so a production bundle does not carry the trace recorder — nothing in it can start a recording. A development build does, which is what `avenx serve --trace` uses. Testing helpers live behind `avenx-core/testing` and the ESLint tooling behind `avenx-core/tooling`, so neither can reach an application bundle, and an import of a Node built-in is a build error rather than a shim.
-
-The bundle publishes `globalThis.Avenx` plus seven named globals for compatibility. Everything else is reached by importing it, because importing now works.
-
-See the [deployment guide](docs/src/content/docs/guides/deployment.md).
+A production bundle therefore contains no `eval`, no `new Function` and no
+`with`, and runs under `script-src 'self'` with no `unsafe-eval` and no
+`unsafe-inline`. The build's own test suite asserts this against the emitted
+bundle. A development build still carries the interpreter so a half-finished
+template keeps rendering; `AVX_W48` names anything it could not compile.
+
+**→ [Template expressions](https://docs.avenx-js.com/core-concepts/template-expressions/)** ·
+**[Deployment](https://docs.avenx-js.com/guides/deployment/)**
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
-### Installation
+> [!NOTE]
+> Requires **Node.js 18 or newer**. There is no `avenx` package on npm — the
+> package is `avenx-core`, and it provides the `avenx` binary, so install it
+> before using `npx avenx`.
+
+<table>
+<tr valign="top">
+<td width="47%">
 
 ```bash
+mkdir my-app && cd my-app
 npm install avenx-core
+
+npx avenx init        # scaffold
+npx avenx g counter   # a working component
+npx avenx serve       # http://localhost:3000
 ```
 
-### Scaffolding a Project
+`init` scaffolds the project. `g counter` generates a component **and registers
+it** in `src/main.app.js`. `serve` builds and starts a dev server with live
+reload — add `--open` to launch a browser.
 
-```bash
-# Initialize project structure
-npx avenx init
+You have a running application before writing a line of code.
 
-# Create a new component
-npx avenx g counter
+</td>
+<td width="53%">
 
-# Start development server
-npx avenx serve
-
-# Build for production
-npx avenx build
+```text
+my-app/
+├── src/
+│   ├── components/counter/
+│   │   ├── counter.component.js  # template
+│   │   └── counter.component.css # scoped styles
+│   ├── pages/        # routed pages
+│   ├── global/       # bridges, shared styles
+│   ├── guards/       # route guards
+│   └── main.app.js   # entry, registration, routes
+├── .vscode/          # editor support
+├── avenx.config.json
+├── index.html
+├── package.json
+└── dist/             # build output (generated)
 ```
 
-Your app will be running at `http://localhost:3000`.
+</td>
+</tr>
+</table>
 
----
+### Write a component
 
-## 🧠 Core Concepts & Syntax
-
-### 1. Component Structure
-
-An Avenx component consists of two files: `<name>.component.js` and `<name>.component.css`.
-
-#### JavaScript (`.component.js`)
+Open `src/components/counter/counter.component.js`:
 
 ```html
-<state count="0" title="Counter" />
+<state count="0" label="Clicks" />
 
-<computed name="doubleCount" value="count * 2" />
+<computed name="doubled" value="count * 2" />
 
-<action name="increment"> state.count++; </action>
+<action name="increment"> count++; </action>
+<action name="reset"> count = 0; </action>
 
 <div @css card>
-  <h1>{{ title }}</h1>
-  <p>Count: {{ count }} (Double: {{ doubleCount }})</p>
-  <button @css button @click="increment()">Increment</button>
+  <h1 @css title>{{ label }}: {{ count }}</h1>
+  <p>Doubled: {{ doubled }}</p>
+
+  <@if (count > 0)>
+    <button @css btn @click="reset()">Reset</button>
+  <@else>
+    <p @css hint>Press the button to start.</p>
+  </@if>
+
+  <button @css btn @click="increment()">+1</button>
 </div>
 ```
 
-#### CSS (`.component.css`)
+And `counter.component.css`. A `<@css>` block contains **named blocks**, not
+selectors: `card { … }` declares a block that the template attaches with
+`@css card`. Nothing is matched by class name, so an element with no `@css`
+directive is unstyled.
 
 ```css
 <@global>
-    @def primary-color #646cff;
-    @def bg-color #242424;
+    @def brand #6366f1;
 </@global>
 
 <@css>
     card {
+        font-family: system-ui, sans-serif;
+        max-width: 20rem;
+        margin: 3rem auto;
         padding: 2rem;
-        border-radius: 8px;
-        background: @bg-color;
+        border-radius: 12px;
+        background: #f9fafb;
+        text-align: center;
     }
 
-    button {
-        background-color: @primary-color;
+    title { color: #1e1b4b; }
+    hint  { color: #9ca3af; font-size: 0.85rem; }
+
+    btn {
+        background: @brand;
         color: white;
         border: none;
-        padding: 0.6em 1.2em;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
         cursor: pointer;
     }
 </@css>
 ```
 
-### 2. Bridges (Shared State)
+Save the file and the browser updates. The counter increments, the computed
+value follows it, the `<@if>` arm switches when the count leaves zero, and the
+styles reach this component and nothing else.
 
-A **Bridge** holds state that several components need, plus the actions that change it. You create one with `bridge()` and use it by importing it.
-
-#### Creation
+### Ship it
 
 ```bash
-npx avenx g bridge auth
+npx avenx check    # validate every template binding; exits 1 on any warning
+npx avenx build    # production build into dist/
 ```
 
-#### Definition (`src/global/auth.bridge.js`)
+**→ [Full quick start](https://docs.avenx-js.com/getting-started/quickstart/)** ·
+**[Project structure](https://docs.avenx-js.com/getting-started/structure/)**
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
+
+---
+
+## 📖 A tour of the syntax
+
+### Component anatomy
+
+A component is two files in one directory: `<name>.component.js` (declarations
+and markup) and `<name>.component.css` (scoped styles). Pages are the same, as
+`<name>.page.js` / `<name>.page.css`, and live in `src/pages/`.
+
+| Declaration | Purpose |
+| :--- | :--- |
+| `<state count="0" title="Home" />` | Reactive local state. Values are coerced: numbers, booleans, JSON and JavaScript literals. |
+| `<computed name="x" value="a * 2" />` | A derived value, re-evaluated when what it reads changes. |
+| `<action name="go"> … </action>` | A method. The body is ordinary JavaScript. Add `atomic` to make its writes undoable. |
+| `<resource name="users"> … </resource>` | A declarative async read, usable with `<@suspense>`. |
+
+State is reachable bare (`count`) or through its root (`state.count`); both
+resolve to the same value.
+
+### Templates
+
+| Syntax | What it does |
+| :--- | :--- |
+| `{{ expr }}` | Interpolation, HTML-escaped. |
+| `{{{ expr }}}` | Raw HTML. Never give it untrusted input. |
+| `<@if cond>` / `<@elseif>` / `<@else>` / `</@if>` | Conditional blocks. Bracket a top-level comparison: `<@if (n > 3)>`. |
+| `<@for item in list key="item.id">` / `<@empty>` | Keyed lists over arrays, objects, `Map`, `Set` or a number. `index` is always bound. |
+| `<Child prop="{{ value }}" />` | A child component. Also `data-props-name="expr"`. |
+| `<slot>` / `<slot name="x">` | Transclusion, with fallback content. |
+| `@click="handler()"` | Event binding, with `.prevent`, `.stop`, `.self`, `.once`, `.passive` and key modifiers. |
+| `data-ax-bind="state.x"` | Two-way binding for inputs, textareas, selects, checkboxes and radios. |
+| `data-ax-show` / `data-ax-class` / `data-ax-style` / `data-ax-html` | Reactive visibility, classes, inline styles and HTML. |
+| `:[nameExpr]="valueExpr"` | An attribute whose **name** is computed. Both slots are expressions. |
+| `<@defer>` | Render a block on idle, on a timer, on interaction or when visible. |
+
+### Shared state with Bridges
+
+A **Bridge** is a module holding state several components need, plus the actions
+that change it. You create one with `bridge()` and use it by importing it —
+there is no provider, no hook and no subscription to clean up.
 
 ```javascript
+// src/global/cart.bridge.js
 import { bridge } from 'avenx-core/runtime';
 
 export default bridge({
   state: {
-    user: null,
-    status: 'anonymous',
+    items: [],
   },
 
-  get displayName() {
-    return this.user ? this.user.name : 'Guest';
+  get count() {
+    return this.items.reduce((n, item) => n + item.qty, 0);
   },
 
-  login(user) {
-    this.user = user;
-    this.status = 'authenticated';
-    this.emit('login', user);
+  add(id) {
+    const existing = this.items.find((item) => item.id === id);
+    this.items = existing
+      ? this.items.map((item) => (item.id === id ? { ...item, qty: item.qty + 1 } : item))
+      : [...this.items, { id, qty: 1 }];
+    this.emit('added', id);
   },
 });
 ```
 
-#### Usage in Component
-
-Import the bridge, then read it straight from the template. Reads are tracked, so the component re-renders when the data it uses changes — no subscription to write, and none to clean up.
-
 ```html
-import auth from '../global/auth.bridge.js';
+<!-- src/pages/home.page.js -->
+import cart from '../global/cart.bridge.js';
 
-<p>Welcome, {{ auth.displayName }}</p>
-
-<action name="signIn"> auth.login({ name: 'John Doe' }); </action>
-```
-
-Because a bridge is reached through an import, the compiler knows exactly which components use it: unused bridges are left out of the bundle, mistyped members and unknown event names are reported at build time, and the whole surface is typed in TypeScript. State is read-only outside the bridge, so every mutation has one traceable origin.
-
----
-
-### 3. Pages & Routing
-
-Pages are special components designed for top-level routing. They reside in `src/pages/`.
-
-#### Creation
-
-```bash
-npx avenx g page profile
-```
-
-#### Definition (`src/pages/profile.page.js`)
-
-Pages use the same syntax as components (`<state>`, `<computed>`, `<action>`).
-
-```html
-<state userId="123" />
-
-<div class="profile-page">
-  <h1>User Profile</h1>
-  <p>Viewing ID: {{ userId }}</p>
+<div>
+  <h1>Cart: {{ cart.count }}</h1>
+  <button @click="cart.add('keyboard')">Add</button>
 </div>
 ```
 
-#### Routing (`src/main.app.js`)
+Because the import *is* the connection, the compiler sees every consumer: unused
+bridges are left out of the bundle, and a mistyped member or an unemitted event
+name is reported at build time. State is read-only outside the bridge, so every
+mutation has one traceable origin.
 
-Avenx-JS projects built with the CLI automatically scan, compile, and register page components. In your main application entry point, you initialize the built-in router with the route mappings:
+**→ [Bridges](https://docs.avenx-js.com/core-concepts/bridges/)**
+
+### Pages, routing and guards
+
+Pages in `src/pages/` are registered by the compiler. You map them to routes in
+`src/main.app.js`:
 
 ```javascript
 import { AvenxApp } from 'avenx-core/runtime';
+import UserCard from './components/user-card/user-card.component.js';
 
 const app = new AvenxApp({ target: '#app' });
 
-// Initialize the router mapping paths to page component names.
-// Note: Pages inside src/pages/ are automatically registered by the compiler.
+app.register('UserCard', UserCard);
+
 app.initRouter({
-  '': 'Home',
-  '#/': 'Home',
-  '#/profile/:userId': 'Profile',
+  '/': 'Home',
+  '/profile/:userId': 'Profile',
+  '*': 'Home',
 });
 ```
 
----
+Route parameters land in the page's state, so `/profile/42` makes `{{ userId }}`
+render `42`. Query strings are parsed into `state.query` with type coercion, `*`
+is a catch-all, and a route can carry `keepAlive` to cache the page instance or
+`guards` to gate navigation.
 
-### 4. Nesting Components
+**→ [Routing](https://docs.avenx-js.com/core-concepts/routing/)** ·
+**[Routing tutorial](https://docs.avenx-js.com/getting-started/routing-tutorial/)**
 
-Components can be nested by using their name in PascalCase. Use `<slot />` tags to define where transcluded child content should render:
-
-```html
-<Navbar />
-<main>
-  <Sidebar />
-  <slot />
-</main>
-```
-
-### 5. Events
-
-Use the `@` prefix to bind event listeners:
-
-```html
-<button @click="count++">Inline Action</button> <input @input="state.text = event.target.value" />
-```
-
-### 6. CSS Preprocessors (Sass, SCSS, PostCSS, Less)
-
-Avenx-JS supports Sass/SCSS, PostCSS, and Less preprocessors inside `.component.css` or `.page.css` files.
-
-To enable a preprocessor, add the `style` settings to your `avenx.config.json` file:
-
-```json
-{
-  "style": {
-    "preprocessor": "scss"
-  }
-}
-```
-
-Available preprocessor options are `"sass"`, `"scss"`, `"postcss"`, and `"less"`.
-
-When a preprocessor is enabled:
-
-- You can write nested SCSS/Sass styles, variables, functions, and mixins directly inside your stylesheet.
-- The compiler will automatically run your styles through the preprocessor module before applying Avenx-JS scoping logic.
-- If the configured preprocessor package (e.g. `sass`) is not installed, the compiler gracefully falls back to raw CSS processing and logs a warning.
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
-## 📁 Project Structure
+## 📦 What's in the box
 
-A typical Avenx project looks like this:
+Everything listed here is implemented and usable today. What differs is how a
+construct **renders**, which is worth knowing because it has a cost.
 
-```text
-my-avenx-app/
-├── src/
-│   ├── components/       # UI Components
-│   │   └── counter/
-│   │       ├── counter.component.js
-│   │       └── counter.component.css
-│   ├── pages/            # Application Pages (Routed)
-│   ├── global/           # Shared Bridges & Styles
-│   └── main.app.js       # App entry point & registration
-├── dist/                 # Compiled bundle (generated)
-├── index.html            # Main entry HTML
-└── package.json
-```
+Templates compile to a render program: a skeleton parsed once per component
+class, with one reactive effect per binding, so an update touches only the
+bindings whose dependencies changed. A template using a construct the compiler
+cannot yet model renders through the older string renderer instead — it renders
+correctly, but re-renders and diffs the whole template on every update. The
+build says which and why (`AVX_W47`), and there is no partial mode: a template
+is compiled entirely or not at all.
+
+<br/>
+
+**⚡ Compiled** — an update touches only the bindings whose dependencies changed.
+
+| | |
+| :--- | :--- |
+| Components, pages, props | slots, named + fallback |
+| Nested components, any depth | bounded at 50 levels, `AVX_R36` |
+| State, computed values, actions | watchers, lifecycle hooks |
+| `<@if>` / `<@elseif>` / `<@else>` | keyed `<@for>` / `<@empty>` |
+| Events and modifiers | two-way binding, boolean attributes |
+| `data-ax-show` / `-class` / `-style` / `-html` | `<@defer>`, `<resource>` declarations |
+
+**🧱 No rendering cost of their own** — these are not template constructs.
+
+| | |
+| :--- | :--- |
+| Scoped CSS, `<@global>` `@def` variables | Sass / SCSS / Less / PostCSS |
+| Bridges, provide & inject | atomic actions (Rewind) |
+| Router: params, query, wildcards | guards, keep-alive, history, prefixes |
+| Atlas — `atlas` / `impact` / `why` | Trace, diagnostics catalogue *(compile-time)* |
+
+**🐢 Available, but through the string renderer** — correct, and re-rendered whole on every update.
+
+| | |
+| :--- | :--- |
+| `<@suspense>` and `<@errorBoundary>` | transitions, template refs |
+| Virtualised lists, form validation | dynamic component tags |
+| Dynamic attribute names, router view | `<@deadlock>` boundary ⚠️ *(see below)* |
+
+> [!WARNING]
+> **`<@deadlock>` is the one qualified entry.** Scheduler and watcher guards do
+> detect runaway reactive work and log `AVX_R18`, and you can trip a boundary
+> manually with `$tripDeadlockBoundary(name, error)` — but detection does not
+> automatically trip the nearest boundary, and the `maxDepth`, `action` and
+> `isolated` attributes are currently metadata rather than active controls. The
+> [deadlock guide](https://docs.avenx-js.com/core-concepts/deadlock/) states the
+> current behaviour and its limits.
+
+### Size and dependencies
+
+The published package has **one dependency**, `acorn`, used only by the
+compiler; it does not appear in an application bundle. The runtime you ship has
+no third-party dependencies.
+
+A freshly scaffolded application, production build, measured with `avenx build`:
+
+| Asset | Raw | Gzipped |
+| :--- | ---: | ---: |
+| `bundle.js` | 341 KB | 78 KB |
+| `bundle.css` | 0.7 KB | 0.3 KB |
+
+That number is honest rather than flattering, and worth understanding: Avenx's
+minifier strips comments and indentation and nothing else. It does not rename
+identifiers or remove dead branches, because doing that safely needs a full
+ECMAScript parser and a minifier that guesses produces a bundle that is smaller
+and wrong. Line numbers therefore survive into production stack traces. Unused
+modules *are* tree-shaken out of the graph — a scaffolded build reports
+`65 modules · 13 shaken out` — and comments and indentation are what gzip
+compresses best, so the gap on the wire is much narrower than on disk.
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
-## 🛠️ CLI Reference
+## 🔧 CLI reference
 
-| Command                   | Description                                            |
-| :------------------------ | :----------------------------------------------------- |
-| `avenx init`              | Scaffolds a new project structure.                     |
-| `avenx g <name>`          | Generates a new component (alias: `generate`).         |
-| `avenx g p <name>`        | Generates a new page for routing (alias: `g page`).    |
-| `avenx g bridge <name>`   | Generates a new shared reactive bridge.                |
-| `avenx g guard <name>`    | Generates a new route guard.                           |
-| `avenx d <name>`          | Deletes a component (alias: `destroy`).                |
-| `avenx d p <name>`        | Deletes a page (alias: `d page`).                      |
-| `avenx d bridge <name>`   | Deletes a shared reactive bridge.                      |
-| `avenx d guard <name>`    | Deletes a route guard.                                 |
-| `avenx build` (or `b`)    | Compiles the project into `dist/`.                     |
-| `avenx clean`             | Clears build output directory.                         |
-| `avenx check` (or `lint`) | Validates component templates without building.        |
-| `avenx doctor`            | Runs environment and project health diagnostics.       |
-| `avenx serve [port]`      | Starts the dev server with hot-reload (default: 3000). |
-| `avenx atlas`             | Prints the compiler's semantic map of the application. |
-| `avenx impact <symbol>`   | What can be affected if this symbol changes.           |
-| `avenx why <symbol>`      | Where this symbol's value comes from.                  |
-| `avenx trace list`        | Lists recorded causal traces.                          |
-| `avenx trace view <id>`   | Prints a trace as a causal tree.                       |
-| `avenx trace export <id>` | Turns a recorded trace into a regression test.         |
-| `avenx trace prune`       | Removes stored traces.                                 |
-| `avenx watch` (or `w`)    | Watch for file changes and rebuild automatically.      |
+### Project
+
+| Command | Description |
+| :--- | :--- |
+| `avenx init` | Scaffold a new project. |
+| `avenx generate component <name>` | Generate a component (alias `g`; `avenx g <name>` also works). |
+| `avenx generate page <name>` | Generate a routed page (alias `g p`). |
+| `avenx generate bridge <name>` | Generate a shared reactive bridge. |
+| `avenx generate guard <name>` | Generate a route guard. |
+| `avenx destroy <type> <name>` | Delete a component, page, bridge or guard and its registrations (alias `d`). |
+
+### Build and serve
+
+| Command | Description |
+| :--- | :--- |
+| `avenx serve [port]` | Dev server with live reload (default `3000`). |
+| `avenx watch` | Rebuild on file change (alias `w`). |
+| `avenx build` | Production build into `dist/` (alias `b`). |
+| `avenx clean` | Clear the build output directory. |
+| `avenx check` | Validate templates without building (alias `lint`). Exits `1` on any warning. |
+
+### Understand and diagnose
+
+| Command | Description |
+| :--- | :--- |
+| `avenx atlas` | The compiler's semantic map of the application. |
+| `avenx impact <symbol>` | What can be affected if this changes. |
+| `avenx why <symbol>` | Where this value comes from. |
+| `avenx inspect` | Route and component hierarchy (alias `i`). |
+| `avenx stats` | Component and bundle footprint metrics (alias `s`). |
+| `avenx doctor` | Diagnose environment, config and project health. |
+| `avenx env` | Print and validate active environment variables. |
+| `avenx explain <CODE>` | Explain a diagnostic code, e.g. `avenx explain AVX_W53`. |
+| `avenx trace list` / `view <id\|latest>` / `export <id\|latest>` / `prune` | Record, read and export causal traces. |
 
 ### Options
 
-| Option                | Description                                                                    |
-| :-------------------- | :----------------------------------------------------------------------------- |
-| `--dry-run`, `-d`     | Preview actions for generators and destructors without writing/deleting files. |
-| `--port`, `-p <port>` | Configure the port for the development server.                                 |
-| `--host`, `-h <host>` | Configure the host for the development server (default: `localhost`).          |
-| `--trace`             | Record a causal trace while serving. Development only, off by default.         |
-| `--out`, `-o <file>`  | Where `trace export` writes the generated regression test.                     |
-| `--json`, `-j`        | Machine-readable output for `check`, `atlas`, `impact` and `why`.              |
-| `--depth=<n>`         | How many hops `impact` and `why` follow (default: 12).                         |
+<details>
+<summary><b>⚙️ All flags, and the commands they apply to</b></summary>
+
+<br/>
+
+| Option | Applies to | Description |
+| :--- | :--- | :--- |
+| `--dev` / `--prod` | `build` | Development build (readable runtime, inline CSS source maps) or production (the default). |
+| `--dry-run`, `-d` | `generate`, `destroy` | Preview without writing or deleting anything. |
+| `--force`, `-f` | `generate` | Overwrite existing files. |
+| `--with-test` / `--no-test` | `generate component` | Generate or skip a colocated unit test. |
+| `--template`, `-t <name>` | `generate` | Use a custom scaffold template. |
+| `--json`, `-j` | `check`, `atlas`, `impact`, `why` | Machine-readable output. |
+| `--depth=<n>` | `impact`, `why` | How many hops to follow (default `12`). |
+| `--watch`, `-w` | `check` | Continuous template linting. |
+| `--port`, `-p <port>` | `serve` | Port to listen on. Also honours `PORT`. |
+| `--host`, `-h <host>` | `serve` | Host to bind (default `localhost`). |
+| `--open`, `-o` | `serve` | Open a browser on start. |
+| `--no-live-reload` | `serve` | Disable live reload. |
+| `--trace` | `serve` | Record a causal trace. Development only, off by default. |
+| `--out`, `-o <file>` | `trace export` | Where the generated regression test is written. |
+| `--keep=<n>`, `--all` | `trace prune` | How much to remove. |
+| `--no-color` | all | Disable colour (`NO_COLOR` is honoured too). |
+| `--version`, `-v` | — | Print the version. |
+
+</details>
+
+**→ [CLI reference](https://docs.avenx-js.com/cli-reference/commands/)**
+
+### Configuration
+
+`avenx.config.json` sits at the project root. Every key is optional:
+
+```json
+{
+  "srcDir": "src",
+  "distDir": "dist",
+  "style": { "preprocessor": "scss" },
+  "server": { "port": 3000, "host": "localhost", "liveReload": true },
+  "warnings": { "AVX_W47": "off" },
+  "trace": { "redact": ["auth.token", "user.*", "*.password"] },
+  "rewind": { "onConflict": "safe" },
+  "alias": {},
+  "incremental": false
+}
+```
+
+**→ [Configuration](https://docs.avenx-js.com/getting-started/configuration/)**
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
-## 🧪 Testing
+## 🧩 Tooling and ecosystem
 
-Avenx-JS provides comprehensive testing support, from fast unit tests to full browser E2E test suites:
+**Testing.** `avenx-core/testing` exports `mountTestComponent`, `fireEvent`,
+`replay`, snapshot helpers and the trace recorder. It is a separate entry point,
+so nothing in it can reach an application bundle.
 
-- **Unit Tests:** `npm run test:unit`
-- **Integration Tests:** `npm run test:integration`
-- **System Benchmarks & CLI Tests:** `npm run test:system`
-- **Playwright End-to-End (E2E) Browser Tests:** `npm run test:e2e`
-- **Full Test Suite:** `npm test`
+**Editor support.** Avenx ships TypeScript declarations for the runtime, so
+`main.app.js`, bridges and guards get full type checking, completion and
+go-to-definition with no build step. Component and page files are markup rather
+than JavaScript, so they get tag and attribute completion and hover
+documentation instead; `avenx init` configures this. What checks the expressions
+*inside* them is the compiler — `avenx check` and `avenx build`. There is no
+Avenx language server today.
 
-The E2E suite compiles real Avenx applications with the CLI and drives the compiled bundle in a browser, so a test cannot pass unless the compiler and runtime both ran. Every pull request runs it on **Chromium**; **Firefox** and **WebKit** run nightly.
+**ESLint.** `avenx-core/tooling` exports an ESLint-compatible parser for
+`.component.js` / `.page.js` files and a rule that validates component tag
+casing against your registered components.
+**→ [ESLint guide](https://docs.avenx-js.com/guides/eslint/)**
 
-See [test/e2e/README.md](test/e2e/README.md) for the fixture-app layout, the conventions, what belongs in E2E rather than unit tests, and the framework gaps the suite currently pins.
+**Official plugins** live in this repository under `plugins/`. They are **not
+yet published to npm** — use them from a checkout for now.
+
+| Plugin | What it adds |
+| :--- | :--- |
+| `@avenx/i18n` | Reactive translations, locale fallback, `Intl` formatting. |
+| `@avenx/persistence` | Bridge state that survives reloads. |
+| `@avenx/charts` | Declarative, reactive charts. |
+| `@avenx/vite` | Component and page compilation, CSS processing and HMR under Vite. |
+
+**→ [i18n](https://docs.avenx-js.com/guides/i18n/)** ·
+**[Persistence](https://docs.avenx-js.com/guides/persistence/)** ·
+**[Vite plugin](https://docs.avenx-js.com/cli-reference/vite-plugin/)** ·
+**[Writing a plugin](https://docs.avenx-js.com/guides/plugin-authoring/)**
+
+**Coming from another framework?** There are migration guides for
+[React](https://docs.avenx-js.com/migration/react/),
+[Vue](https://docs.avenx-js.com/migration/vue/),
+[Svelte](https://docs.avenx-js.com/migration/svelte/),
+[Angular](https://docs.avenx-js.com/migration/angular/) and
+[Next.js](https://docs.avenx-js.com/migration/nextjs/).
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
-## 📌 Status
+## 📍 Project status
 
-This project is currently a proof-of-concept framework and actively evolving.
+Avenx is **pre-1.0**. Under SemVer that means a minor release may change public
+behaviour; every such change is listed in [CHANGELOG.md](CHANGELOG.md) with its
+migration.
+
+- **Published:** `avenx-core@0.4.3` on npm.
+- **In progress:** a production-readiness cycle ahead of a release candidate.
+  The unreleased section of the changelog records what it has found and fixed.
+- **Node:** 18 or newer. CI runs the suite on 18, 20 and 22.
+
+The repository's own verification, as it stands on `develop`:
+
+| Suite | Count | How to run |
+| :--- | ---: | :--- |
+| Unit | 218 files | `npm run test:unit` |
+| Integration | 23 files | `npm run test:integration` |
+| System / CLI | 28 files | `npm run test:system` |
+| Browser (E2E, Chromium) | 166 tests | `npm run test:e2e` |
+| Plugins | 3 suites | `npm run test:plugins` |
+
+The E2E suite compiles 12 real applications with the actual CLI and drives the
+compiled bundles in a browser, so a test cannot pass unless the compiler and the
+runtime both ran. Chromium gates every pull request; Firefox and WebKit run
+nightly. Some fixtures exist to pin known gaps rather than to demonstrate
+correct behaviour, and
+[test/e2e/README.md](test/e2e/README.md) says which.
+
+> [!CAUTION]
+> **Known limitations**, stated plainly: no language server; `<@deadlock>`
+> detection does not auto-trip boundaries; the plugins are not on npm; and the
+> constructs marked *String renderer* above re-render their whole template on
+> every update.
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
+
+---
+
+## 📚 Documentation
+
+Full documentation lives at **[docs.avenx-js.com](https://docs.avenx-js.com/)**.
+
+<details>
+<summary><b>🗺️ Jump straight to a topic</b></summary>
+
+<br/>
+
+| Section | Start here |
+| :--- | :--- |
+| Getting started | [Introduction](https://docs.avenx-js.com/getting-started/intro/) · [Installation](https://docs.avenx-js.com/getting-started/install/) · [Quick start](https://docs.avenx-js.com/getting-started/quickstart/) · [Project structure](https://docs.avenx-js.com/getting-started/structure/) |
+| Writing components | [Components](https://docs.avenx-js.com/core-concepts/components/) · [Templates & slots](https://docs.avenx-js.com/core-concepts/templates/) · [Events](https://docs.avenx-js.com/core-concepts/events/) · [Lifecycle hooks](https://docs.avenx-js.com/core-concepts/lifecycle-hooks/) |
+| State | [Reactivity](https://docs.avenx-js.com/core-concepts/reactivity/) · [Computed](https://docs.avenx-js.com/core-concepts/computed/) · [Bridges](https://docs.avenx-js.com/core-concepts/bridges/) · [Provide & inject](https://docs.avenx-js.com/core-concepts/provide-inject/) |
+| Styling | [Scoped CSS](https://docs.avenx-js.com/core-concepts/styling/) · [Transitions](https://docs.avenx-js.com/core-concepts/transitions/) · [Directives](https://docs.avenx-js.com/core-concepts/directives/) |
+| Routing | [Pages & routing](https://docs.avenx-js.com/core-concepts/routing/) · [Router & guards API](https://docs.avenx-js.com/api-reference/router-guard/) |
+| Async | [Resources](https://docs.avenx-js.com/core-concepts/resources/) · [Defer](https://docs.avenx-js.com/core-concepts/defer/) |
+| The compiler | [Rendering](https://docs.avenx-js.com/core-concepts/rendering/) · [Template expressions](https://docs.avenx-js.com/core-concepts/template-expressions/) · [Atlas](https://docs.avenx-js.com/core-concepts/atlas/) · [Trace](https://docs.avenx-js.com/core-concepts/trace/) · [Rewind](https://docs.avenx-js.com/core-concepts/rewind/) |
+| Reference | [CLI](https://docs.avenx-js.com/cli-reference/commands/) · [App](https://docs.avenx-js.com/api-reference/app/) · [Component](https://docs.avenx-js.com/api-reference/component/) · [Testing](https://docs.avenx-js.com/api-reference/testing/) · [Diagnostics](https://docs.avenx-js.com/troubleshooting/errors/) |
+| Going further | [Deployment](https://docs.avenx-js.com/guides/deployment/) · [Best practices](https://docs.avenx-js.com/best-practices/guide/) · [TypeScript & JSDoc](https://docs.avenx-js.com/getting-started/typescript/) |
+
+</details>
+
+Diagnostics carry stable codes, and the catalogued ones explain themselves from
+the terminal — `avenx explain AVX_W53` prints the cause, the fix and a link. The
+[diagnostics reference](https://docs.avenx-js.com/troubleshooting/errors/)
+covers the rest.
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
 ## 🤝 Contributing
 
-We are actively looking for contributors! Avenx-JS is PR and first-time open-source friendly. Whether you are fixing a typo, updating documentation, or adding features, we welcome your help.
+Avenx is open source and welcomes contributions, from typo fixes to compiler
+work. It is a friendly place for a first open-source pull request, and 112
+people have contributed so far.
 
-Check out our [CONTRIBUTING.md](CONTRIBUTING.md) to get started!
+```bash
+git clone https://github.com/Avenx-JS/avenx-js.git
+cd avenx-js
+npm install
+npm test
+```
+
+Before you start, read [CONTRIBUTING.md](CONTRIBUTING.md) — it covers the
+workflow, how to add a diagnostic code, and how to run the plugin suites. For
+the compiler, runtime or CLI, the
+[architecture guide](https://docs.avenx-js.com/contributing/architecture/) maps
+the compile pipeline, the runtime data flow and the test tiers.
+
+Please also see our [Code of Conduct](CODE_OF_CONDUCT.md) and
+[Security Policy](SECURITY.md). Bugs and proposals belong in
+[issues](https://github.com/Avenx-JS/avenx-js/issues).
+
+<div align="right"><a href="#avenxjs">↑ back to top</a></div>
 
 ---
 
 ## 📄 License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+[MIT](LICENSE) © the Avenx Team.
 
----
+<br/>
 
-## ⭐ Support
+<div align="center">
 
-If you like what we're building, please give us a ⭐ on [GitHub](https://github.com/avenx-js/avenx-js)!
+<samp>
 
-Built with ❤️ by the Avenx Team.
+[**Documentation**](https://docs.avenx-js.com/) &nbsp;·&nbsp; [**npm**](https://www.npmjs.com/package/avenx-core) &nbsp;·&nbsp; [**Issues**](https://github.com/Avenx-JS/avenx-js/issues) &nbsp;·&nbsp; [**Changelog**](CHANGELOG.md) &nbsp;·&nbsp; [**Contributors**](CONTRIBUTORS.md)
+
+</samp>
+
+If Avenx is useful to you, a ⭐ on [GitHub](https://github.com/Avenx-JS/avenx-js) helps other people find it.
+
+</div>
