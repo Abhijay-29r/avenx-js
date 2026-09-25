@@ -16,6 +16,8 @@ Before creating a contribution, please:
 
 Before contributing to the compiler, runtime, or CLI, please read the [Contributor Architecture Guide](https://docs.avenx-js.com/contributing/architecture/) for an in-depth map of the compile pipeline, runtime data flow, and test tiers.
 
+For an in-depth guide on the compiler pipeline passes, node structures, and invariants, see [Compiler Internals](docs/compiler-internals.md).
+
 ## Diagnostic Codes
 
 Avenx.js uses stable diagnostic codes for compiler errors, runtime errors, and warnings. The authoritative registry of diagnostic codes is `lib/core/runtime/AvenxError.js`, which exports `AvenxErrorCodes`.
