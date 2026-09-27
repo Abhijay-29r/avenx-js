@@ -291,6 +291,38 @@ async function testEventOps() {
   console.log('  ✅ a handler in a loop body resolves the loop binding');
 }
 
+async function testDuplicateKeysDoNotAccumulate() {
+  console.log('🧪 <@for> does not accumulate rows when two items share a key');
+  const state = reactive({ rows: [{ id: 'dup', n: 'a' }, { id: 'dup', n: 'b' }] });
+  const program = {
+    v: PROGRAM_VERSION,
+    html: '<ul><!--axt:0--></ul>',
+    ops: [{ k: OpKind.FOR, t: 0, x: 0, as: 'row', key: 1, b: 0 }],
+    elements: 0,
+    texts: 1,
+    blocks: [{ html: '<li><!--axt:0--></li>', ops: [{ k: OpKind.TEXT, t: 0, x: 2 }], elements: 0, texts: 1 }],
+  };
+
+  const { element } = mount(program, state, [(s) => s.rows, (s) => s.row.id, (s) => s.row.n]);
+  const rows = () => [...element.querySelectorAll('li')].map((li) => li.textContent);
+
+  assert.deepStrictEqual(rows(), ['a', 'b'], 'both items render, duplicate key or not');
+
+  // The key map keeps one entry per key, so the row that lost the key had no
+  // owner: it was neither reused nor torn down, and stayed in the document
+  // while a replacement was built beside it -- once per update, unboundedly.
+  for (let pass = 0; pass < 3; pass++) {
+    state.rows = [{ id: 'dup', n: 'a' }, { id: 'dup', n: 'b' }];
+    await nextTick();
+    assert.deepStrictEqual(rows(), ['a', 'b'], `the list still has two rows after update ${pass + 1}`);
+  }
+
+  state.rows = [];
+  await nextTick();
+  assert.deepStrictEqual(rows(), [], 'emptying the list leaves nothing behind');
+  console.log('  ✅ a duplicate key rebuilds one row instead of stranding it');
+}
+
 async function testDisposeReleasesRows() {
   console.log('🧪 disposing an instance releases its blocks');
   const state = reactive({ rows: [{ id: 1, n: 'a' }] });
@@ -324,6 +356,7 @@ async function run() {
   await testListRemovalAndEmpty();
   await testNestedBlocks();
   await testEventOps();
+  await testDuplicateKeysDoNotAccumulate();
   await testDisposeReleasesRows();
   console.log('\n✅ program block runtime tests passed');
 }
