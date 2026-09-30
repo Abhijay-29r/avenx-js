@@ -170,6 +170,9 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nikitameena0408"><img src="https://avatars.githubusercontent.com/u/263127612?v=4?s=100" width="100px;" alt="nikitameena0408"/><br /><sub><b>nikitameena0408</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=nikitameena0408" title="Tests">⚠️</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/alfarant07"><img src="https://avatars.githubusercontent.com/u/169631373?v=4?s=100" width="100px;" alt="Anthony Alfaro"/><br /><sub><b>Anthony Alfaro</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=alfarant07" title="Documentation">📖</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/tnmykhandelwal"><img src="https://avatars.githubusercontent.com/u/256393431?v=4?s=100" width="100px;" alt="Tanmay Kumar Khandelwal"/><br /><sub><b>Tanmay Kumar Khandelwal</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=tnmykhandelwal" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
