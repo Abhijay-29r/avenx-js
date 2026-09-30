@@ -253,12 +253,31 @@ export function getInitialHtml(cli) {
 }
 
 /**
+ * Serialises a value for embedding inside an inline `<script>` element.
+ *
+ * `JSON.stringify` does not escape `<`, so a `</script>` sequence anywhere in
+ * the data would terminate the script element early. The `<`/`>` escapes are
+ * still valid JSON and parse back to the same characters; U+2028/U+2029 are
+ * legal in JSON strings but illegal raw in a JS string literal or regex.
+ *
+ * @param {*} value
+ * @returns {string} Escaped JSON safe for inline `<script>` embedding.
+ */
+export function escapeInlineJson(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+/**
  * Generates the Dev Server Inspection Dashboard HTML page.
  * @param {object} cli
  * @returns {string} The dashboard HTML content.
  */
 export function getInspectorHtml(cli) {
-  const configJson = JSON.stringify(cli.config);
+  const configJson = escapeInlineJson(cli.config);
   return `<!DOCTYPE html>
 <html>
 <head>
