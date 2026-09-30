@@ -1036,6 +1036,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "tnmykhandelwal",
+      "name": "Tanmay Kumar Khandelwal",
+      "avatar_url": "https://avatars.githubusercontent.com/u/256393431?v=4",
+      "profile": "https://github.com/tnmykhandelwal",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
