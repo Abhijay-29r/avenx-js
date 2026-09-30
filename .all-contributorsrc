@@ -1045,6 +1045,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "TirupMehta",
+      "name": "Tirup Mehta",
+      "avatar_url": "https://avatars.githubusercontent.com/u/183989973?v=4",
+      "profile": "https://tirup.in",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
