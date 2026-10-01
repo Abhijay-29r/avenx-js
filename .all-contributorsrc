@@ -1072,6 +1072,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "readyagentsdev",
+      "name": "ReadyAgents",
+      "avatar_url": "https://avatars.githubusercontent.com/u/326687097?v=4",
+      "profile": "https://readyagents.dev/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
