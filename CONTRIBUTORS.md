@@ -174,6 +174,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tnmykhandelwal"><img src="https://avatars.githubusercontent.com/u/256393431?v=4?s=100" width="100px;" alt="Tanmay Kumar Khandelwal"/><br /><sub><b>Tanmay Kumar Khandelwal</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=tnmykhandelwal" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://tirup.in"><img src="https://avatars.githubusercontent.com/u/183989973?v=4?s=100" width="100px;" alt="Tirup Mehta"/><br /><sub><b>Tirup Mehta</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=TirupMehta" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/varun-pahuja"><img src="https://avatars.githubusercontent.com/u/190826251?v=4?s=100" width="100px;" alt="Varun-pahuja"/><br /><sub><b>Varun-pahuja</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=varun-pahuja" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/kocaemre"><img src="https://avatars.githubusercontent.com/u/110906681?v=4?s=100" width="100px;" alt="Emre K."/><br /><sub><b>Emre K.</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=kocaemre" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
