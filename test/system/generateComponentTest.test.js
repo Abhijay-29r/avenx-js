@@ -60,7 +60,7 @@ try {
     0,
     `the generated component test should pass:\n${result.stdout || ''}${result.stderr || ''}`,
   );
-  console.log('✅ Generated component tests pass under the Node test runner');
+  console.log('Generated component tests pass under the Node test runner');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }
