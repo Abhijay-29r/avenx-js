@@ -36,7 +36,7 @@ ${bold(cyan('Commands:'))}
   ${green('serve [port]')}              ${gray('Start dev server with hot-reload (default: 3000)')}
   ${green('watch (w)')}                 ${gray('Watch for file changes and rebuild automatically')}
   ${green('format')}                    ${gray('Format project files using Prettier')}
-  ${green('help')}                      ${gray('Show this help message')} 
+  ${green('help')}                      ${gray('Show this help message')}
   
 ${bold(cyan('Options:'))}
   ${green('--dev')}                     ${gray('Build for development: readable runtime, inline CSS source maps')}
@@ -46,10 +46,14 @@ ${bold(cyan('Options:'))}
   ${green('--with-test')}               ${gray('Generate a colocated unit test file alongside the component')}
   ${green('--no-test')}                 ${gray('Skip generating unit test files')}
   ${green('--template, -t <name>')}     ${gray('Use a custom scaffold template for code generation')}
-  ${green('--json, -j')}                ${gray('Machine-readable output for check, atlas, impact and why')}
+  ${green('--json, -j')}                ${gray('Machine-readable output for check, atlas, impact, why and explain (explain: --json only)')}
   ${green('--depth=<n>')}               ${gray('How many hops "impact" and "why" follow (default: 12)')}
   ${green('--watch, -w')}               ${gray('Watch project component files for continuous template linting')}
   ${green('--no-color')}                ${gray('Disable colored output (the NO_COLOR variable is honored too)')}
+  ${green('--port, -p <port>')}         ${gray('Port for "serve" (else a bare port arg, then PORT, config server.port, 3000)')}
+  ${green('--host, -h <host>')}         ${gray('Host for "serve" to bind (default: localhost)')}
+  ${green('--open, -o')}                ${gray('Open a browser when "serve" starts')}
+  ${green('--no-live-reload')}          ${gray('Disable live reload while serving')}
   ${green('--trace')}                   ${gray('Record a causal trace while serving (dev only, off by default)')}
   ${green('--out, -o <file>')}          ${gray('Where "trace export" writes the generated regression test')}
   ${green('--keep=<n>, --all')}         ${gray('How much "trace prune" removes')}
