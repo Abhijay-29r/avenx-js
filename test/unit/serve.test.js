@@ -1,7 +1,7 @@
 import assert from 'assert';
 import http from 'http';
 import { EventEmitter } from 'events';
-import { bindAddressFor, listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger, applyCustomHeaders } from '../../bin/commands/serve.js';
+import { bindAddressFor, listenWithPortFallback, formatStatusCode, formatRequestLog, attachRequestLogger, applyCustomHeaders, getInitialHtml } from '../../bin/commands/serve.js';
 import { setColorEnabled } from '../../bin/colors.js';
 import { AvenxCLI } from '../../bin/cli.js';
 
@@ -21,6 +21,15 @@ class OccupiedPortServer extends EventEmitter {
       this.emit('listening');
     }
   }
+}
+
+function testGetInitialHtmlLanguage() {
+  const html = getInitialHtml({ config: { distDir: 'dist' } });
+
+  assert.ok(
+    html.includes('<html lang="en">'),
+    'Generated index.html should declare its language'
+  );
 }
 
 function runTests() {
@@ -197,6 +206,7 @@ async function testHttpDevServerRequestLogging() {
 
 async function main() {
   try {
+    testGetInitialHtmlLanguage();
     testRequestLoggerFormatting();
     testAttachRequestLogger();
     await testHttpDevServerRequestLogging();
