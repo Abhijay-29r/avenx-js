@@ -2540,7 +2540,7 @@ export default class AsyncRoleGuard extends AvenxGuard {
 **Warning Message**
 
 ```text
-WARNING: Preprocessor module "{0}" is not installed. Falling back to raw CSS.
+WARNING: Configured preprocessor "{0}" needs the "{1}" package, which is not installed. Run "npm install -D {1}". Falling back to raw CSS.
 ```
 
 **Cause:** This warning is emitted during compilation when a style preprocessor package (such as `sass`, `less`, or `postcss`) is configured in `avenx.config.json` but is not installed in the project's `node_modules`. Avenx-JS attempts to load the specified preprocessor to compile stylesheets (`.scss`, `.sass`, `.less`, or PostCSS files), but if the required package is missing, the compiler gracefully falls back to processing the raw CSS content without transformation.
@@ -2554,7 +2554,7 @@ This typically happens for a few common reasons:
 
 **Resolution:** To resolve this warning:
 
-1. Install the required preprocessor package using your package manager (e.g. `npm install sass` for Sass/SCSS, `npm install less` for Less, or `npm install postcss postcss-cli` for PostCSS).
+1. Install the required preprocessor package using your package manager (e.g. `npm install -D sass` for Sass/SCSS, `npm install -D less` for Less, or `npm install -D postcss` for PostCSS).
 2. Verify the `preprocessor` value in your `avenx.config.json` matches the installed package.
 3. If you do not need a preprocessor, remove the `preprocessor` field from the configuration or set it to `none`.
 4. After installing, re-run the build to confirm the warning no longer appears.
@@ -2563,18 +2563,18 @@ This typically happens for a few common reasons:
 
 ```json
 {
-  "compiler": {
-    "preprocessor": "sass"
+  "style": {
+    "preprocessor": "scss"
   }
 }
 ```
 
-If the `sass` package is not installed, Avenx-JS emits **AVX_W24** and falls back to raw CSS.
+If the `sass` package is not installed, Avenx-JS emits **AVX_W24** and falls back to raw CSS while naming both the configured `scss` value and the required `sass` package.
 
 **Correct**
 
 ```bash
-npm install sass
+npm install -D sass
 ```
 
 Installing the preprocessor package resolves the missing module issue.

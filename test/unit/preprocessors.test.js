@@ -65,11 +65,11 @@ try {
 
   // Test 1: Graceful fallback when preprocessor is enabled but not installed
   mockSassAvailable = false;
-  let warnLogged = false;
+  let warningMessage = '';
   const originalLoggerWarn = logger.warn;
   logger.warn = (msg) => {
-    if (msg.includes('AVX_W24') && msg.includes('sass')) {
-      warnLogged = true;
+    if (msg.includes('AVX_W24')) {
+      warningMessage = msg;
     }
   };
 
@@ -79,7 +79,45 @@ try {
   // Running preprocessCss should trigger warning and return original
   const resultFallback = spFallback.preprocessCss(rawGlobal, 'sass');
   assert.strictEqual(resultFallback, rawGlobal);
-  assert.ok(warnLogged, 'Should log a warning AVX_W24 when preprocessor module is missing');
+  assert.ok(warningMessage.includes('AVX_W24'), 'Should log a warning AVX_W24 when preprocessor module is missing');
+
+  // Restore logger
+  logger.warn = originalLoggerWarn;
+
+  // Test 1b: SCSS config should name the installable npm package
+  mockSassAvailable = false;
+  warningMessage = '';
+  logger.warn = (msg) => {
+    if (msg.includes('AVX_W24')) {
+      warningMessage = msg;
+    }
+  };
+
+  const spScssFallback = new StyleProcessor({ preprocessor: 'scss' });
+  const resultScssFallback = spScssFallback.preprocessCss(rawGlobal, 'scss');
+  assert.strictEqual(resultScssFallback, rawGlobal);
+  assert.ok(warningMessage.includes('preprocessor "scss"'), 'Should identify the configured preprocessor');
+  assert.ok(warningMessage.includes('"sass" package'), 'Should identify the installable package name');
+  assert.ok(warningMessage.includes('npm install -D sass'), 'Should include the install command');
+
+  for (const packageName of ['postcss', 'less']) {
+    warningMessage = '';
+    const spPackageFallback = new StyleProcessor({ preprocessor: packageName });
+    const resultPackageFallback = spPackageFallback.preprocessCss(rawGlobal, packageName);
+    assert.strictEqual(resultPackageFallback, rawGlobal);
+    assert.ok(
+      warningMessage.includes(`preprocessor "${packageName}"`),
+      `Should identify the configured ${packageName} preprocessor`,
+    );
+    assert.ok(
+      warningMessage.includes(`"${packageName}" package`),
+      `Should identify the installable ${packageName} package`,
+    );
+    assert.ok(
+      warningMessage.includes(`npm install -D ${packageName}`),
+      `Should include the ${packageName} install command`,
+    );
+  }
 
   // Restore logger
   logger.warn = originalLoggerWarn;

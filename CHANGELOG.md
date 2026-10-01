@@ -53,6 +53,10 @@ first pass and the whole test suite had missed.
 - `avenx init my-app` discarded the name and scaffolded into the current
   directory, exiting 0 — the routing tutorial opened with exactly that command.
   It now refuses an argument it does not use and prints the recipe that works.
+- `AVX_W24` now names both the configured CSS preprocessor and the npm package
+  to install. A `style.preprocessor` value of `"scss"` points users at `sass`
+  with an install command instead of telling them to install a nonexistent
+  `scss` package.
 
 ### Added — found by the same pass
 
