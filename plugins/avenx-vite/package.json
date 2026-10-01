@@ -18,6 +18,19 @@
     "hmr",
     "sfc"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/avenx-js/avenx-js.git",
+    "directory": "plugins/avenx-vite"
+  },
+  "bugs": {
+    "url": "https://github.com/avenx-js/avenx-js/issues"
+  },
+  "homepage": "https://avenx-js.com/",
+  "files": [
+    "src/",
+    "README.md"
+  ],
   "author": "Avenx Team",
   "license": "MIT",
   "peerDependencies": {
