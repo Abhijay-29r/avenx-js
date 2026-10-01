@@ -36,14 +36,16 @@ function runTests() {
   assert.ok(tplErr.message.includes('CardComponent'));
 
   // 3. StyleCompilerError inheritance and properties
-  const styleErr = new StyleCompilerError(AvenxErrorCodes.COMPILER_PREPROCESSOR_MISSING, 'sass');
+  const styleErr = new StyleCompilerError(AvenxErrorCodes.COMPILER_PREPROCESSOR_MISSING, 'scss', 'sass');
   assert.ok(styleErr instanceof Error, 'StyleCompilerError should inherit from Error');
   assert.ok(styleErr instanceof AvenxError, 'StyleCompilerError should inherit from AvenxError');
   assert.ok(styleErr instanceof CompilerError, 'StyleCompilerError should inherit from CompilerError');
   assert.strictEqual(styleErr.name, 'StyleCompilerError');
   assert.strictEqual(styleErr.code, 'AVX_W24');
   assert.ok(styleErr.message.includes('[AVX_W24]'));
+  assert.ok(styleErr.message.includes('scss'));
   assert.ok(styleErr.message.includes('sass'));
+  assert.ok(styleErr.message.includes('npm install -D sass'));
 
   // 4. BuildError inheritance and properties
   const buildErr = new BuildError(AvenxErrorCodes.COMPILER_DUPLICATE_COMPONENT_NAME, 'Duplicate Details');
