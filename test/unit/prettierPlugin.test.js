@@ -45,6 +45,13 @@ try {
 
   console.log('  ✅ Reformatting formatted output is a no-op');
 
+  // A <@for> with an interpolation prints its closing tag as `</@for\n>`;
+  // reformatting that output must still parse (issue #1380).
+  const loop = await format('<@for item in items key="item.id"><p>{{ item.name }}</p></@for>\n');
+  assert.strictEqual(await format(loop), loop);
+
+  console.log('  ✅ Reformatting a formatted <@for> is a no-op');
+
   // No encoding placeholders may leak into the printed source.
   assert.ok(!/avenx-|data-avenx-/.test(plain), 'no placeholder names in plain output');
   assert.ok(!/avenx-|data-avenx-/.test(nested), 'no placeholder names in nested output');
