@@ -9,10 +9,6 @@ const MIN_NODE_VERSION = [18, 0, 0];
 // One schema, owned by lib/config.js. Doctor used to keep its own copy and
 // drifted, warning that valid options such as server.headers were unknown.
 const ALLOWED_TOP_LEVEL = CONFIG_SCHEMA.topLevel;
-const ALLOWED_SERVER = CONFIG_SCHEMA.server;
-const ALLOWED_STYLE = CONFIG_SCHEMA.style;
-const ALLOWED_DEBUG = CONFIG_SCHEMA.debug;
-const ALLOWED_LOGGING = CONFIG_SCHEMA.logging;
 
 /**
  * @param {number[]} current
@@ -148,23 +144,11 @@ export function runDoctor(cli) {
         for (const key of unknown) {
           record('warn', `Unrecognized config field "${key}"`, `Supported top-level options: ${ALLOWED_TOP_LEVEL.join(', ')}`);
         }
-        if (userConfig.server) {
-          for (const key of collectUnknownKeys(userConfig.server, ALLOWED_SERVER, 'server')) {
-            record('warn', `Unrecognized config field "${key}"`);
-          }
-        }
-        if (userConfig.style) {
-          for (const key of collectUnknownKeys(userConfig.style, ALLOWED_STYLE, 'style')) {
-            record('warn', `Unrecognized config field "${key}"`);
-          }
-        }
-        if (userConfig.debug) {
-          for (const key of collectUnknownKeys(userConfig.debug, ALLOWED_DEBUG, 'debug')) {
-            record('warn', `Unrecognized config field "${key}"`);
-          }
-        }
-        if (userConfig.logging) {
-          for (const key of collectUnknownKeys(userConfig.logging, ALLOWED_LOGGING, 'logging')) {
+        // Check every nested section CONFIG_SCHEMA defines (everything except
+        // topLevel), so a section added to the schema later is covered too.
+        for (const [section, allowedKeys] of Object.entries(CONFIG_SCHEMA)) {
+          if (section === 'topLevel') continue;
+          for (const key of collectUnknownKeys(userConfig[section], allowedKeys, section)) {
             record('warn', `Unrecognized config field "${key}"`);
           }
         }
