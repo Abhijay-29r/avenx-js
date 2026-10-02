@@ -384,6 +384,8 @@ Launches a local live-reloading development server with automatic file watching 
 - `--no-live-reload` / `--live-reload=false`: Disables file watching, live reload SSE client script injection, and automatic browser refreshes.
 - `--trace`: Records a causal trace of the running application. Off by default. See [`avenx trace`](#14-avenx-trace) and the [Avenx Trace guide](/core-concepts/trace/).
 
+- `--open`, `-o`: Opens the default browser once the development server is listening. Off by default; closing the browser does not stop the server.
+ 
 #### Visual Inspection Dashboard (`/__avenx-inspect`)
 
 Access `http://localhost:3000/__avenx-inspect` while the dev server is running to inspect active routes, registered components, global bridges, and compiler options in real-time.
@@ -397,6 +399,9 @@ npx avenx serve 8080 --host 0.0.0.0
 
 # Disable live reload script injection
 npx avenx serve --no-live-reload
+
+# Start server and open the default browser
+npx avenx serve --open
 ```
 
 ---
