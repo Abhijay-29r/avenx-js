@@ -177,6 +177,7 @@ If you have questions or want to contribute, feel free to reach out.
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/kocaemre"><img src="https://avatars.githubusercontent.com/u/110906681?v=4?s=100" width="100px;" alt="Emre K."/><br /><sub><b>Emre K.</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=kocaemre" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://readyagents.dev/"><img src="https://avatars.githubusercontent.com/u/326687097?v=4?s=100" width="100px;" alt="ReadyAgents"/><br /><sub><b>ReadyAgents</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=readyagentsdev" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/LucasHrysyk"><img src="https://avatars.githubusercontent.com/u/118494189?v=4?s=100" width="100px;" alt="LucasHrysyk"/><br /><sub><b>LucasHrysyk</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=LucasHrysyk" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://atharv.is-a-good.dev"><img src="https://avatars.githubusercontent.com/u/188656442?v=4?s=100" width="100px;" alt="Atharv R Gachchi"/><br /><sub><b>Atharv R Gachchi</b></sub></a><br /><a href="https://github.com/Avenx-JS/avenx-js/commits?author=AtharvRG" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
