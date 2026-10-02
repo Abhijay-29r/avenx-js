@@ -39,6 +39,8 @@ ${bold(cyan('Commands:'))}
   ${green('help')}                      ${gray('Show this help message')}
   
 ${bold(cyan('Options:'))}
+  ${green('--layout <blank|routing>')}  ${gray('Specify project layout template for init (default: blank)')}
+  ${green('--style <none|sass|...>')}   ${gray('Specify CSS preprocessor for init (none, sass, less, postcss)')}
   ${green('--dev')}                     ${gray('Build for development: readable runtime, inline CSS source maps')}
   ${green('--prod')}                    ${gray('Build for production (the default for "build")')}
   ${green('--dry-run, -d')}             ${gray('Preview actions without writing or deleting any files')}

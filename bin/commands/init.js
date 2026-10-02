@@ -28,7 +28,21 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../../packa
  * @throws {never} Exits the process with code 1 when an argument is unexpected.
  */
 function rejectUnexpectedArguments(args) {
-  const unexpected = (args || []).filter((arg) => !arg.startsWith('-'));
+  const flagsWithValues = ['--layout', '--style'];
+  const unexpected = [];
+
+  for (let i = 0; i < (args || []).length; i++) {
+    const arg = args[i];
+    if (arg.startsWith('-')) {
+      // If it is a flag that takes a value in the next argument, skip the next argument.
+      if (flagsWithValues.includes(arg)) {
+        i++;
+      }
+    } else {
+      unexpected.push(arg);
+    }
+  }
+
   if (unexpected.length === 0) return;
 
   const name = unexpected[0];
@@ -51,17 +65,29 @@ export async function initProject(cli, args = []) {
   console.log(bold(cyan(`🚀 Initializing new Avenx-JS project (Style: ${stylePreprocessor}, Layout: ${layoutTemplate})...`)));
 
   // Write avenx.config.json if preprocessor option is configured
-  const configPath = path.join(cli.baseDir, 'avenx.config.json');
-  if (!fs.existsSync(configPath)) {
-    const userConfig = {
-      style: {
-        preprocessor: stylePreprocessor,
-      },
-    };
-    fs.writeFileSync(configPath, JSON.stringify(userConfig, null, 2) + '\n');
-    console.log('  Created: avenx.config.json');
-    cli.config = { ...cli.config, ...userConfig };
+const configPath = path.join(cli.baseDir, 'avenx.config.json');
+  let userConfig = {};
+
+  if (fs.existsSync(configPath)) {
+    try {
+      userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch (e) {
+      userConfig = {};
+    }
   }
+
+  userConfig.style = {
+    ...userConfig.style,
+    preprocessor: stylePreprocessor,
+  };
+
+  fs.writeFileSync(configPath, JSON.stringify(userConfig, null, 2) + '\n');
+  if (!fs.existsSync(configPath)) {
+    console.log('  Created: avenx.config.json');
+  } else {
+    console.log('  Updated: avenx.config.json');
+  }
+  cli.config = { ...cli.config, ...userConfig };
 
   const dirs = [
     `${cli.config.srcDir}/components`,
@@ -119,13 +145,13 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         mainAppPath,
         "import { AvenxApp } from 'avenx-core/runtime';\n" +
-          "import Navbar from './components/navbar/navbar.component.js';\n\n" +
-          "const app = new AvenxApp({ target: '#app' });\n\n" +
-          "app.register('Navbar', Navbar);\n\n" +
-          'app.initRouter({\n' +
-          "  '': 'Home',\n" +
-          "  '#/about': 'About',\n" +
-          '});\n',
+        "import Navbar from './components/navbar/navbar.component.js';\n\n" +
+        "const app = new AvenxApp({ target: '#app' });\n\n" +
+        "app.register('Navbar', Navbar);\n\n" +
+        'app.initRouter({\n' +
+        "  '': 'Home',\n" +
+        "  '#/about': 'About',\n" +
+        '});\n',
       );
     } else {
       fs.writeFileSync(
@@ -154,12 +180,12 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         homePageJsPath,
         '<state title="Home" />\n\n' +
-          '<Navbar />\n\n' +
-          '<div class="page-container">\n' +
-          '    <h1>Home Page</h1>\n' +
-          '    <p>Welcome to the home page of your new Avenx application!</p>\n' +
-          '    <p>This layout template demonstrates hash-based routing using AvenxRouter.</p>\n' +
-          '</div>\n',
+        '<Navbar />\n\n' +
+        '<div class="page-container">\n' +
+        '    <h1>Home Page</h1>\n' +
+        '    <p>Welcome to the home page of your new Avenx application!</p>\n' +
+        '    <p>This layout template demonstrates hash-based routing using AvenxRouter.</p>\n' +
+        '</div>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/pages/home.page.js`);
     }
@@ -167,13 +193,13 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         homePageCssPath,
         '<@css>\n' +
-          '.page-container {\n' +
-          '    padding: 20px;\n' +
-          '    font-family: sans-serif;\n' +
-          '    max-width: 800px;\n' +
-          '    margin: 0 auto;\n' +
-          '}\n' +
-          '</@css>\n',
+        '.page-container {\n' +
+        '    padding: 20px;\n' +
+        '    font-family: sans-serif;\n' +
+        '    max-width: 800px;\n' +
+        '    margin: 0 auto;\n' +
+        '}\n' +
+        '</@css>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/pages/home.page.css`);
     }
@@ -183,11 +209,11 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         aboutPageJsPath,
         '<state title="About" />\n\n' +
-          '<Navbar />\n\n' +
-          '<div class="page-container">\n' +
-          '    <h1>About Page</h1>\n' +
-          '    <p>Welcome to the about page.</p>\n' +
-          '</div>\n',
+        '<Navbar />\n\n' +
+        '<div class="page-container">\n' +
+        '    <h1>About Page</h1>\n' +
+        '    <p>Welcome to the about page.</p>\n' +
+        '</div>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/pages/about.page.js`);
     }
@@ -195,13 +221,13 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         aboutPageCssPath,
         '<@css>\n' +
-          '.page-container {\n' +
-          '    padding: 20px;\n' +
-          '    font-family: sans-serif;\n' +
-          '    max-width: 800px;\n' +
-          '    margin: 0 auto;\n' +
-          '}\n' +
-          '</@css>\n',
+        '.page-container {\n' +
+        '    padding: 20px;\n' +
+        '    font-family: sans-serif;\n' +
+        '    max-width: 800px;\n' +
+        '    margin: 0 auto;\n' +
+        '}\n' +
+        '</@css>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/pages/about.page.css`);
     }
@@ -211,11 +237,11 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         navbarJsPath,
         '<state activeRoute="" />\n\n' +
-          '<nav>\n' +
-          '    <@css container />\n' +
-          '    <a @css link href="#/">Home</a>\n' +
-          '    <a @css link href="#/about">About</a>\n' +
-          '</nav>\n',
+        '<nav>\n' +
+        '    <@css container />\n' +
+        '    <a @css link href="#/">Home</a>\n' +
+        '    <a @css link href="#/about">About</a>\n' +
+        '</nav>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/components/navbar/navbar.component.js`);
     }
@@ -223,28 +249,28 @@ export async function initProject(cli, args = []) {
       fs.writeFileSync(
         navbarCssPath,
         '<@global>\n' +
-          '    @def primary #6366f1;\n' +
-          '    @def dark #1e1b4b;\n' +
-          '    @def gray #e2e8f0;\n' +
-          '</@global>\n\n' +
-          '<@css>\n' +
-          '    container {\n' +
-          '        display: flex;\n' +
-          '        gap: 1.5rem;\n' +
-          '        padding: 1rem 2rem;\n' +
-          '        background: @dark;\n' +
-          '        border-bottom: 2px solid @primary;\n' +
-          '    }\n\n' +
-          '    link {\n' +
-          '        color: white;\n' +
-          '        text-decoration: none;\n' +
-          '        font-weight: 500;\n' +
-          '        font-family: sans-serif;\n' +
-          '    }\n\n' +
-          '    link:hover {\n' +
-          '        color: @primary;\n' +
-          '    }\n' +
-          '</@css>\n',
+        '    @def primary #6366f1;\n' +
+        '    @def dark #1e1b4b;\n' +
+        '    @def gray #e2e8f0;\n' +
+        '</@global>\n\n' +
+        '<@css>\n' +
+        '    container {\n' +
+        '        display: flex;\n' +
+        '        gap: 1.5rem;\n' +
+        '        padding: 1rem 2rem;\n' +
+        '        background: @dark;\n' +
+        '        border-bottom: 2px solid @primary;\n' +
+        '    }\n\n' +
+        '    link {\n' +
+        '        color: white;\n' +
+        '        text-decoration: none;\n' +
+        '        font-weight: 500;\n' +
+        '        font-family: sans-serif;\n' +
+        '    }\n\n' +
+        '    link:hover {\n' +
+        '        color: @primary;\n' +
+        '    }\n' +
+        '</@css>\n',
       );
       console.log(`  Created: ${cli.config.srcDir}/components/navbar/navbar.component.css`);
     }
