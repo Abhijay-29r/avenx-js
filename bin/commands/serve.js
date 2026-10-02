@@ -279,9 +279,10 @@ export function escapeInlineJson(value) {
 export function getInspectorHtml(cli) {
   const configJson = escapeInlineJson(cli.config);
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avenx Inspection Dashboard</title>
     <style>
         :root {
@@ -333,11 +334,12 @@ export function getInspectorHtml(cli) {
             gap: 0.75rem;
         }
 
-        .brand .title {
+        .brand h1.title {
             font-size: 1.1rem;
             font-weight: 600;
             color: var(--text-main);
             letter-spacing: -0.01em;
+            margin: 0;
         }
 
         .badge {
@@ -379,7 +381,7 @@ export function getInspectorHtml(cli) {
         .dashboard-grid {
             flex: 1;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             align-content: start;
         }
@@ -395,7 +397,7 @@ export function getInspectorHtml(cli) {
             border-color: #3f3f46;
         }
 
-        .card h3 {
+        .card h2 {
             font-size: 1rem;
             font-weight: 600;
             margin-bottom: 1.25rem;
@@ -405,7 +407,7 @@ export function getInspectorHtml(cli) {
             align-items: center;
         }
 
-        .card h4 {
+        .card h3 {
             font-size: 0.9rem;
             font-weight: 600;
             margin-top: 1rem;
@@ -527,13 +529,33 @@ export function getInspectorHtml(cli) {
             border-top: 1px solid var(--card-border);
             margin: 1.25rem 0;
         }
+
+        @media (max-width: 768px) {
+            .app-header {
+            padding: 1rem;
+        }
+
+        .dashboard-main {
+            flex-direction: column;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .sidebar {
+            width: 100%;
+        }
+
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+}
     </style>
 </head>
 <body>
     <div class="dashboard-wrapper">
         <header class="app-header">
             <div class="brand">
-                <span class="title">Avenx Inspector</span>
+                <h1 class="title">Avenx Inspector</h1>
             </div>
             <div class="status-indicator">
                 <span class="badge" id="statusBadge">Connecting...</span>
@@ -543,37 +565,37 @@ export function getInspectorHtml(cli) {
         <main class="dashboard-main">
             <!-- Sidebar for Config Info -->
             <aside class="sidebar">
-                <div class="card config-card">
-                    <h3>Dev Server Config</h3>
+                <section class="card config-card" role="region" aria-labelledby="config-heading">
+                    <h2 id="config-heading">Dev Server Config</h2>
                     <div class="config-item"><strong>Port:</strong> <span id="confPort">-</span></div>
                     <div class="config-item"><strong>Host:</strong> <span id="confHost">-</span></div>
                     <div class="config-item"><strong>Src Dir:</strong> <span id="confSrc">-</span></div>
                     <div class="config-item"><strong>Dist Dir:</strong> <span id="confDist">-</span></div>
-                </div>
+                </section>
             </aside>
 
             <!-- Dashboard Grid Content -->
             <section class="dashboard-grid">
                 <!-- Routing Section -->
-                <div class="card grid-card routing-card">
-                    <h3>Active Routing Table</h3>
+                <section class="card grid-card routing-card" role="region" aria-labelledby="routing-heading">
+                    <h2 id="routing-heading">Active Routing Table</h2>
                     <div id="routingList" class="info-list"></div>
                     <hr />
-                    <h4>Current Route</h4>
+                    <h3>Current Route</h3>
                     <div id="currentRouteInfo" class="route-info">-</div>
-                </div>
+                </section>
 
                 <!-- Components Section -->
-                <div class="card grid-card components-card">
-                    <h3>Active Component Tree</h3>
+                <section class="card grid-card components-card" role="region" aria-labelledby="components-heading">
+                    <h2 id="components-heading">Registered Components</h2>
                     <div id="componentsList" class="info-list"></div>
-                </div>
+                </section>
 
                 <!-- Bridges Section -->
-                <div class="card grid-card bridges-card">
-                    <h3>Bridges & Reactive State</h3>
+                <section class="card grid-card bridges-card" role="region" aria-labelledby="bridges-heading">
+                    <h2 id="bridges-heading">Active Bridges</h2>
                     <div id="bridgesList" class="info-list"></div>
-                </div>
+                </section>
             </section>
         </main>
     </div>
@@ -902,8 +924,8 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
           const status = (trace.determinism && trace.determinism.status) || 'unknown';
           console.log(
             `\n${green(`📼 Recorded ${trace.id}`)} ${gray(`· ${nodes} nodes · ${status}`)}\n` +
-              `   ${cyan(`avenx trace view ${trace.id}`)}\n` +
-              `   ${cyan(`avenx trace export ${trace.id}`)}\n`,
+            `   ${cyan(`avenx trace view ${trace.id}`)}\n` +
+            `   ${cyan(`avenx trace export ${trace.id}`)}\n`,
           );
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true, id: trace.id, path: savedPath }));
@@ -994,10 +1016,10 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
     window.addEventListener('DOMContentLoaded', function () {
         if (window.Avenx && window.Avenx.installTraceRecorder) {
             window.Avenx.installTraceRecorder(${JSON.stringify({
-    endpoint: TRACE_ENDPOINT,
-    redact: (cli.config.trace && cli.config.trace.redact) || [],
-    maxNodes: (cli.config.trace && cli.config.trace.maxNodes) || undefined,
-  })});
+              endpoint: TRACE_ENDPOINT,
+              redact: (cli.config.trace && cli.config.trace.redact) || [],
+              maxNodes: (cli.config.trace && cli.config.trace.maxNodes) || undefined,
+            })});
         } else {
             console.warn('[Avenx] --trace is on but the runtime did not load; nothing is being recorded.');
         }
