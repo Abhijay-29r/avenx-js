@@ -259,7 +259,6 @@ export function getInitialHtml(cli) {
  * the data would terminate the script element early. The `<`/`>` escapes are
  * still valid JSON and parse back to the same characters; U+2028/U+2029 are
  * legal in JSON strings but illegal raw in a JS string literal or regex.
- *
  * @param {*} value
  * @returns {string} Escaped JSON safe for inline `<script>` embedding.
  */
@@ -1016,10 +1015,10 @@ export function serveProject(cli, port, host = 'localhost', open = false) {
     window.addEventListener('DOMContentLoaded', function () {
         if (window.Avenx && window.Avenx.installTraceRecorder) {
             window.Avenx.installTraceRecorder(${JSON.stringify({
-              endpoint: TRACE_ENDPOINT,
-              redact: (cli.config.trace && cli.config.trace.redact) || [],
-              maxNodes: (cli.config.trace && cli.config.trace.maxNodes) || undefined,
-            })});
+    endpoint: TRACE_ENDPOINT,
+    redact: (cli.config.trace && cli.config.trace.redact) || [],
+    maxNodes: (cli.config.trace && cli.config.trace.maxNodes) || undefined,
+  })});
         } else {
             console.warn('[Avenx] --trace is on but the runtime did not load; nothing is being recorded.');
         }

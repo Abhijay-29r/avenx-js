@@ -65,13 +65,13 @@ export async function initProject(cli, args = []) {
   console.log(bold(cyan(`🚀 Initializing new Avenx-JS project (Style: ${stylePreprocessor}, Layout: ${layoutTemplate})...`)));
 
   // Write avenx.config.json if preprocessor option is configured
-const configPath = path.join(cli.baseDir, 'avenx.config.json');
+  const configPath = path.join(cli.baseDir, 'avenx.config.json');
   let userConfig = {};
 
   if (fs.existsSync(configPath)) {
     try {
       userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch (e) {
+    } catch {
       userConfig = {};
     }
   }
