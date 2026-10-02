@@ -722,6 +722,11 @@ compresses best, so the gap on the wire is much narrower than on disk.
 | `--keep=<n>`, `--all` | `trace prune` | How much to remove. |
 | `--no-color` | all | Disable colour (`NO_COLOR` is honoured too). |
 | `--version`, `-v` | — | Print the version. |
+| `--layout <name>` | `init` | Project layout template (`blank`, `routing`). |
+| `--style <preprocessor>` | `init` | CSS preprocessor (`none`, `sass`, `less`, `postcss`). |
+| `--yes`, `-y` | `init` | Skip interactive prompts and use default values. |
+| `--dev` / `--prod` | `build` | Development build (readable runtime, inline CSS source maps) or production (the default). |
+| `--dry-run`, `-d` | `generate`, `destroy` | Preview without writing or deleting anything. |
 
 </details>
 

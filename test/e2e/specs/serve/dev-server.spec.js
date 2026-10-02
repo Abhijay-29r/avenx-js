@@ -316,7 +316,7 @@ test.describe('avenx serve development cycle', () => {
       ).toBeVisible();
 
       await expect(
-        inspector.getByText('Active Component Tree'),
+        inspector.getByRole('heading', { name: /component/i }),
       ).toBeVisible();
 
       await page.bringToFront();
