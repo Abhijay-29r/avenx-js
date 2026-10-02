@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'node:test';
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
 import { mountTestComponent, fireEvent } from 'avenx-core/testing';
 import {{PascalCaseName}} from './{{name}}.component.js';
 
@@ -9,21 +10,21 @@ describe('{{PascalCaseName}} Component', () => {
     });
 
     const title = find('h1');
-    expect(title.textContent).toContain('{{PascalCaseName}} Component');
+    assert.match(title.textContent, /{{PascalCaseName}} Component/);
 
     const text = find('p');
-    expect(text.textContent).toContain('Current count: 0');
+    assert.match(text.textContent, /Current count: 0/);
   });
 
   it('increments count on click', async () => {
-    const { find } = await mountTestComponent({{PascalCaseName}}, {
+    const { find, findAll } = await mountTestComponent({{PascalCaseName}}, {
       props: { name: '{{PascalCaseName}}' }
     });
 
-    const buttons = find('button', { all: true });
-    await fireEvent.click(buttons[0]);
+    const buttons = findAll('button');
+    await fireEvent(buttons[0], 'click');
 
     const text = find('p');
-    expect(text.textContent).toContain('Current count: 1');
+    assert.match(text.textContent, /Current count: 1/);
   });
 });
