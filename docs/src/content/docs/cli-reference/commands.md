@@ -177,6 +177,8 @@ When invoked in an interactive terminal, `avenx init` launches an interactive se
 
 | Flag / Option | Alias | Description |
 | :--- | :--- | :--- |
+| `--layout <name>` | | Specifies the starter project template layout (`blank` or `routing`). Default is `blank`. |
+| `--style <preprocessor>` | | Configures the CSS preprocessor in `avenx.config.json` (`none`, `sass`, `less`, or `postcss`). Default is `none`. |
 | `-y`, `--yes` | | Bypasses interactive wizard prompts in TTY terminals and uses default choices (`none` preprocessor, `blank` layout). Recommended for CI/CD and automated scaffolding scripts. |
 | `-i`, `--interactive` | | Forces interactive wizard prompts to run, even in non-TTY or piped terminal environments. |
 | `-f`, `--force` | | Overwrites existing files or bypasses uncommitted Git working tree status checks. |
