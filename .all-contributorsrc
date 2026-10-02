@@ -1090,6 +1090,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "AtharvRG",
+      "name": "Atharv R Gachchi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/188656442?v=4",
+      "profile": "http://atharv.is-a-good.dev",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
