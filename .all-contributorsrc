@@ -1198,6 +1198,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "sricharanreddycheruku",
+      "name": "Cheruku Sri Charan Reddy ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/185475071?v=4",
+      "profile": "https://github.com/sricharanreddycheruku",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "commitType": "docs",
