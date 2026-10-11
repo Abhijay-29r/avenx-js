@@ -4076,6 +4076,19 @@ Call `replay(trace, { mount: () => { /* mount app and return context */ } })`.
 
 ---
 
+### AVX_W61: Compiler unknown event modifier
+
+An event attribute contains a modifier the framework does not recognise. The
+handler still runs, but the unknown modifier has no effect. For example,
+`@click.prevnt="save()"` does not prevent the browser's default action.
+
+Correct the modifier to `@click.prevent="save()"`, or remove the unknown name.
+The warning suggests a nearby supported name when possible. Each modifier in a
+chain is checked independently, so `@touchstart.passive.capture` is accepted.
+
+Run `avenx explain AVX_W61` for details. To suppress this warning intentionally,
+set `"warnings": { "AVX_W61": "off" }` in `avenx.config.json`.
+
 ### AVX_R29 — TRANSACTION_REWIND_FAILED
 
 **Error Message**
