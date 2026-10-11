@@ -5,14 +5,16 @@ import StyleProcessor from '../../lib/compiler/StyleProcessor.js';
 /**
  * Captures modifier diagnostics for a template.
  * @param {string} template - Authored template.
+ * @param {object} [config] - Compiler warning settings.
  * @returns {string[]} Reported warnings.
  */
-function warningsFor(template) {
+function warningsFor(template, config = {}) {
   const warnings = [];
   const warn = console.warn;
   console.warn = (message) => warnings.push(String(message));
   try {
     const parser = new ComponentParser(new StyleProcessor());
+    parser.config = config;
     parser.extractTemplate(template, {}, 'Example', 'example.component.js', {}, {}, { bump: '' });
   } finally {
     console.warn = warn;
@@ -59,4 +61,9 @@ for (const modifier of [
 }
 assert.deepStrictEqual(warningsFor('<button @touchstart.passive.capture="bump()">Go</button>'), []);
 assert.deepStrictEqual(warningsFor('<button @click="bump()">Go</button>'), []);
+assert.deepStrictEqual(warningsFor('<button @click.prevnt="bump()">Go</button>', { warnings: { AVX_W61: 'off' } }), []);
+assert.throws(
+  () => warningsFor('<button @click.prevnt="bump()">Go</button>', { warnings: { AVX_W61: 'error' } }),
+  /AVX_W61/,
+);
 console.log('Unknown event modifier diagnostics passed.');
